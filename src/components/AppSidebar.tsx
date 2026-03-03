@@ -1,0 +1,83 @@
+import { NavLink } from "react-router-dom";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
+import { supabase } from "@/integrations/supabase/client";
+
+const navItems = [
+  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/feeds", icon: Rss, label: "Feed Sources" },
+  { to: "/sources", icon: Globe, label: "By Website" },
+  { to: "/alerts", icon: AlertTriangle, label: "Alert Monitor" },
+  { to: "/ransomlook", icon: Eye, label: "RansomLook" },
+  { to: "/settings", icon: Settings, label: "Settings" },
+];
+
+export function AppSidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const [logoUrl, setLogoUrl] = useState("");
+
+  useEffect(() => {
+    supabase.from("app_settings").select("value").eq("key", "general").single().then(({ data }) => {
+      if (data?.value && (data.value as any).logoUrl) {
+        setLogoUrl((data.value as any).logoUrl);
+      }
+    });
+  }, []);
+
+  return (
+    <aside className={cn(
+      "flex flex-col border-r border-border bg-sidebar transition-all duration-300 h-screen sticky top-0",
+      collapsed ? "w-16" : "w-60"
+    )}>
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
+        {logoUrl ? (
+          <img src={logoUrl} alt="Logo" className="h-7 w-7 shrink-0 rounded object-contain" />
+        ) : (
+          <Shield className="h-7 w-7 text-primary shrink-0" />
+        )}
+        {!collapsed && (
+          <span className="text-lg font-bold text-foreground tracking-tight font-mono">ThreatIntel</span>
+        )}
+      </div>
+
+      <nav className="flex-1 py-4 space-y-1 px-2">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === "/"}
+            className={({ isActive }) => cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              isActive
+                ? "bg-primary/10 text-primary"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <item.icon className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>{item.label}</span>}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="border-t border-border">
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-3 w-full px-5 py-3 text-muted-foreground hover:text-foreground transition-colors"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+          {!collapsed && <span className="text-sm">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+        </button>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center justify-center w-full py-3 border-t border-border text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </button>
+      </div>
+    </aside>
+  );
+}
