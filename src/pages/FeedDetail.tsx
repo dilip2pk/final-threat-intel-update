@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,18 +122,30 @@ export default function FeedDetail() {
   const handleSendEmail = async () => {
     if (!analysis || !emailTo.trim()) return;
     setSending(true);
+    const recipients = emailTo.split(",").map((e) => e.trim());
     try {
       const settings = loadSettings();
       const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis);
       await sendAnalysisEmail({
-        to: emailTo.split(",").map((e) => e.trim()),
+        to: recipients,
         subject: emailSubject,
         body: html,
         smtpConfig: settings.smtp,
       });
+      // Log to email_log
+      await supabase.from("email_log").insert({
+        recipients, subject: emailSubject, body: html,
+        related_feed_id: id, related_feed_title: feedItem.title, status: "sent",
+      });
       toast({ title: "Email Sent", description: "Analysis report sent successfully" });
       setEmailDialogOpen(false);
     } catch (e: any) {
+      // Log failed email
+      await supabase.from("email_log").insert({
+        recipients, subject: emailSubject,
+        related_feed_id: id, related_feed_title: feedItem.title,
+        status: "failed", error_message: e.message,
+      });
       toast({ title: "Email Failed", description: e.message, variant: "destructive" });
     } finally {
       setSending(false);
@@ -165,6 +178,18 @@ export default function FeedDetail() {
           workNotes: ticketWorkNotes,
         },
         serviceNowConfig: settings.serviceNow,
+      });
+      // Log to ticket_log
+      const priorityMap: Record<string, string> = { "1": "Critical", "2": "High", "3": "Medium", "4": "Low" };
+      await supabase.from("ticket_log").insert({
+        ticket_number: result.ticketNumber || "N/A",
+        title: ticketTitle,
+        description: desc,
+        status: "Open",
+        priority: priorityMap[ticketImpact] || "Medium",
+        related_feed_id: id,
+        related_feed_title: feedItem.title,
+        category: "Security",
       });
       toast({ title: "Ticket Created", description: result.message });
       setTicketDialogOpen(false);

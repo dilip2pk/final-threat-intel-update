@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
@@ -10,7 +10,10 @@ const navItems = [
   { to: "/feeds", icon: Rss, label: "Feed Sources" },
   { to: "/sources", icon: Globe, label: "By Website" },
   { to: "/alerts", icon: AlertTriangle, label: "Alert Monitor" },
+  { to: "/activity", icon: ClipboardList, label: "Activity Log" },
   { to: "/ransomlook", icon: Eye, label: "RansomLook" },
+  { to: "/shodan", icon: Radar, label: "Shodan" },
+  { to: "/software-inventory", icon: Monitor, label: "Software Inv." },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 

@@ -160,6 +160,8 @@ export default function SettingsPage() {
             <TabsTrigger value="ai">AI Integration</TabsTrigger>
             <TabsTrigger value="email">Email (SMTP)</TabsTrigger>
             <TabsTrigger value="servicenow">ServiceDesk</TabsTrigger>
+            <TabsTrigger value="shodan">Shodan</TabsTrigger>
+            <TabsTrigger value="defender">Defender</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="template">Alert Template</TabsTrigger>
           </TabsList>
@@ -393,6 +395,44 @@ export default function SettingsPage() {
                     <Input value={settings.serviceNow.fieldMapping[field]} onChange={(e) => updateFieldMapping(field, e.target.value)} className="mt-1 font-mono" />
                   </div>
                 ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Shodan Tab */}
+          <TabsContent value="shodan" className="space-y-6">
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Globe className="h-4 w-4 text-primary" /> Shodan API Configuration
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Get your API key from <a href="https://account.shodan.io" target="_blank" rel="noopener noreferrer" className="text-primary underline">account.shodan.io</a>.
+                The key is stored securely as a backend secret.
+              </p>
+              <div className="p-3 rounded-md bg-muted/30 border border-border text-xs text-muted-foreground">
+                <p>API key must be configured as a backend secret named <code className="font-mono text-primary">SHODAN_API_KEY</code>.</p>
+                <p className="mt-1">Contact your administrator to configure this secret.</p>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Defender Tab */}
+          <TabsContent value="defender" className="space-y-6">
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" /> Microsoft Defender Configuration
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Requires Azure AD App Registration with Microsoft Defender for Endpoint permissions.
+              </p>
+              <div className="p-3 rounded-md bg-muted/30 border border-border text-xs text-muted-foreground space-y-1">
+                <p>The following backend secrets must be configured:</p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li><code className="font-mono text-primary">DEFENDER_TENANT_ID</code> — Azure AD tenant ID</li>
+                  <li><code className="font-mono text-primary">DEFENDER_CLIENT_ID</code> — Application (client) ID</li>
+                  <li><code className="font-mono text-primary">DEFENDER_CLIENT_SECRET</code> — Client secret value</li>
+                </ul>
+                <p className="mt-1">Contact your administrator to configure these secrets.</p>
               </div>
             </div>
           </TabsContent>
