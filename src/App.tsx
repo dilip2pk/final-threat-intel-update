@@ -11,6 +11,9 @@ import SettingsPage from "./pages/SettingsPage";
 import SourcesView from "./pages/SourcesView";
 import RansomLook from "./pages/RansomLook";
 import GroupDashboard from "./pages/GroupDashboard";
+import ActivityLog from "./pages/ActivityLog";
+import ShodanSearch from "./pages/ShodanSearch";
+import SoftwareInventory from "./pages/SoftwareInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +32,9 @@ const App = () => (
           <Route path="/alerts" element={<AlertMonitoring />} />
           <Route path="/ransomlook" element={<RansomLook />} />
           <Route path="/group/:groupName" element={<GroupDashboard />} />
+          <Route path="/activity" element={<ActivityLog />} />
+          <Route path="/shodan" element={<ShodanSearch />} />
+          <Route path="/software-inventory" element={<SoftwareInventory />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

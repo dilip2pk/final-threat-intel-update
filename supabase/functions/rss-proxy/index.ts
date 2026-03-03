@@ -79,6 +79,34 @@ serve(async (req) => {
     const url = new URL(req.url);
     const feedId = url.searchParams.get("feed");
     const fetchAll = url.searchParams.get("all") === "true";
+    const testUrl = url.searchParams.get("testUrl");
+
+    // Test a custom feed URL
+    if (testUrl) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(testUrl, {
+          headers: { "User-Agent": "ThreatFeed/1.0", "Accept": "application/rss+xml, application/xml, text/xml, */*" },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: `HTTP ${res.status}` }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const xml = await res.text();
+        const items = parseRSSItems(xml);
+        return new Response(JSON.stringify({ count: items.length, items: items.slice(0, 5) }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     if (fetchAll) {
       // Fetch all feeds in parallel
