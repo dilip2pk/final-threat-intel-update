@@ -1,1 +1,10 @@
 project_id = "olqsevymcwokwnfbswxh"
+
+[functions.port-scan]
+verify_jwt = false
+
+[functions.analyze-scan]
+verify_jwt = false
+
+[functions.generate-scan-report]
+verify_jwt = false

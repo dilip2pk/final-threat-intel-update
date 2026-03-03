@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor } from "lucide-react";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
@@ -14,6 +14,7 @@ const navItems = [
   { to: "/ransomlook", icon: Eye, label: "RansomLook" },
   { to: "/shodan", icon: Radar, label: "Shodan" },
   { to: "/software-inventory", icon: Monitor, label: "Software Inv." },
+  { to: "/scanner", icon: Crosshair, label: "Network Scan" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
