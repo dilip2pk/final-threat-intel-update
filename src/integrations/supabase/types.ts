@@ -176,6 +176,176 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_results: {
+        Row: {
+          created_at: string
+          host: string
+          host_status: string | null
+          id: string
+          os_detection: string | null
+          ports: Json | null
+          raw_output: string | null
+          scan_id: string
+          vulnerabilities: Json | null
+        }
+        Insert: {
+          created_at?: string
+          host: string
+          host_status?: string | null
+          id?: string
+          os_detection?: string | null
+          ports?: Json | null
+          raw_output?: string | null
+          scan_id: string
+          vulnerabilities?: Json | null
+        }
+        Update: {
+          created_at?: string
+          host?: string
+          host_status?: string | null
+          id?: string
+          os_detection?: string | null
+          ports?: Json | null
+          raw_output?: string | null
+          scan_id?: string
+          vulnerabilities?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_results_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scan_schedules: {
+        Row: {
+          active: boolean | null
+          auto_ai_analysis: boolean | null
+          auto_ticket: boolean | null
+          created_at: string
+          cron_expression: string | null
+          custom_options: string | null
+          enable_scripts: boolean | null
+          frequency: string
+          id: string
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          notify_email: boolean | null
+          ports: string | null
+          scan_type: string
+          target: string
+          target_type: string
+          timing_template: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          auto_ai_analysis?: boolean | null
+          auto_ticket?: boolean | null
+          created_at?: string
+          cron_expression?: string | null
+          custom_options?: string | null
+          enable_scripts?: boolean | null
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          notify_email?: boolean | null
+          ports?: string | null
+          scan_type?: string
+          target: string
+          target_type?: string
+          timing_template?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          auto_ai_analysis?: boolean | null
+          auto_ticket?: boolean | null
+          created_at?: string
+          cron_expression?: string | null
+          custom_options?: string | null
+          enable_scripts?: boolean | null
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          notify_email?: boolean | null
+          ports?: string | null
+          scan_type?: string
+          target?: string
+          target_type?: string
+          timing_template?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scans: {
+        Row: {
+          ai_analysis: Json | null
+          completed_at: string | null
+          created_at: string
+          custom_options: string | null
+          enable_scripts: boolean | null
+          error_message: string | null
+          id: string
+          initiated_by: string | null
+          ports: string | null
+          result_summary: Json | null
+          scan_type: string
+          started_at: string | null
+          status: string
+          target: string
+          target_type: string
+          timing_template: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          custom_options?: string | null
+          enable_scripts?: boolean | null
+          error_message?: string | null
+          id?: string
+          initiated_by?: string | null
+          ports?: string | null
+          result_summary?: Json | null
+          scan_type?: string
+          started_at?: string | null
+          status?: string
+          target: string
+          target_type?: string
+          timing_template?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          custom_options?: string | null
+          enable_scripts?: boolean | null
+          error_message?: string | null
+          id?: string
+          initiated_by?: string | null
+          ports?: string | null
+          result_summary?: Json | null
+          scan_type?: string
+          started_at?: string | null
+          status?: string
+          target?: string
+          target_type?: string
+          timing_template?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shodan_queries: {
         Row: {
           created_at: string

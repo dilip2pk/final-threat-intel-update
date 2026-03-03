@@ -14,6 +14,7 @@ import GroupDashboard from "./pages/GroupDashboard";
 import ActivityLog from "./pages/ActivityLog";
 import ShodanSearch from "./pages/ShodanSearch";
 import SoftwareInventory from "./pages/SoftwareInventory";
+import NetworkScanner from "./pages/NetworkScanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/activity" element={<ActivityLog />} />
           <Route path="/shodan" element={<ShodanSearch />} />
           <Route path="/software-inventory" element={<SoftwareInventory />} />
+          <Route path="/scanner" element={<NetworkScanner />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
