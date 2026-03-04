@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { mockFeedItems, getSeverityBg, formatDate, type Severity } from "@/lib/mockData";
+import { getSeverityBg, formatDate, type Severity } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,30 +8,49 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2 } from "lucide-react";
+import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAlertRules } from "@/hooks/useSettings";
+import { useRSSFeeds, type RSSFeedItem } from "@/hooks/useRSSFeeds";
+import { useFeedSources } from "@/hooks/useFeedSources";
 
 export default function AlertMonitoring() {
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
+  const { fetchAllFeeds } = useRSSFeeds();
+  const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", keywords: "", severityThreshold: "high" as Severity, urlPattern: "", active: true });
-  const [scanResults, setScanResults] = useState<typeof mockFeedItems | null>(null);
+  const [scanResults, setScanResults] = useState<RSSFeedItem[] | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const scanToday = () => {
-    const today = new Date().toDateString();
-    const todayFeeds = mockFeedItems.filter(f => new Date(f.publishedDate).toDateString() === today);
-    const matched = todayFeeds.filter(feed => {
-      return rules.some(rule => {
-        if (!rule.active) return false;
-        return rule.keywords.some(kw => feed.title.toLowerCase().includes(kw.toLowerCase()) || feed.description.toLowerCase().includes(kw.toLowerCase()));
+  const hasConfiguredSources = configuredSources.length > 0;
+
+  const scanToday = async () => {
+    if (!hasConfiguredSources) {
+      toast({ title: "No Feed Sources", description: "Please configure feed sources first.", variant: "destructive" });
+      return;
+    }
+    setScanning(true);
+    try {
+      const { items } = await fetchAllFeeds();
+      const today = new Date().toDateString();
+      const todayFeeds = items.filter(f => f.pubDate && new Date(f.pubDate).toDateString() === today);
+      const matched = todayFeeds.filter(feed => {
+        return rules.some(rule => {
+          if (!rule.active) return false;
+          return rule.keywords.some(kw => feed.title.toLowerCase().includes(kw.toLowerCase()) || feed.description.toLowerCase().includes(kw.toLowerCase()));
+        });
       });
-    });
-    setScanResults(matched);
-    toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds` });
+      setScanResults(matched);
+      toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds` });
+    } catch (e: any) {
+      toast({ title: "Scan Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
   };
 
   const save = async () => {
@@ -70,7 +89,7 @@ export default function AlertMonitoring() {
     await updateRule(id, { active });
   };
 
-  if (loading) {
+  if (loading || sourcesLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh] gap-3">
@@ -87,17 +106,24 @@ export default function AlertMonitoring() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Alert Monitoring</h1>
-            <p className="text-sm text-muted-foreground mt-1">Configure rules and scan today's feeds for threats — rules persist across sessions</p>
+            <p className="text-sm text-muted-foreground mt-1">Configure rules and scan live feeds for threats — rules persist across sessions</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={scanToday} variant="outline" size="sm" className="gap-2">
-              <Zap className="h-4 w-4" /> Scan Today
+            <Button onClick={scanToday} variant="outline" size="sm" className="gap-2" disabled={scanning || !hasConfiguredSources}>
+              {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Scan Today
             </Button>
             <Button onClick={openNew} size="sm" className="gap-2">
               <Plus className="h-4 w-4" /> Add Rule
             </Button>
           </div>
         </div>
+
+        {!hasConfiguredSources && (
+          <div className="flex items-center gap-2 text-xs text-severity-medium p-3 rounded bg-severity-medium/10 border border-severity-medium/20">
+            <Rss className="h-3.5 w-3.5" />
+            No feed sources configured. Add feeds in Feed Sources to enable live scanning.
+          </div>
+        )}
 
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Alert Rules ({rules.length})</h2>
@@ -140,13 +166,12 @@ export default function AlertMonitoring() {
             {scanResults.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No matches found in today's feeds</p>
             ) : (
-              scanResults.map(item => (
-                <div key={item.id} className="border border-severity-medium/30 rounded-lg bg-card p-3">
+              scanResults.map((item, idx) => (
+                <div key={`${item.id}-${idx}`} className="border border-severity-medium/30 rounded-lg bg-card p-3">
                   <div className="flex items-start gap-2">
-                    {item.severity && <Badge variant="outline" className={`${getSeverityBg(item.severity)} text-[10px] uppercase font-mono shrink-0`}>{item.severity}</Badge>}
                     <div>
                       <p className="text-sm font-medium text-foreground">{item.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.sourceName} • {formatDate(item.publishedDate)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.feedName} • {item.pubDate ? new Date(item.pubDate).toLocaleDateString() : "—"}</p>
                     </div>
                   </div>
                 </div>

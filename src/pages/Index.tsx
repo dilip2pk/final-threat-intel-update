@@ -3,14 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFeedSources } from "@/hooks/useFeedSources";
 import { useRSSFeeds, type RSSFeedItem, type RSSSource } from "@/hooks/useRSSFeeds";
-import { Search, Shield, AlertTriangle, Rss, Activity, Loader2, Clock, ExternalLink, ShieldAlert, Brain } from "lucide-react";
+import { Search, Shield, AlertTriangle, Rss, Activity, Loader2, Clock, Brain, ShieldAlert, Plus } from "lucide-react";
 
 const ITEMS_PER_PAGE = 9;
 
 const Index = () => {
   const navigate = useNavigate();
+  const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const { loading, error, fetchAllFeeds } = useRSSFeeds();
   const [sources, setSources] = useState<RSSSource[]>([]);
   const [items, setItems] = useState<RSSFeedItem[]>([]);
@@ -19,13 +22,20 @@ const Index = () => {
   const [page, setPage] = useState(1);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
+  const hasConfiguredSources = configuredSources.length > 0;
+
   useEffect(() => {
+    if (sourcesLoading) return;
+    if (!hasConfiguredSources) {
+      setInitialLoaded(true);
+      return;
+    }
     fetchAllFeeds().then(({ sources: s, items: i }) => {
       setSources(s);
       setItems(i);
       setInitialLoaded(true);
     });
-  }, [fetchAllFeeds]);
+  }, [fetchAllFeeds, sourcesLoading, hasConfiguredSources]);
 
   // Separate CVE items from regular feed items
   const cveItems = useMemo(() => {
@@ -87,7 +97,33 @@ const Index = () => {
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh] gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <span className="text-muted-foreground">Loading live threat feeds...</span>
+          <span className="text-muted-foreground">Loading threat feeds...</span>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Empty state when no feed sources are configured
+  if (!hasConfiguredSources) {
+    return (
+      <AppLayout>
+        <div className="p-6 space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Threat Intelligence Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Live security feeds from trusted sources</p>
+          </div>
+          <div className="flex flex-col items-center justify-center py-20 space-y-4 border border-dashed border-border rounded-lg bg-card/50">
+            <Rss className="h-16 w-16 text-muted-foreground/20" />
+            <div className="text-center space-y-2">
+              <h2 className="text-lg font-semibold text-foreground">No Feed Sources Configured</h2>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Add RSS feed sources to start ingesting threat intelligence data. The dashboard will display live data from your configured sources.
+              </p>
+            </div>
+            <Button onClick={() => navigate("/feeds")} className="gap-2 mt-2">
+              <Plus className="h-4 w-4" /> Configure Feed Sources
+            </Button>
+          </div>
         </div>
       </AppLayout>
     );

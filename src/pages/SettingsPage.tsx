@@ -26,12 +26,33 @@ export default function SettingsPage() {
   const [showSnowPass, setShowSnowPass] = useState(false);
   const [showAIKey, setShowAIKey] = useState(false);
   const [showSnowKey, setShowSnowKey] = useState(false);
+  const [showShodanKey, setShowShodanKey] = useState(false);
+  const [showDefenderSecret, setShowDefenderSecret] = useState(false);
   const [testingAI, setTestingAI] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testingSN, setTestingSN] = useState(false);
   const [snTestResult, setSnTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testingShodan, setTestingShodan] = useState(false);
+  const [shodanTestResult, setShodanTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testingDefender, setTestingDefender] = useState(false);
+  const [defenderTestResult, setDefenderTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Integration-specific settings stored in the integrations key
+  const shodanApiKey = (settings as any).shodan?.apiKey || "";
+  const shodanEnabled = (settings as any).shodan?.enabled ?? false;
+  const defenderTenantId = (settings as any).defender?.tenantId || "";
+  const defenderClientId = (settings as any).defender?.clientId || "";
+  const defenderClientSecret = (settings as any).defender?.clientSecret || "";
+  const defenderEnabled = (settings as any).defender?.enabled ?? false;
+
+  const updateShodan = (field: string, value: any) => {
+    setSettings((s: any) => ({ ...s, shodan: { ...s.shodan, [field]: value } }));
+  };
+  const updateDefender = (field: string, value: any) => {
+    setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
+  };
 
   const updateSmtp = (field: string, value: string) => {
     setSettings((s) => ({ ...s, smtp: { ...s.smtp, [field]: value } }));
@@ -87,6 +108,48 @@ export default function SettingsPage() {
     }
   };
 
+  const handleTestShodan = async () => {
+    if (!shodanApiKey) {
+      setShodanTestResult({ success: false, message: "API key is required" });
+      return;
+    }
+    setTestingShodan(true);
+    setShodanTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("shodan-proxy", {
+        body: { query: "test", type: "info", apiKey: shodanApiKey },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success === false) throw new Error(data?.error || "Connection failed");
+      setShodanTestResult({ success: true, message: "Shodan API connection successful" });
+    } catch (e: any) {
+      setShodanTestResult({ success: false, message: e.message });
+    } finally {
+      setTestingShodan(false);
+    }
+  };
+
+  const handleTestDefender = async () => {
+    if (!defenderTenantId || !defenderClientId || !defenderClientSecret) {
+      setDefenderTestResult({ success: false, message: "All fields are required" });
+      return;
+    }
+    setTestingDefender(true);
+    setDefenderTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("defender-proxy", {
+        body: { action: "test", tenantId: defenderTenantId, clientId: defenderClientId, clientSecret: defenderClientSecret },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success === false) throw new Error(data?.error || "Connection failed");
+      setDefenderTestResult({ success: true, message: "Microsoft Defender connection successful" });
+    } catch (e: any) {
+      setDefenderTestResult({ success: false, message: e.message });
+    } finally {
+      setTestingDefender(false);
+    }
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -94,7 +157,6 @@ export default function SettingsPage() {
     try {
       const ext = file.name.split(".").pop();
       const path = `logo.${ext}`;
-      // Remove old logo first
       await supabase.storage.from("org-assets").remove(["logo.png", "logo.jpg", "logo.jpeg", "logo.svg", "logo.webp"]);
       const { error } = await supabase.storage.from("org-assets").upload(path, file, { upsert: true });
       if (error) throw error;
@@ -402,38 +464,88 @@ export default function SettingsPage() {
           {/* Shodan Tab */}
           <TabsContent value="shodan" className="space-y-6">
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Globe className="h-4 w-4 text-primary" /> Shodan API Configuration
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" /> Shodan API Configuration
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground">Enabled</Label>
+                  <Switch checked={shodanEnabled} onCheckedChange={v => updateShodan("enabled", v)} />
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Get your API key from <a href="https://account.shodan.io" target="_blank" rel="noopener noreferrer" className="text-primary underline">account.shodan.io</a>.
-                The key is stored securely as a backend secret.
               </p>
-              <div className="p-3 rounded-md bg-muted/30 border border-border text-xs text-muted-foreground">
-                <p>API key must be configured as a backend secret named <code className="font-mono text-primary">SHODAN_API_KEY</code>.</p>
-                <p className="mt-1">Contact your administrator to configure this secret.</p>
+              <div>
+                <Label>API Key</Label>
+                <div className="relative mt-1">
+                  <Input
+                    type={showShodanKey ? "text" : "password"}
+                    value={shodanApiKey}
+                    onChange={(e) => updateShodan("apiKey", e.target.value)}
+                    placeholder="Enter your Shodan API key"
+                    className="font-mono"
+                  />
+                  <button type="button" onClick={() => setShowShodanKey(!showShodanKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showShodanKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {shodanApiKey && !showShodanKey && <p className="text-xs text-muted-foreground mt-1 font-mono">{maskSecret(shodanApiKey)}</p>}
               </div>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={handleTestShodan} disabled={testingShodan || !shodanApiKey} className="gap-2">
+                  {testingShodan ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
+                </Button>
+              </div>
+              <TestResultBadge result={shodanTestResult} />
             </div>
           </TabsContent>
 
           {/* Defender Tab */}
           <TabsContent value="defender" className="space-y-6">
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" /> Microsoft Defender Configuration
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" /> Microsoft Defender Configuration
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground">Enabled</Label>
+                  <Switch checked={defenderEnabled} onCheckedChange={v => updateDefender("enabled", v)} />
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Requires Azure AD App Registration with Microsoft Defender for Endpoint permissions.
               </p>
-              <div className="p-3 rounded-md bg-muted/30 border border-border text-xs text-muted-foreground space-y-1">
-                <p>The following backend secrets must be configured:</p>
-                <ul className="list-disc list-inside ml-2 space-y-0.5">
-                  <li><code className="font-mono text-primary">DEFENDER_TENANT_ID</code> — Azure AD tenant ID</li>
-                  <li><code className="font-mono text-primary">DEFENDER_CLIENT_ID</code> — Application (client) ID</li>
-                  <li><code className="font-mono text-primary">DEFENDER_CLIENT_SECRET</code> — Client secret value</li>
-                </ul>
-                <p className="mt-1">Contact your administrator to configure these secrets.</p>
+              <div>
+                <Label>Tenant ID</Label>
+                <Input value={defenderTenantId} onChange={(e) => updateDefender("tenantId", e.target.value)} className="mt-1 font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
               </div>
+              <div>
+                <Label>Client ID (Application ID)</Label>
+                <Input value={defenderClientId} onChange={(e) => updateDefender("clientId", e.target.value)} className="mt-1 font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+              </div>
+              <div>
+                <Label>Client Secret</Label>
+                <div className="relative mt-1">
+                  <Input
+                    type={showDefenderSecret ? "text" : "password"}
+                    value={defenderClientSecret}
+                    onChange={(e) => updateDefender("clientSecret", e.target.value)}
+                    placeholder="Client secret value"
+                    className="font-mono"
+                  />
+                  <button type="button" onClick={() => setShowDefenderSecret(!showDefenderSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showDefenderSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {defenderClientSecret && !showDefenderSecret && <p className="text-xs text-muted-foreground mt-1 font-mono">{maskSecret(defenderClientSecret)}</p>}
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={handleTestDefender} disabled={testingDefender || !defenderTenantId || !defenderClientId || !defenderClientSecret} className="gap-2">
+                  {testingDefender ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
+                </Button>
+              </div>
+              <TestResultBadge result={defenderTestResult} />
             </div>
           </TabsContent>
 
