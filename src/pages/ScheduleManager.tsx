@@ -21,7 +21,6 @@ import { supabase } from "@/integrations/supabase/client";
 const JOB_TYPES = [
   { value: "shodan_scan", label: "Shodan Scan", icon: Radar, desc: "Run Shodan search queries automatically" },
   { value: "network_scan", label: "Network Scan", icon: Crosshair, desc: "Automated port scanning" },
-  { value: "report_generation", label: "Report Generation", icon: FileText, desc: "Generate reports on schedule" },
 ];
 
 const FREQUENCIES = [
@@ -48,25 +47,6 @@ function jobTypeIcon(type: string) {
   return <Icon className="h-4 w-4" />;
 }
 
-interface GeneratedReport {
-  id: string;
-  scan_id: string | null;
-  name: string;
-  format: string;
-  report_html: string | null;
-  scan_target: string | null;
-  scan_type: string | null;
-  created_at: string;
-}
-
-interface ScanOption {
-  id: string;
-  target: string;
-  scan_type: string;
-  status: string;
-  created_at: string;
-}
-
 export default function ScheduleManager() {
   const { jobs, loading, addJob, deleteJob, toggleJob, runJobNow, updateJob } = useScheduledJobs();
   const { isAdmin, role, loading: authLoading } = useAuth();
@@ -75,13 +55,6 @@ export default function ScheduleManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
-
-  // Available scans for dropdown
-  const [availableScans, setAvailableScans] = useState<ScanOption[]>([]);
-  // Generated reports
-  const [reports, setReports] = useState<GeneratedReport[]>([]);
-  const [reportsLoading, setReportsLoading] = useState(true);
-  const [previewReport, setPreviewReport] = useState<GeneratedReport | null>(null);
 
   // Form state
   const [jobName, setJobName] = useState("");
