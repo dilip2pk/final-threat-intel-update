@@ -8,13 +8,15 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss } from "lucide-react";
+import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAlertRules } from "@/hooks/useSettings";
 import { useRSSFeeds, type RSSFeedItem } from "@/hooks/useRSSFeeds";
 import { useFeedSources } from "@/hooks/useFeedSources";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AlertMonitoring() {
+  const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
   const { fetchAllFeeds } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
