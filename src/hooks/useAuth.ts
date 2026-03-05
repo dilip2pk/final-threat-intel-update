@@ -4,13 +4,21 @@ import type { User, Session } from "@supabase/supabase-js";
 
 export type AppRole = "admin" | "user";
 
+/**
+ * Fetches the role for a given user from the user_roles table.
+ * Returns "user" as default if no role is found.
+ */
 async function fetchRole(userId: string): Promise<AppRole> {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .single();
-  return (data?.role as AppRole) || "user";
+  try {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .single();
+    return (data?.role as AppRole) || "user";
+  } catch {
+    return "user";
+  }
 }
 
 export function useAuth() {
@@ -18,52 +26,63 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
-  const initialSessionHandled = useRef(false);
+  const roleCache = useRef<Map<string, AppRole>>(new Map());
 
   useEffect(() => {
     let mounted = true;
 
-    // 1. Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    async function handleSession(newSession: Session | null) {
       if (!mounted) return;
-      initialSessionHandled.current = true;
 
-      if (session?.user) {
-        const userRole = await fetchRole(session.user.id);
+      if (newSession?.user) {
+        const userId = newSession.user.id;
+
+        // Use cached role if available to prevent flash
+        const cached = roleCache.current.get(userId);
+        if (cached) {
+          setRole(cached);
+          setSession(newSession);
+          setUser(newSession.user);
+          setLoading(false);
+        }
+
+        // Always fetch fresh role from DB
+        const freshRole = await fetchRole(userId);
         if (!mounted) return;
-        setRole(userRole);
-        setSession(session);
-        setUser(session.user);
+
+        roleCache.current.set(userId, freshRole);
+        setRole(freshRole);
+        setSession(newSession);
+        setUser(newSession.user);
       } else {
         setRole(null);
         setSession(null);
         setUser(null);
       }
       setLoading(false);
+    }
+
+    // 1. Get initial session first
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      handleSession(initialSession);
     });
 
-    // 2. Listen for auth changes (skip INITIAL_SESSION to avoid race)
+    // 2. Listen for subsequent auth changes only (skip INITIAL_SESSION)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      // Skip INITIAL_SESSION — already handled by getSession above
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (event === "INITIAL_SESSION") return;
 
-      if (session?.user) {
+      // Set loading immediately on sign-in to prevent any role flash
+      if (newSession?.user) {
         setLoading(true);
-        const userRole = await fetchRole(session.user.id);
-        if (!mounted) return;
-        setRole(userRole);
-        setSession(session);
-        setUser(session.user);
-      } else {
-        setRole(null);
-        setSession(null);
-        setUser(null);
       }
-      setLoading(false);
+
+      // Use setTimeout to avoid blocking the auth state change callback
+      // This prevents potential deadlocks per Supabase best practices
+      setTimeout(() => {
+        handleSession(newSession);
+      }, 0);
     });
 
     return () => {
@@ -73,6 +92,7 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
+    roleCache.current.clear();
     await supabase.auth.signOut();
     setRole(null);
   }, []);

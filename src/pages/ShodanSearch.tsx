@@ -10,11 +10,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, Loader2, Globe, Shield, Plus, Star, Trash2, Download, AlertTriangle,
-  Server, Lock, Wifi, Eye, Settings2, FileText, FileDown,
+  Server, Lock, Wifi, Eye, Settings2, FileText, FileDown, Calendar,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/useSettings";
+import { useAuth } from "@/hooks/useAuth";
+import { useScheduledJobs } from "@/hooks/useScheduledJobs";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ShodanResult {
@@ -65,8 +67,16 @@ export default function ShodanSearch() {
   const [isDork, setIsDork] = useState(false);
   const { toast } = useToast();
   const { settings } = useSettings();
+  const { isAdmin } = useAuth();
+  const { addJob } = useScheduledJobs();
   const shodanApiKey = settings.shodan?.apiKey || "";
   const shodanEnabled = settings.shodan?.enabled ?? false;
+
+  // Schedule dialog state
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [schedName, setSchedName] = useState("");
+  const [schedFreq, setSchedFreq] = useState("daily");
+  const [schedCron, setSchedCron] = useState("");
 
   // Load saved queries
   useEffect(() => {
@@ -121,6 +131,25 @@ export default function ShodanSearch() {
     setQuery(q.query);
     setQueryType(q.query_type);
     setIsDork(q.is_dork);
+  };
+
+  const handleScheduleQuery = async () => {
+    if (!schedName || !query.trim()) return;
+    try {
+      await addJob({
+        name: schedName,
+        job_type: "shodan_scan",
+        frequency: schedFreq,
+        cron_expression: schedFreq === "custom" ? schedCron : "",
+        configuration: { query: query.trim(), queryType },
+        active: true,
+      });
+      toast({ title: "Scan Scheduled", description: `"${schedName}" has been scheduled` });
+      setScheduleOpen(false);
+      setSchedName("");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
   };
 
   const exportResults = (format: "csv" | "json" | "pdf" | "html") => {
@@ -245,6 +274,11 @@ export default function ShodanSearch() {
             <Button variant="outline" onClick={() => { setSaveName(query); setSaveDialogOpen(true); }} disabled={!query.trim()} className="gap-2">
               <Star className="h-4 w-4" /> Save
             </Button>
+            {isAdmin && (
+              <Button variant="outline" onClick={() => { setSchedName(`Shodan: ${query}`); setScheduleOpen(true); }} disabled={!query.trim()} className="gap-2">
+                <Calendar className="h-4 w-4" /> Schedule
+              </Button>
+            )}
           </div>
 
           {/* Quick Dorks */}
@@ -411,6 +445,49 @@ export default function ShodanSearch() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleSaveQuery}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Query Dialog */}
+        <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+          <DialogContent className="bg-card border-border max-w-md">
+            <DialogHeader><DialogTitle>Schedule Shodan Scan</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label>Schedule Name</Label>
+                <Input value={schedName} onChange={e => setSchedName(e.target.value)} className="mt-1" placeholder="My scheduled scan" />
+              </div>
+              <div>
+                <Label>Query</Label>
+                <Input value={query} readOnly className="mt-1 font-mono text-muted-foreground" />
+              </div>
+              <div>
+                <Label>Frequency</Label>
+                <Select value={schedFreq} onValueChange={setSchedFreq}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="once">One-time</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="custom">Custom (Cron)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {schedFreq === "custom" && (
+                <div>
+                  <Label>Cron Expression</Label>
+                  <Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1 font-mono" placeholder="0 2 * * *" />
+                  <p className="text-xs text-muted-foreground mt-1">e.g. "0 2 * * *" = daily at 2am</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setScheduleOpen(false)}>Cancel</Button>
+              <Button onClick={handleScheduleQuery} disabled={!schedName.trim()}>
+                <Calendar className="h-4 w-4 mr-2" /> Create Schedule
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
