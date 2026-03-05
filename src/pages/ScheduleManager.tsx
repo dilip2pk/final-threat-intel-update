@@ -77,33 +77,12 @@ export default function ScheduleManager() {
   const [reportFormat, setReportFormat] = useState("html");
 
   // Fetch available scans and reports
-  useEffect(() => {
-    const fetchScans = async () => {
-      const { data } = await supabase
-        .from("scans")
-        .select("id, target, scan_type, status, created_at")
-        .eq("status", "completed")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (data) setAvailableScans(data as ScanOption[]);
-    };
-    const fetchReports = async () => {
-      const { data } = await supabase
-        .from("generated_reports")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (data) setReports(data as unknown as GeneratedReport[]);
-      setReportsLoading(false);
-    };
-    fetchScans();
-    fetchReports();
-  }, []);
 
   const resetForm = () => {
     setJobName(""); setJobType("shodan_scan"); setFrequency("once");
     setCronExpression(""); setShodanQuery(""); setShodanQueryType("search");
     setScanTarget(""); setScanTargetType("ip"); setScanType("quick");
-    setScanPorts(""); setReportScanId(""); setReportFormat("pdf");
+    setScanPorts("");
     setEditingJob(null);
   };
 
@@ -124,9 +103,6 @@ export default function ScheduleManager() {
       setScanTargetType(config.targetType || "ip");
       setScanType(config.scanType || "quick");
       setScanPorts(config.ports || "");
-    } else if (job.job_type === "report_generation") {
-      setReportScanId(config.scanId || "");
-      setReportFormat(config.format || "pdf");
     }
     setDialogOpen(true);
   };
@@ -134,7 +110,6 @@ export default function ScheduleManager() {
   const buildConfig = () => {
     if (jobType === "shodan_scan") return { query: shodanQuery, queryType: shodanQueryType };
     if (jobType === "network_scan") return { target: scanTarget, targetType: scanTargetType, scanType, ports: scanPorts };
-    if (jobType === "report_generation") return { scanId: reportScanId, format: reportFormat };
     return {};
   };
 
@@ -166,26 +141,7 @@ export default function ScheduleManager() {
   const handleRunNow = async (job: ScheduledJob) => {
     setRunningJobId(job.id);
     try {
-      const result = await runJobNow(job);
-      
-      // If report generation, save to generated_reports table
-      if (job.job_type === "report_generation" && result) {
-        const config = job.configuration as any;
-        const scanId = config?.scanId;
-        const scan = availableScans.find(s => s.id === scanId);
-        await supabase.from("generated_reports").insert({
-          scan_id: scanId || null,
-          name: job.name,
-          format: config?.format || "html",
-          report_html: typeof result === "string" ? result : null,
-          scan_target: scan?.target || null,
-          scan_type: scan?.scan_type || null,
-        } as any);
-        // Refresh reports list
-        const { data } = await supabase.from("generated_reports").select("*").order("created_at", { ascending: false });
-        if (data) setReports(data as unknown as GeneratedReport[]);
-      }
-      
+      await runJobNow(job);
       toast({ title: "Job Executed", description: `${job.name} completed successfully` });
     } catch (e: any) {
       toast({ title: "Job Failed", description: e.message, variant: "destructive" });
@@ -194,22 +150,6 @@ export default function ScheduleManager() {
     }
   };
 
-  const handleDeleteReport = async (reportId: string) => {
-    await supabase.from("generated_reports").delete().eq("id", reportId);
-    setReports(prev => prev.filter(r => r.id !== reportId));
-    toast({ title: "Report Deleted" });
-  };
-
-  const handleDownloadReport = (report: GeneratedReport) => {
-    if (!report.report_html) return;
-    const blob = new Blob([report.report_html], { type: report.format === "csv" ? "text/csv" : "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${report.name.replace(/\s+/g, "-")}.${report.format === "csv" ? "csv" : "html"}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   if (loading || authLoading) {
     return (
@@ -242,7 +182,7 @@ export default function ScheduleManager() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Schedule Manager</h1>
-            <p className="text-sm text-muted-foreground mt-1">Automate Shodan scans, network scans, and report generation</p>
+            <p className="text-sm text-muted-foreground mt-1">Automate Shodan scans and network scans</p>
           </div>
           <Button onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" /> New Schedule
