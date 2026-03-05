@@ -2,7 +2,25 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppSettings } from "@/lib/settingsStore";
 
-const defaultSettings: AppSettings = {
+export interface ShodanConfig {
+  apiKey: string;
+  enabled: boolean;
+}
+
+export interface DefenderConfig {
+  tenantId: string;
+  clientId: string;
+  clientSecret: string;
+  enabled: boolean;
+}
+
+export interface ExtendedSettings extends AppSettings {
+  shodan?: ShodanConfig;
+  defender?: DefenderConfig;
+  [key: string]: any;
+}
+
+const defaultSettings: ExtendedSettings = {
   smtp: { host: "", port: "587", username: "", password: "", from: "" },
   serviceNow: {
     instanceUrl: "",
@@ -26,6 +44,8 @@ const defaultSettings: AppSettings = {
     timeout: "30",
     temperature: "0.3",
   },
+  shodan: { apiKey: "", enabled: false },
+  defender: { tenantId: "", clientId: "", clientSecret: "", enabled: false },
 };
 
 interface GeneralSettings {
@@ -51,7 +71,7 @@ const defaultGeneral: GeneralSettings = {
 };
 
 export function useSettings() {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ExtendedSettings>(defaultSettings);
   const [general, setGeneral] = useState<GeneralSettings>(defaultGeneral);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -76,6 +96,8 @@ export function useSettings() {
                   fieldMapping: { ...defaultSettings.serviceNow.fieldMapping, ...val?.serviceNow?.fieldMapping },
                 },
                 ai: { ...defaultSettings.ai, ...val?.ai },
+                shodan: { ...defaultSettings.shodan!, ...val?.shodan },
+                defender: { ...defaultSettings.defender!, ...val?.defender },
               });
             } else if (row.key === "general") {
               setGeneral({ ...defaultGeneral, ...(row.value as any) });
@@ -91,7 +113,7 @@ export function useSettings() {
     load();
   }, []);
 
-  const saveAll = useCallback(async (newSettings: AppSettings, newGeneral: GeneralSettings) => {
+  const saveAll = useCallback(async (newSettings: ExtendedSettings, newGeneral: GeneralSettings) => {
     setSaving(true);
     try {
       // Upsert integrations

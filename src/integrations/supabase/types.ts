@@ -370,6 +370,54 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_jobs: {
+        Row: {
+          active: boolean | null
+          configuration: Json
+          created_at: string
+          cron_expression: string | null
+          frequency: string
+          id: string
+          job_type: string
+          last_error: string | null
+          last_run_at: string | null
+          last_status: string | null
+          name: string
+          next_run_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          configuration?: Json
+          created_at?: string
+          cron_expression?: string | null
+          frequency?: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          name: string
+          next_run_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          configuration?: Json
+          created_at?: string
+          cron_expression?: string | null
+          frequency?: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          name?: string
+          next_run_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shodan_queries: {
         Row: {
           created_at: string
