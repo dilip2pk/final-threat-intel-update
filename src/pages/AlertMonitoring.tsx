@@ -8,13 +8,15 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss } from "lucide-react";
+import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAlertRules } from "@/hooks/useSettings";
 import { useRSSFeeds, type RSSFeedItem } from "@/hooks/useRSSFeeds";
 import { useFeedSources } from "@/hooks/useFeedSources";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AlertMonitoring() {
+  const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
   const { fetchAllFeeds } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
@@ -89,7 +91,7 @@ export default function AlertMonitoring() {
     await updateRule(id, { active });
   };
 
-  if (loading || sourcesLoading) {
+  if (loading || sourcesLoading || authLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh] gap-3">
@@ -106,22 +108,33 @@ export default function AlertMonitoring() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Alert Monitoring</h1>
-            <p className="text-sm text-muted-foreground mt-1">Configure rules and scan live feeds for threats — rules persist across sessions</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isAdmin ? "Configure rules and scan live feeds for threats — rules persist across sessions" : "View active alert rules configured by administrators"}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={scanToday} variant="outline" size="sm" className="gap-2" disabled={scanning || !hasConfiguredSources}>
-              {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Scan Today
-            </Button>
-            <Button onClick={openNew} size="sm" className="gap-2">
-              <Plus className="h-4 w-4" /> Add Rule
-            </Button>
-          </div>
+          {isAdmin && (
+            <div className="flex gap-2">
+              <Button onClick={scanToday} variant="outline" size="sm" className="gap-2" disabled={scanning || !hasConfiguredSources}>
+                {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Scan Today
+              </Button>
+              <Button onClick={openNew} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" /> Add Rule
+              </Button>
+            </div>
+          )}
         </div>
 
-        {!hasConfiguredSources && (
+        {!hasConfiguredSources && isAdmin && (
           <div className="flex items-center gap-2 text-xs text-severity-medium p-3 rounded bg-severity-medium/10 border border-severity-medium/20">
             <Rss className="h-3.5 w-3.5" />
             No feed sources configured. Add feeds in Feed Sources to enable live scanning.
+          </div>
+        )}
+
+        {!isAdmin && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            You are viewing alert rules in read-only mode. Only administrators can create, edit, or delete rules.
           </div>
         )}
 
@@ -130,7 +143,7 @@ export default function AlertMonitoring() {
           {rules.length === 0 && (
             <div className="border border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No alert rules configured yet. Click "Add Rule" to get started.</p>
+              <p className="text-sm">{isAdmin ? 'No alert rules configured yet. Click "Add Rule" to get started.' : "No alert rules configured yet."}</p>
             </div>
           )}
           {rules.map(rule => (
@@ -142,6 +155,7 @@ export default function AlertMonitoring() {
                   <Badge variant="outline" className={`${getSeverityBg(rule.severity_threshold as Severity)} text-[10px] uppercase font-mono`}>
                     ≥ {rule.severity_threshold}
                   </Badge>
+                  {!rule.active && <Badge variant="secondary" className="text-[10px]">Disabled</Badge>}
                 </div>
                 <div className="flex gap-1 flex-wrap">
                   {rule.keywords.map(kw => (
@@ -149,11 +163,13 @@ export default function AlertMonitoring() {
                   ))}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Switch checked={rule.active} onCheckedChange={() => handleToggle(rule.id, !rule.active)} />
-                <Button variant="ghost" size="icon" onClick={() => openEdit(rule)} className="h-8 w-8"><Pencil className="h-3.5 w-3.5" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(rule.id)} className="h-8 w-8 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <Switch checked={rule.active} onCheckedChange={() => handleToggle(rule.id, !rule.active)} />
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(rule)} className="h-8 w-8"><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(rule.id)} className="h-8 w-8 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
