@@ -18,6 +18,7 @@ import SoftwareInventory from "./pages/SoftwareInventory";
 import NetworkScanner from "./pages/NetworkScanner";
 import AuthPage from "./pages/AuthPage";
 import ScheduleManager from "./pages/ScheduleManager";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ function AppRoutes() {
       <Route path="/feeds" element={<AdminRoute><FeedManagement /></AdminRoute>} />
       <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/schedules" element={<AdminRoute><ScheduleManager /></AdminRoute>} />
+      <Route path="/reports" element={<Reports />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
