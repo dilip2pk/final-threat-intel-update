@@ -152,7 +152,19 @@ export default function ShodanSearch() {
     }
   };
 
-  const exportResults = (format: "csv" | "json" | "pdf" | "html") => {
+  const saveReportRecord = async (format: string, content?: string) => {
+    try {
+      await supabase.from("generated_reports").insert({
+        name: `Shodan Report — ${query}`,
+        format,
+        report_html: content || null,
+        scan_target: query,
+        scan_type: "shodan",
+      } as any);
+    } catch {}
+  };
+
+  const exportResults = async (format: "csv" | "json" | "pdf" | "html") => {
     if (!results.length) return;
     if (format === "pdf") return exportShodanPDF();
     if (format === "html") return exportShodanHTML();
@@ -176,6 +188,8 @@ export default function ShodanSearch() {
     a.download = `shodan-results.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
+    await saveReportRecord(format, content);
+    toast({ title: "Report Exported & Saved" });
   };
 
   const exportShodanPDF = async () => {
