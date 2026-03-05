@@ -15,6 +15,8 @@ export async function analyzeFeed(params: {
   content?: string;
   source?: string;
   model?: string;
+  endpointUrl?: string;
+  apiKey?: string;
 }): Promise<AIAnalysis> {
   const { data, error } = await supabase.functions.invoke("analyze-feed", {
     body: params,
