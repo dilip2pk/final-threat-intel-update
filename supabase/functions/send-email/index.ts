@@ -27,34 +27,107 @@ serve(async (req) => {
       });
     }
 
-    // Build email content using raw SMTP via Deno TCP
     const recipients = Array.isArray(to) ? to : [to];
 
-    // Use a simple HTTP-based email approach via SMTP relay
-    // For production, this uses basic SMTP protocol over TCP
-    const conn = await Deno.connect({ hostname: host, port: parseInt(port) });
+    // Use Resend HTTP API if host is smtp.resend.com (much more reliable in edge functions)
+    if (host.toLowerCase().includes("resend")) {
+      const resendApiKey = password; // Resend uses API key as SMTP password
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: recipients,
+          subject,
+          html: body,
+        }),
+      });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Resend API error:", errorText);
+        return new Response(JSON.stringify({ error: `Email send failed: ${errorText}` }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const result = await response.json();
+      return new Response(JSON.stringify({ success: true, message: "Email sent successfully", id: result.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fallback: Raw SMTP via Deno TCP
+    const portNum = parseInt(port);
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
-    const send = async (cmd: string) => {
-      await conn.write(encoder.encode(cmd + "\r\n"));
-      const buf = new Uint8Array(1024);
-      const n = await conn.read(buf);
-      return n ? decoder.decode(buf.subarray(0, n)) : "";
-    };
+    // Port 465 = implicit TLS, Port 587 = STARTTLS, others = plain
+    if (portNum === 465) {
+      // Implicit TLS (SMTPS)
+      const tlsConn = await Deno.connectTls({ hostname: host, port: portNum });
 
-    const read = async () => {
-      const buf = new Uint8Array(1024);
-      const n = await conn.read(buf);
-      return n ? decoder.decode(buf.subarray(0, n)) : "";
-    };
+      const tlsSend = async (cmd: string) => {
+        await tlsConn.write(encoder.encode(cmd + "\r\n"));
+        const buf = new Uint8Array(4096);
+        const n = await tlsConn.read(buf);
+        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      };
 
-    // Read greeting
-    await read();
+      const tlsRead = async () => {
+        const buf = new Uint8Array(4096);
+        const n = await tlsConn.read(buf);
+        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      };
 
-    // If port is 587, use STARTTLS
-    if (parseInt(port) === 587) {
+      await tlsRead(); // greeting
+      await tlsSend(`EHLO localhost`);
+
+      const authCreds = btoa(`\x00${username}\x00${password}`);
+      await tlsSend(`AUTH PLAIN ${authCreds}`);
+
+      await tlsSend(`MAIL FROM:<${from}>`);
+      for (const recipient of recipients) {
+        await tlsSend(`RCPT TO:<${recipient.trim()}>`);
+      }
+      await tlsSend(`DATA`);
+
+      const emailContent = [
+        `From: ${from}`,
+        `To: ${recipients.join(", ")}`,
+        `Subject: ${subject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/html; charset=UTF-8`,
+        ``,
+        body,
+        `.`,
+      ].join("\r\n");
+
+      await tlsSend(emailContent);
+      await tlsSend(`QUIT`);
+      tlsConn.close();
+    } else if (portNum === 587) {
+      // STARTTLS
+      const conn = await Deno.connect({ hostname: host, port: portNum });
+
+      const send = async (cmd: string) => {
+        await conn.write(encoder.encode(cmd + "\r\n"));
+        const buf = new Uint8Array(4096);
+        const n = await conn.read(buf);
+        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      };
+
+      const read = async () => {
+        const buf = new Uint8Array(4096);
+        const n = await conn.read(buf);
+        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      };
+
+      await read(); // greeting
       await send(`EHLO localhost`);
       await send(`STARTTLS`);
 
@@ -69,7 +142,6 @@ serve(async (req) => {
 
       await tlsSend(`EHLO localhost`);
 
-      // AUTH LOGIN
       const authCreds = btoa(`\x00${username}\x00${password}`);
       await tlsSend(`AUTH PLAIN ${authCreds}`);
 
@@ -94,7 +166,23 @@ serve(async (req) => {
       await tlsSend(`QUIT`);
       tlsConn.close();
     } else {
-      // Plain SMTP (port 25 or 465)
+      // Plain SMTP (port 25)
+      const conn = await Deno.connect({ hostname: host, port: portNum });
+
+      const send = async (cmd: string) => {
+        await conn.write(encoder.encode(cmd + "\r\n"));
+        const buf = new Uint8Array(1024);
+        const n = await conn.read(buf);
+        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      };
+
+      const read = async () => {
+        const buf = new Uint8Array(1024);
+        const n = await conn.read(buf);
+        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      };
+
+      await read();
       await send(`EHLO localhost`);
 
       const authCreds = btoa(`\x00${username}\x00${password}`);
