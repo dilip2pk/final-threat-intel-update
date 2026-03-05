@@ -92,21 +92,24 @@ export function useScheduledJobs() {
         return data;
       } else if (job.job_type === "report_generation") {
         const config = job.configuration;
-        const { data, error } = await supabase.functions.invoke("generate-scan-report", {
+        const response = await supabase.functions.invoke("generate-scan-report", {
           body: {
             scanId: config.scanId,
             format: config.format || "html",
             branding: config.branding,
           },
         });
-        if (error) throw new Error(error.message);
+        if (response.error) throw new Error(response.error.message);
+        
+        // The edge function returns HTML/CSV as text
+        const reportContent = typeof response.data === "string" ? response.data : JSON.stringify(response.data);
         
         await updateJob(job.id, { 
           last_run_at: new Date().toISOString(), 
           last_status: "completed",
           last_error: null,
         } as any);
-        return data;
+        return reportContent;
       } else if (job.job_type === "network_scan") {
         // Trigger network scan
         const config = job.configuration;
