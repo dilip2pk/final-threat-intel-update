@@ -28,12 +28,15 @@ export default function FeedManagement() {
 
   // CVE source URL state
   const [cveSourceUrl, setCveSourceUrl] = useState("");
+  const [cveDisplayLimit, setCveDisplayLimit] = useState("12");
   const [savingCve, setSavingCve] = useState(false);
   const [cveLoaded, setCveLoaded] = useState(false);
 
   useEffect(() => {
     supabase.from("app_settings").select("value").eq("key", "cve_source").single().then(({ data }) => {
-      setCveSourceUrl((data?.value as any)?.url || "");
+      const val = data?.value as any;
+      setCveSourceUrl(val?.url || "");
+      setCveDisplayLimit(String(val?.limit || 12));
       setCveLoaded(true);
     });
   }, []);
@@ -41,8 +44,9 @@ export default function FeedManagement() {
   const saveCveSource = async () => {
     setSavingCve(true);
     try {
+      const limit = Math.max(1, Math.min(100, parseInt(cveDisplayLimit) || 12));
       await supabase.from("app_settings").upsert(
-        { key: "cve_source", value: { url: cveSourceUrl.trim() } as any },
+        { key: "cve_source", value: { url: cveSourceUrl.trim(), limit } as any },
         { onConflict: "key" }
       );
       toast({ title: "CVE Source Saved", description: "Top CVEs will now fetch from the configured URL" });
@@ -223,7 +227,19 @@ export default function FeedManagement() {
                     className="mt-1 font-mono text-sm"
                     placeholder="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">The top 12 CVEs from this feed will be shown on the dashboard.</p>
+                </div>
+                <div>
+                  <Label>Display Limit</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={cveDisplayLimit}
+                    onChange={e => setCveDisplayLimit(e.target.value)}
+                    className="mt-1 w-24"
+                    placeholder="12"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Number of CVEs to display on the dashboard (1–100, default 12).</p>
                 </div>
                 <Button onClick={saveCveSource} className="gap-2" disabled={savingCve} size="sm">
                   {savingCve ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
