@@ -274,6 +274,11 @@ export default function ShodanSearch() {
             <Button variant="outline" onClick={() => { setSaveName(query); setSaveDialogOpen(true); }} disabled={!query.trim()} className="gap-2">
               <Star className="h-4 w-4" /> Save
             </Button>
+            {isAdmin && (
+              <Button variant="outline" onClick={() => { setSchedName(`Shodan: ${query}`); setScheduleOpen(true); }} disabled={!query.trim()} className="gap-2">
+                <Calendar className="h-4 w-4" /> Schedule
+              </Button>
+            )}
           </div>
 
           {/* Quick Dorks */}
