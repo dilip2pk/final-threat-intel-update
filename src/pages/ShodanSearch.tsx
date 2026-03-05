@@ -270,14 +270,27 @@ export default function ShodanSearch() {
                 Results {totalResults > 0 && <span className="text-muted-foreground font-normal">({totalResults.toLocaleString()} total)</span>}
               </h2>
               {results.length > 0 && (
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => exportResults("csv")} className="gap-1 text-xs h-7">
-                    <Download className="h-3 w-3" /> CSV
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => exportResults("json")} className="gap-1 text-xs h-7">
-                    <Download className="h-3 w-3" /> JSON
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-7">
+                      <FileDown className="h-3 w-3" /> Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => exportResults("pdf")} className="gap-2 text-xs">
+                      <FileText className="h-3 w-3" /> Export as PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportResults("html")} className="gap-2 text-xs">
+                      <Globe className="h-3 w-3" /> Export as HTML
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportResults("csv")} className="gap-2 text-xs">
+                      <Download className="h-3 w-3" /> Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportResults("json")} className="gap-2 text-xs">
+                      <Download className="h-3 w-3" /> Export as JSON
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 
