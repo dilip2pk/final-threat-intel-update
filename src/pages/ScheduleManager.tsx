@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar, Clock, Plus, Trash2, Play, Loader2, CheckCircle2, XCircle,
-  Radar, Crosshair, FileText, ToggleLeft, AlertTriangle, Edit,
+  Radar, Crosshair, FileText, ToggleLeft, AlertTriangle, Edit, Download, Eye, Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useScheduledJobs, type ScheduledJob } from "@/hooks/useScheduledJobs";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { Lock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const JOB_TYPES = [
   { value: "shodan_scan", label: "Shodan Scan", icon: Radar, desc: "Run Shodan search queries automatically" },
@@ -48,6 +48,25 @@ function jobTypeIcon(type: string) {
   return <Icon className="h-4 w-4" />;
 }
 
+interface GeneratedReport {
+  id: string;
+  scan_id: string | null;
+  name: string;
+  format: string;
+  report_html: string | null;
+  scan_target: string | null;
+  scan_type: string | null;
+  created_at: string;
+}
+
+interface ScanOption {
+  id: string;
+  target: string;
+  scan_type: string;
+  status: string;
+  created_at: string;
+}
+
 export default function ScheduleManager() {
   const { jobs, loading, addJob, deleteJob, toggleJob, runJobNow, updateJob } = useScheduledJobs();
   const { isAdmin, role, loading: authLoading } = useAuth();
@@ -56,6 +75,13 @@ export default function ScheduleManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
+
+  // Available scans for dropdown
+  const [availableScans, setAvailableScans] = useState<ScanOption[]>([]);
+  // Generated reports
+  const [reports, setReports] = useState<GeneratedReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [previewReport, setPreviewReport] = useState<GeneratedReport | null>(null);
 
   // Form state
   const [jobName, setJobName] = useState("");
@@ -75,7 +101,30 @@ export default function ScheduleManager() {
   
   // Report config
   const [reportScanId, setReportScanId] = useState("");
-  const [reportFormat, setReportFormat] = useState("pdf");
+  const [reportFormat, setReportFormat] = useState("html");
+
+  // Fetch available scans and reports
+  useEffect(() => {
+    const fetchScans = async () => {
+      const { data } = await supabase
+        .from("scans")
+        .select("id, target, scan_type, status, created_at")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (data) setAvailableScans(data as ScanOption[]);
+    };
+    const fetchReports = async () => {
+      const { data } = await supabase
+        .from("generated_reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setReports(data as unknown as GeneratedReport[]);
+      setReportsLoading(false);
+    };
+    fetchScans();
+    fetchReports();
+  }, []);
 
   const resetForm = () => {
     setJobName(""); setJobType("shodan_scan"); setFrequency("once");
