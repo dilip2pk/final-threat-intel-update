@@ -27,6 +27,7 @@ export async function analyzeFeed(params: {
 
 export async function sendAnalysisEmail(params: {
   to: string[];
+  cc?: string[];
   subject: string;
   body: string;
   smtpConfig: {

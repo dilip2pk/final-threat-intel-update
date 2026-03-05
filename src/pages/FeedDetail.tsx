@@ -49,6 +49,7 @@ export default function FeedDetail() {
   const [sending, setSending] = useState(false);
 
   const [emailTo, setEmailTo] = useState("");
+  const [emailCc, setEmailCc] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketImpact, setTicketImpact] = useState("2");
@@ -122,12 +123,14 @@ export default function FeedDetail() {
   const handleSendEmail = async () => {
     if (!analysis || !emailTo.trim()) return;
     setSending(true);
-    const recipients = emailTo.split(",").map((e) => e.trim());
+    const recipients = emailTo.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
+    const ccRecipients = emailCc.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
     try {
       const settings = await loadSettingsFromDB();
       const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis);
       await sendAnalysisEmail({
         to: recipients,
+        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
         subject: emailSubject,
         body: html,
         smtpConfig: settings.smtp,
@@ -460,8 +463,12 @@ export default function FeedDetail() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label>Recipients (comma separated)</Label>
+              <Label>To (comma, semicolon or space separated)</Label>
               <Input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="user@example.com, team@example.com" className="mt-1" />
+            </div>
+            <div>
+              <Label>CC (optional)</Label>
+              <Input value={emailCc} onChange={(e) => setEmailCc(e.target.value)} placeholder="manager@example.com, security@example.com" className="mt-1" />
             </div>
             <div>
               <Label>Subject</Label>

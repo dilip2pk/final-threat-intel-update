@@ -9,13 +9,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { to, subject, body, smtpConfig } = await req.json();
+    const { to, cc, subject, body, smtpConfig } = await req.json();
 
     if (!to || !subject || !body || !smtpConfig) {
       return jsonRes({ error: "Missing required fields: to, subject, body, smtpConfig" }, 400);
     }
 
     const { host, port, username, password, from } = smtpConfig;
+    const ccRecipients: string[] = Array.isArray(cc) ? cc.filter(Boolean) : cc ? [cc] : [];
 
     if (!host || !port || !username || !password || !from) {
       return jsonRes({ error: "Incomplete SMTP configuration. Please configure all SMTP fields in Settings → Email." }, 400);
@@ -25,11 +26,11 @@ serve(async (req) => {
 
     // Detect Resend and use their HTTP API (more reliable in edge functions)
     if (host.toLowerCase().includes("resend")) {
-      return await sendViaResend(password, from, recipients, subject, body);
+      return await sendViaResend(password, from, recipients, subject, body, ccRecipients);
     }
 
     // Generic SMTP via raw TCP/TLS
-    return await sendViaSMTP(host, parseInt(port), username, password, from, recipients, subject, body);
+    return await sendViaSMTP(host, parseInt(port), username, password, from, recipients, subject, body, ccRecipients);
   } catch (e) {
     console.error("send-email error:", e);
     return jsonRes({ error: e instanceof Error ? e.message : "Failed to send email" }, 500);
@@ -37,11 +38,13 @@ serve(async (req) => {
 });
 
 // --- Resend HTTP API ---
-async function sendViaResend(apiKey: string, from: string, to: string[], subject: string, html: string) {
+async function sendViaResend(apiKey: string, from: string, to: string[], subject: string, html: string, cc: string[] = []) {
+  const payload: any = { from, to, subject, html };
+  if (cc.length > 0) payload.cc = cc;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, subject, html }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -57,21 +60,26 @@ async function sendViaResend(apiKey: string, from: string, to: string[], subject
 // --- Generic SMTP (supports port 25, 465, 587, and Outlook 365) ---
 async function sendViaSMTP(
   host: string, port: number, username: string, password: string,
-  from: string, recipients: string[], subject: string, body: string
+  from: string, recipients: string[], subject: string, body: string, cc: string[] = []
 ) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  const buildEmail = () => [
-    `From: ${from}`,
-    `To: ${recipients.join(", ")}`,
-    `Subject: ${subject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: text/html; charset=UTF-8`,
-    ``,
-    body,
-    `.`,
-  ].join("\r\n");
+  const allRecipients = [...recipients, ...cc];
+
+  const buildEmail = () => {
+    const headers = [
+      `From: ${from}`,
+      `To: ${recipients.join(", ")}`,
+    ];
+    if (cc.length > 0) headers.push(`Cc: ${cc.join(", ")}`);
+    headers.push(
+      `Subject: ${subject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=UTF-8`,
+    );
+    return [...headers, ``, body, `.`].join("\r\n");
+  };
 
   const makeSend = (conn: Deno.Conn) => async (cmd: string) => {
     await conn.write(encoder.encode(cmd + "\r\n"));
@@ -102,7 +110,7 @@ async function sendViaSMTP(
 
   const doSend = async (send: (cmd: string) => Promise<string>) => {
     await send(`MAIL FROM:<${from}>`);
-    for (const r of recipients) {
+    for (const r of allRecipients) {
       await send(`RCPT TO:<${r.trim()}>`);
     }
     await send(`DATA`);
