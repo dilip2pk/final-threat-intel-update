@@ -211,8 +211,9 @@ export default function FeedManagement() {
               </div>
               <div className="border border-border rounded-lg bg-card p-5 space-y-4">
                 <p className="text-xs text-muted-foreground">
-                  Configure the JSON feed URL for the Top CVEs widget on the dashboard. Supports formats like{" "}
-                  <a href="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json" target="_blank" rel="noopener noreferrer" className="text-primary underline">CISA KEV</a>, NVD API, or any JSON endpoint returning CVE data.
+                  Configure the feed URL for the Top CVEs widget on the dashboard. Supports{" "}
+                  <a href="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json" target="_blank" rel="noopener noreferrer" className="text-primary underline">CISA KEV</a>, NVD API, any JSON endpoint, or XML/RSS/Atom feeds (e.g.{" "}
+                  <a href="https://cvefeed.io/rssfeed/severity/high.xml" target="_blank" rel="noopener noreferrer" className="text-primary underline">cvefeed.io</a>).
                 </p>
                 <div>
                   <Label>CVE Source URL</Label>
