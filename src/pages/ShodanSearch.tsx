@@ -67,8 +67,16 @@ export default function ShodanSearch() {
   const [isDork, setIsDork] = useState(false);
   const { toast } = useToast();
   const { settings } = useSettings();
+  const { isAdmin } = useAuth();
+  const { addJob } = useScheduledJobs();
   const shodanApiKey = settings.shodan?.apiKey || "";
   const shodanEnabled = settings.shodan?.enabled ?? false;
+
+  // Schedule dialog state
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [schedName, setSchedName] = useState("");
+  const [schedFreq, setSchedFreq] = useState("daily");
+  const [schedCron, setSchedCron] = useState("");
 
   // Load saved queries
   useEffect(() => {
