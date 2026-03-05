@@ -377,41 +377,6 @@ export default function ScheduleManager() {
                 </div>
               )}
 
-              {/* Report Config */}
-              {jobType === "report_generation" && (
-                <div className="border border-border rounded-md p-4 space-y-3">
-                  <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
-                    <FileText className="h-3 w-3 text-primary" /> Report Configuration
-                  </h3>
-                  <div>
-                    <Label className="text-xs">Select Scan</Label>
-                    <Select value={reportScanId} onValueChange={setReportScanId}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Choose a completed scan..." /></SelectTrigger>
-                      <SelectContent>
-                        {availableScans.map(scan => (
-                          <SelectItem key={scan.id} value={scan.id}>
-                            {scan.target} — {scan.scan_type} ({format(new Date(scan.created_at), "MMM d, HH:mm")})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {availableScans.length === 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">No completed scans found. Run a network scan first.</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label className="text-xs">Format</Label>
-                    <Select value={reportFormat} onValueChange={setReportFormat}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="html">HTML</SelectItem>
-                        <SelectItem value="csv">CSV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-            </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
               <Button onClick={handleSave} disabled={!jobName.trim()}>
@@ -421,86 +386,6 @@ export default function ScheduleManager() {
           </DialogContent>
         </Dialog>
 
-        {/* Generated Reports Section */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" /> Generated Reports ({reports.length})
-          </h2>
-          {reportsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm p-4">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading reports...
-            </div>
-          ) : reports.length === 0 ? (
-            <div className="border border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
-              <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No reports generated yet. Create a Report Generation schedule and run it.</p>
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              {reports.map(report => (
-                <div key={report.id} className="border border-border rounded-lg bg-card p-4 flex items-center gap-4 hover:border-primary/30 transition-colors">
-                  <div className="p-2 rounded-md bg-primary/10">
-                    <FileText className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">{report.name}</span>
-                      <Badge variant="outline" className="text-[10px]">{report.format.toUpperCase()}</Badge>
-                    </div>
-                    <div className="flex gap-4 mt-1 text-[11px] text-muted-foreground">
-                      {report.scan_target && <span>Target: {report.scan_target}</span>}
-                      {report.scan_type && <span>Type: {report.scan_type}</span>}
-                      <span>{format(new Date(report.created_at), "MMM d, yyyy HH:mm")}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {report.report_html && (
-                      <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPreviewReport(report)} title="Preview">
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadReport(report)} title="Download">
-                          <Download className="h-3 w-3" />
-                        </Button>
-                      </>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteReport(report.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Report Preview Dialog */}
-        <Dialog open={!!previewReport} onOpenChange={() => setPreviewReport(null)}>
-          <DialogContent className="bg-card border-border max-w-4xl max-h-[85vh]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                {previewReport?.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="overflow-auto max-h-[70vh] rounded border border-border">
-              {previewReport?.report_html && (
-                <iframe
-                  srcDoc={previewReport.report_html}
-                  className="w-full min-h-[60vh] border-0"
-                  title="Report Preview"
-                />
-              )}
-            </div>
-            <DialogFooter>
-              {previewReport && (
-                <Button onClick={() => handleDownloadReport(previewReport)} className="gap-2">
-                  <Download className="h-4 w-4" /> Download
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </AppLayout>
   );
