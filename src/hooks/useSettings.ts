@@ -57,6 +57,7 @@ interface GeneralSettings {
   emailEnabled: boolean;
   alertTemplate: string;
   logoUrl: string;
+  appName: string;
 }
 
 const defaultGeneral: GeneralSettings = {
@@ -68,6 +69,7 @@ const defaultGeneral: GeneralSettings = {
   emailEnabled: false,
   alertTemplate: `🚨 **{{severity}}** — {{title}}\n\nSource: {{source}}\nPublished: {{date}}\n\n{{description}}\n\n🔗 {{link}}`,
   logoUrl: "",
+  appName: "ThreatIntel",
 };
 
 export function useSettings() {
