@@ -301,6 +301,7 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="template">Alert Template</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="topcves">Top CVEs</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
@@ -760,6 +761,44 @@ export default function SettingsPage() {
               {savingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {savingReport ? "Saving..." : "Save Report Settings"}
             </Button>
+          </TabsContent>
+
+          {/* Top CVEs Source Tab */}
+          <TabsContent value="topcves" className="space-y-6">
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-destructive" /> Top CVEs Source Configuration
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Configure the URL from which the dashboard fetches Top CVE data. The system supports JSON feeds such as 
+                the <a href="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json" target="_blank" rel="noopener noreferrer" className="text-primary underline">CISA KEV catalog</a>, 
+                NVD API responses, or any JSON endpoint that returns CVE data.
+              </p>
+              <div>
+                <Label>CVE Source URL</Label>
+                <Input
+                  value={cveSourceUrl}
+                  onChange={e => setCveSourceUrl(e.target.value)}
+                  className="mt-1 font-mono text-sm"
+                  placeholder="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  The top 12 CVEs from this feed will be displayed on the dashboard. Leave empty to disable.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button onClick={saveCveSource} className="gap-2" disabled={savingCve} size="sm">
+                  {savingCve ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {savingCve ? "Saving..." : "Save CVE Source"}
+                </Button>
+              </div>
+              {!cveSourceUrl && cveLoaded && (
+                <div className="flex items-center gap-2 p-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 text-xs text-yellow-600 dark:text-yellow-400">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>No source URL configured. The Top CVEs widget on the dashboard will not display any data until a URL is set.</span>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 
