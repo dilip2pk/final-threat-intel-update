@@ -10,9 +10,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, Loader2, Globe, Shield, Plus, Star, Trash2, Download, AlertTriangle,
-  Server, Lock, Wifi, Eye,
+  Server, Lock, Wifi, Eye, Settings2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ShodanResult {
@@ -62,6 +63,9 @@ export default function ShodanSearch() {
   const [saveName, setSaveName] = useState("");
   const [isDork, setIsDork] = useState(false);
   const { toast } = useToast();
+  const { settings } = useSettings();
+  const shodanApiKey = (settings as any).shodan?.apiKey || "";
+  const shodanEnabled = (settings as any).shodan?.enabled ?? false;
 
   // Load saved queries
   useEffect(() => {
@@ -72,11 +76,15 @@ export default function ShodanSearch() {
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
+    if (!shodanApiKey) {
+      toast({ title: "API Key Required", description: "Please configure your Shodan API key in Settings → Shodan.", variant: "destructive" });
+      return;
+    }
     setSearching(true);
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke("shodan-proxy", {
-        body: { query: query.trim(), type: queryType },
+        body: { query: query.trim(), type: queryType, apiKey: shodanApiKey },
       });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Search failed");
@@ -89,7 +97,7 @@ export default function ShodanSearch() {
     } finally {
       setSearching(false);
     }
-  }, [query, queryType, toast]);
+  }, [query, queryType, shodanApiKey, toast]);
 
   const handleSaveQuery = async () => {
     if (!saveName || !query) return;
