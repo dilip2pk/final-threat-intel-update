@@ -158,12 +158,15 @@ export default function SettingsPage() {
     setTestingShodan(true);
     setShodanTestResult(null);
     try {
+      // Auto-save settings so the key persists to DB before testing
+      await saveAll(settings, general);
+
       const { data, error } = await supabase.functions.invoke("shodan-proxy", {
         body: { query: "test", type: "info", apiKey: shodanApiKey },
       });
       if (error) throw new Error(error.message);
       if (data?.success === false) throw new Error(data?.error || "Connection failed");
-      setShodanTestResult({ success: true, message: "Shodan API connection successful" });
+      setShodanTestResult({ success: true, message: "Shodan API connected & settings saved" });
     } catch (e: any) {
       setShodanTestResult({ success: false, message: e.message });
     } finally {
