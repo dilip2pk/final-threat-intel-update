@@ -37,10 +37,11 @@ async function testAI(params: any) {
 
   // Use custom endpoint or default Lovable AI
   const url = endpointUrl?.trim() || "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const key = apiKey?.trim() || Deno.env.get("LOVABLE_API_KEY");
+  const key = apiKey?.trim() || (endpointUrl?.trim() ? "" : Deno.env.get("LOVABLE_API_KEY"));
 
-  if (!key) {
-    return jsonResponse({ success: false, message: "No API key configured. Using built-in Lovable AI requires no key." });
+  // Only require key for built-in gateway, not for local endpoints
+  if (!key && !endpointUrl?.trim()) {
+    return jsonResponse({ success: false, message: "No API key configured." });
   }
 
   const start = Date.now();
@@ -48,12 +49,12 @@ async function testAI(params: any) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (key) headers["Authorization"] = `Bearer ${key}`;
+
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         model: model || "google/gemini-3-flash-preview",
         messages: [{ role: "user", content: "Reply with exactly: CONNECTION_OK" }],
