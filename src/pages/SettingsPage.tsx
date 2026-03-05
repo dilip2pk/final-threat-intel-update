@@ -42,6 +42,45 @@ export default function SettingsPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Report customization state
+  const [reportConfig, setReportConfig] = useState({
+    orgName: "ThreatIntel",
+    logoUrl: "",
+    reportTitle: "Security Scan Report",
+    headerText: "",
+    footerText: "Confidential — for authorized personnel only.",
+    primaryColor: "#14b8a6",
+    dateFormat: "MMM d, yyyy HH:mm",
+    includeSections: {
+      summary: true,
+      hostDetails: true,
+      aiAnalysis: true,
+      remediation: true,
+      firewallRules: true,
+      patchRecommendations: true,
+    },
+  });
+  const [savingReport, setSavingReport] = useState(false);
+
+  // Load report customization from DB
+  useEffect(() => {
+    supabase.from("app_settings").select("value").eq("key", "report_customization").single().then(({ data }) => {
+      if (data?.value) setReportConfig(prev => ({ ...prev, ...(data.value as any), includeSections: { ...prev.includeSections, ...(data.value as any)?.includeSections } }));
+    });
+  }, []);
+
+  const saveReportConfig = async () => {
+    setSavingReport(true);
+    try {
+      await supabase.from("app_settings").upsert({ key: "report_customization", value: reportConfig as any }, { onConflict: "key" });
+      toast({ title: "Report Settings Saved" });
+    } catch (e: any) {
+      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingReport(false);
+    }
+  };
+
   // Integration-specific settings stored in the integrations key
   const shodanApiKey = (settings as any).shodan?.apiKey || "";
   const shodanEnabled = (settings as any).shodan?.enabled ?? false;
