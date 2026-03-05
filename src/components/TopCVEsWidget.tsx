@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ShieldAlert, ExternalLink, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { ShieldAlert, ExternalLink, Loader2, AlertTriangle, RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface TopCVE {
   cve_id: string;
@@ -23,36 +26,28 @@ const severityColor: Record<string, string> = {
   low: "bg-primary/15 text-primary border-primary/30",
 };
 
-async function fetchLiveCVEs(): Promise<TopCVE[]> {
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  const res = await fetch(
-    `https://${projectId}.supabase.co/functions/v1/cve-proxy`,
-    {
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-      },
-    }
-  );
-
-  if (!res.ok) throw new Error(`Failed to fetch CVEs: ${res.status}`);
-  const json = await res.json();
-  return json.cves || [];
-}
-
 export function TopCVEsWidget() {
   const [cves, setCves] = useState<TopCVE[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [noUrl, setNoUrl] = useState(false);
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
     setError(null);
+    setNoUrl(false);
     try {
-      const data = await fetchLiveCVEs();
-      setCves(data);
+      const { data, error: fnError } = await supabase.functions.invoke("cve-proxy");
+      if (fnError) throw new Error(fnError.message);
+      if (data?.error === "no_url_configured") {
+        setNoUrl(true);
+        setCves([]);
+        return;
+      }
+      if (data?.error) throw new Error(data.error);
+      setCves(data?.cves || []);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -81,14 +76,13 @@ export function TopCVEsWidget() {
     <div className="border border-border rounded-md bg-card">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <ShieldAlert className="h-4 w-4 text-destructive" />
-        <h3 className="text-sm font-semibold text-foreground">
-          Top CVEs
-        </h3>
-        <span className="text-[10px] text-muted-foreground ml-1">CISA KEV</span>
+        <h3 className="text-sm font-semibold text-foreground">Top CVEs</h3>
         <div className="ml-auto flex items-center gap-1.5">
-          <Badge variant="outline" className="text-[10px]">
-            {cves.length}
-          </Badge>
+          {!noUrl && (
+            <Badge variant="outline" className="text-[10px]">
+              {cves.length}
+            </Badge>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -105,19 +99,41 @@ export function TopCVEsWidget() {
         {loading ? (
           <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-xs">Fetching live CVE data...</span>
+            <span className="text-xs">Fetching CVE data...</span>
+          </div>
+        ) : noUrl ? (
+          <div className="py-8 text-center space-y-3 px-4">
+            <Settings className="h-8 w-8 mx-auto text-muted-foreground/40" />
+            <p className="text-xs text-muted-foreground">
+              No CVE source URL configured.
+            </p>
+            {isAdmin ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/settings")}
+                className="gap-2"
+              >
+                <Settings className="h-3.5 w-3.5" /> Configure Source URL
+              </Button>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Ask an administrator to configure a CVE source URL in Settings → Top CVEs.
+              </p>
+            )}
           </div>
         ) : error ? (
-          <div className="py-8 text-center text-xs text-muted-foreground space-y-2">
+          <div className="py-8 text-center text-xs text-muted-foreground space-y-2 px-4">
             <AlertTriangle className="h-6 w-6 mx-auto text-destructive/60" />
             <p>Failed to load CVEs</p>
+            <p className="text-[11px] text-muted-foreground/70">{error}</p>
             <Button variant="outline" size="sm" onClick={load}>
               Retry
             </Button>
           </div>
         ) : cves.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
-            No CVEs available
+            No CVEs found from the configured source
           </div>
         ) : (
           <ul className="divide-y divide-border">
