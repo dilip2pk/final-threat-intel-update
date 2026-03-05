@@ -10,17 +10,19 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
-  CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2,
+  CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { maskSecret } from "@/lib/settingsStore";
 import { testAIConnection, testServiceNowConnection } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { settings, setSettings, general, setGeneral, loading, saving, saveAll } = useSettings();
+  const { isAdmin, role, loading: authLoading } = useAuth();
 
   const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [showSnowPass, setShowSnowPass] = useState(false);
@@ -196,12 +198,26 @@ export default function SettingsPage() {
     );
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh] gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <span className="text-muted-foreground">Loading settings...</span>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+          <Lock className="h-12 w-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold text-foreground">Access Restricted</h2>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Settings are restricted to Admin users. Your current role: <Badge variant="secondary">{role || "user"}</Badge>
+          </p>
         </div>
       </AppLayout>
     );
