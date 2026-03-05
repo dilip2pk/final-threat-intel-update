@@ -23,28 +23,6 @@ export interface RSSSource {
   error?: string;
 }
 
-const FEED_META: Record<string, { name: string; category: string; tags: string[] }> = {
-  cisa: { name: "CISA Alerts", category: "Government", tags: ["cisa", "gov", "advisory"] },
-  nvd: { name: "NVD CVE Feed", category: "Vulnerability DB", tags: ["nvd", "cve", "vulnerability"] },
-  krebs: { name: "Krebs on Security", category: "Security Blog", tags: ["blog", "news", "analysis"] },
-  microsoft: { name: "Microsoft Security", category: "Vendor Advisory", tags: ["microsoft", "patch", "advisory"] },
-  talos: { name: "Cisco Talos", category: "Threat Intel", tags: ["cisco", "talos", "malware"] },
-  hackernews: { name: "The Hacker News", category: "Security Blog", tags: ["news", "hacking", "breach"] },
-  cvefeed_high: { name: "CVE Feed (High)", category: "CVE", tags: ["cve", "high", "vulnerability"] },
-  cvefeed_critical: { name: "CVE Feed (Critical)", category: "CVE", tags: ["cve", "critical", "vulnerability"] },
-};
-
-const FEED_URLS: Record<string, string> = {
-  cisa: "https://www.cisa.gov/news.xml",
-  nvd: "https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss.xml",
-  krebs: "https://krebsonsecurity.com/feed/",
-  microsoft: "https://msrc.microsoft.com/blog/feed",
-  talos: "https://blog.talosintelligence.com/rss/",
-  hackernews: "https://feeds.feedburner.com/TheHackersNews",
-  cvefeed_high: "https://cvefeed.io/rssfeed/severity/high.xml",
-  cvefeed_critical: "https://cvefeed.io/rssfeed/severity/critical.xml",
-};
-
 async function callRSSProxy(params: string) {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -76,15 +54,15 @@ export function useRSSFeeds() {
       const items: RSSFeedItem[] = [];
 
       for (const [feedId, result] of Object.entries(data) as [string, any][]) {
-        const meta = FEED_META[feedId];
-        if (!meta) continue;
+        const name = result.name || feedId;
+        const category = result.category || "";
 
         sources.push({
           id: feedId,
-          name: meta.name,
-          url: FEED_URLS[feedId],
-          category: meta.category,
-          tags: meta.tags,
+          name,
+          url: "",
+          category,
+          tags: [],
           active: !result.error,
           itemCount: result.items?.length || 0,
           error: result.error,
@@ -95,7 +73,7 @@ export function useRSSFeeds() {
             items.push({
               ...item,
               feedId,
-              feedName: meta.name,
+              feedName: name,
             });
           }
         }
@@ -117,16 +95,15 @@ export function useRSSFeeds() {
     }
   }, []);
 
-  const fetchSingleFeed = useCallback(async (feedId: string): Promise<RSSFeedItem[]> => {
+  const fetchSingleFeed = useCallback(async (feedUrl: string, feedName: string): Promise<RSSFeedItem[]> => {
     setLoading(true);
     setError(null);
     try {
-      const data = await callRSSProxy(`feed=${feedId}`);
-      const meta = FEED_META[feedId];
+      const data = await callRSSProxy(`feedUrl=${encodeURIComponent(feedUrl)}`);
       return (data.items || []).map((item: any) => ({
         ...item,
-        feedId,
-        feedName: meta?.name || feedId,
+        feedId: feedUrl,
+        feedName,
       }));
     } catch (e: any) {
       setError(e.message);

@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.generate-scan-report]
 verify_jwt = false
+
+[functions.rss-proxy]
+verify_jwt = false
+
+[functions.shodan-proxy]
+verify_jwt = false

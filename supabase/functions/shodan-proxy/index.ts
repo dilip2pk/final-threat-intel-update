@@ -6,19 +6,66 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function getShodanApiKey(bodyApiKey?: string): Promise<string | null> {
+  // 1. Use API key from request body if provided
+  if (bodyApiKey) return bodyApiKey;
+
+  // 2. Check environment variable
+  const envKey = Deno.env.get("SHODAN_API_KEY");
+  if (envKey) return envKey;
+
+  // 3. Load from app_settings in database
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, supabaseKey);
+    const { data } = await sb
+      .from("app_settings")
+      .select("value")
+      .eq("key", "integrations")
+      .single();
+    if (data?.value?.shodan?.apiKey) return data.value.shodan.apiKey;
+  } catch (e) {
+    console.error("Failed to load Shodan key from settings:", e);
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const SHODAN_API_KEY = Deno.env.get("SHODAN_API_KEY");
+    const body = await req.json();
+    const { query, type, apiKey: bodyApiKey } = body;
+
+    const SHODAN_API_KEY = await getShodanApiKey(bodyApiKey);
     if (!SHODAN_API_KEY) {
       return new Response(
-        JSON.stringify({ success: false, error: "Shodan API key not configured. Please add it in Settings." }),
+        JSON.stringify({ success: false, error: "Shodan API key not configured. Please add it in Settings → Shodan." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { query, type } = await req.json();
+    // API key info/test endpoint
+    if (type === "info") {
+      const res = await fetch(`https://api.shodan.io/api-info?key=${SHODAN_API_KEY}`, {
+        headers: { "Accept": "application/json" },
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        return new Response(
+          JSON.stringify({ success: false, error: `Invalid API key or Shodan error: ${res.status}` }),
+          { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const data = await res.json();
+      return new Response(
+        JSON.stringify({ success: true, plan: data.plan, query_credits: data.query_credits, scan_credits: data.scan_credits }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!query) {
       return new Response(
         JSON.stringify({ success: false, error: "Query is required" }),
@@ -45,8 +92,8 @@ serve(async (req) => {
       const errText = await res.text();
       console.error(`Shodan API error [${res.status}]:`, errText);
       return new Response(
-        JSON.stringify({ success: false, error: `Shodan API error: ${res.status}` }),
-        { status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: `Shodan API error: ${res.status} - ${errText.substring(0, 200)}` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -77,6 +124,19 @@ serve(async (req) => {
           os: data.os,
           ports: data.ports,
           vulns: data.vulns ? Object.keys(data.vulns) : [],
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (type === "domain") {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          domain: data.domain,
+          subdomains: data.subdomains || [],
+          data: data.data || [],
+          total: data.data?.length || 0,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
