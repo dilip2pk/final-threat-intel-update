@@ -40,7 +40,9 @@ export default function SettingsPage() {
   const [testingDefender, setTestingDefender] = useState(false);
   const [defenderTestResult, setDefenderTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iconInputRef = useRef<HTMLInputElement>(null);
 
   // Report customization state
   const [reportConfig, setReportConfig] = useState({
@@ -217,6 +219,30 @@ export default function SettingsPage() {
     setGeneral(prev => ({ ...prev, logoUrl: "" }));
   };
 
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingIcon(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `sidebar-icon.${ext}`;
+      await supabase.storage.from("org-assets").remove(["sidebar-icon.png", "sidebar-icon.jpg", "sidebar-icon.jpeg", "sidebar-icon.svg", "sidebar-icon.webp"]);
+      const { error } = await supabase.storage.from("org-assets").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("org-assets").getPublicUrl(path);
+      setGeneral(prev => ({ ...prev, sidebarIconUrl: urlData.publicUrl }));
+      toast({ title: "Icon Uploaded", description: "Sidebar icon has been updated" });
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
+
+  const removeIcon = () => {
+    setGeneral(prev => ({ ...prev, sidebarIconUrl: "" }));
+  };
+
   const aiModels = [
     { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (Fast)" },
     { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Balanced)" },
@@ -358,6 +384,36 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" /> Sidebar Icon
+              </h2>
+              <p className="text-xs text-muted-foreground">Upload a custom icon for the sidebar header. Replaces the default shield icon. Recommended: 28×28px square image.</p>
+              <div className="flex items-center gap-6">
+                {general.sidebarIconUrl ? (
+                  <div className="relative group">
+                    <div className="w-16 h-16 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden">
+                      <img src={general.sidebarIconUrl} alt="Sidebar icon" className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <button onClick={removeIcon} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border bg-muted/20 flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-muted-foreground/40" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <input ref={iconInputRef} type="file" accept="image/*" onChange={handleIconUpload} className="hidden" />
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => iconInputRef.current?.click()} disabled={uploadingIcon}>
+                    {uploadingIcon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    {uploadingIcon ? "Uploading..." : "Upload Icon"}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">PNG, SVG or WEBP. Square format recommended.</p>
+                </div>
+              </div>
+            </div>
           </TabsContent>
 
           {/* AI Integration Tab */}
@@ -368,10 +424,14 @@ export default function SettingsPage() {
               </h2>
               <div>
                 <Label>AI Provider</Label>
-                <Select value={settings.ai.endpointUrl ? "custom" : "builtin"} onValueChange={(v) => {
+                <Select value={settings.ai.endpointUrl || settings.ai.apiKey ? "custom" : "builtin"} onValueChange={(v) => {
                   if (v === "builtin") {
                     updateAI("endpointUrl", "");
                     updateAI("apiKey", "");
+                    updateAI("model", "google/gemini-3-flash-preview");
+                  } else {
+                    // Set a placeholder so the UI switches immediately
+                    updateAI("endpointUrl", " ");
                   }
                 }}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -381,12 +441,12 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {settings.ai.endpointUrl ? "Using custom endpoint — configure below" : "Using built-in AI service, no API key needed"}
+                  {settings.ai.endpointUrl?.trim() ? "Using custom endpoint — configure below" : "Using built-in AI service, no API key needed"}
                 </p>
               </div>
               <div>
                 <Label>AI Model</Label>
-                {settings.ai.endpointUrl ? (
+                {(settings.ai.endpointUrl || settings.ai.apiKey) ? (
                   <>
                     <Input value={settings.ai.model} onChange={(e) => updateAI("model", e.target.value)} className="mt-1 font-mono" placeholder="gpt-4o, llama3, mistral, etc." />
                     <p className="text-xs text-muted-foreground mt-1">Type any model name supported by your endpoint (OpenAI-compatible API)</p>
@@ -415,23 +475,22 @@ export default function SettingsPage() {
                 <Input value={settings.ai.timeout} onChange={(e) => updateAI("timeout", e.target.value)} className="mt-1 font-mono" />
               </div>
             </div>
-            {/* Custom Endpoint Config — shown when custom provider selected or URL already set */}
+            {/* Custom Endpoint Config — shown when custom provider selected */}
+            {(settings.ai.endpointUrl || settings.ai.apiKey) && (
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Key className="h-4 w-4 text-primary" /> {settings.ai.endpointUrl ? "Custom Endpoint Configuration" : "Custom AI API (Optional)"}
+                <Key className="h-4 w-4 text-primary" /> Custom Endpoint Configuration
               </h2>
               <p className="text-xs text-muted-foreground">
-                {settings.ai.endpointUrl
-                  ? "Configure your self-hosted or third-party OpenAI-compatible endpoint."
-                  : "Leave blank to use the built-in AI service. Fill in to use your own model."}
+                Configure your self-hosted or third-party OpenAI-compatible endpoint.
               </p>
               <div>
                 <Label>Endpoint URL</Label>
-                <Input value={settings.ai.endpointUrl} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder="http://localhost:11434/v1/chat/completions" />
+                <Input value={settings.ai.endpointUrl?.trim() || ""} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder="http://localhost:11434/v1/chat/completions" />
                 <p className="text-xs text-muted-foreground mt-1">Supports OpenAI-compatible APIs: Ollama, LM Studio, vLLM, LocalAI, Azure OpenAI, etc.</p>
               </div>
               <div>
-                <Label>API Key {!settings.ai.endpointUrl && "(optional)"}</Label>
+                <Label>API Key <span className="text-muted-foreground font-normal">(optional for local endpoints)</span></Label>
                 <div className="relative mt-1">
                   <Input type={showAIKey ? "text" : "password"} value={settings.ai.apiKey} onChange={(e) => updateAI("apiKey", e.target.value)} placeholder="sk-... or leave blank for local" className="font-mono" />
                   <button type="button" onClick={() => setShowAIKey(!showAIKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -447,6 +506,7 @@ export default function SettingsPage() {
               </div>
               <TestResultBadge result={aiTestResult} />
             </div>
+            )}
           </TabsContent>
 
           {/* Email (SMTP) Tab */}

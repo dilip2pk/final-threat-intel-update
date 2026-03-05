@@ -58,6 +58,7 @@ interface GeneralSettings {
   alertTemplate: string;
   logoUrl: string;
   appName: string;
+  sidebarIconUrl: string;
 }
 
 const defaultGeneral: GeneralSettings = {
@@ -70,6 +71,7 @@ const defaultGeneral: GeneralSettings = {
   alertTemplate: `🚨 **{{severity}}** — {{title}}\n\nSource: {{source}}\nPublished: {{date}}\n\n{{description}}\n\n🔗 {{link}}`,
   logoUrl: "",
   appName: "ThreatIntel",
+  sidebarIconUrl: "",
 };
 
 export function useSettings() {
