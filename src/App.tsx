@@ -18,7 +18,6 @@ import SoftwareInventory from "./pages/SoftwareInventory";
 import NetworkScanner from "./pages/NetworkScanner";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
-import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -29,26 +28,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AuthenticatedRoutes() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span className="text-muted-foreground">Loading...</span>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthPage />;
-  }
-
+function AppRoutes() {
   return (
     <Routes>
+      {/* Public routes */}
       <Route path="/" element={<Index />} />
-      <Route path="/feeds" element={<AdminRoute><FeedManagement /></AdminRoute>} />
       <Route path="/sources" element={<SourcesView />} />
       <Route path="/feed/:id" element={<FeedDetail />} />
       <Route path="/alerts" element={<AlertMonitoring />} />
@@ -58,7 +42,14 @@ function AuthenticatedRoutes() {
       <Route path="/shodan" element={<ShodanSearch />} />
       <Route path="/software-inventory" element={<SoftwareInventory />} />
       <Route path="/scanner" element={<NetworkScanner />} />
+
+      {/* Admin login page */}
+      <Route path="/admin-login" element={<AuthPage />} />
+
+      {/* Admin-only routes */}
+      <Route path="/feeds" element={<AdminRoute><FeedManagement /></AdminRoute>} />
       <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -70,7 +61,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthenticatedRoutes />
+        <AppRoutes />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
