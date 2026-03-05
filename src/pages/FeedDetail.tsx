@@ -418,13 +418,29 @@ export default function FeedDetail() {
 
                       <Section icon={Link2} title="Reference Links">
                         <ul className="space-y-1">
-                          {analysis.reference_links.map((link, i) => (
-                            <li key={i}>
-                              <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono text-xs">
-                                {link}
-                              </a>
-                            </li>
-                          ))}
+                          {analysis.reference_links.map((link, i) => {
+                            // Extract clean URL from text that may contain descriptions
+                            const urlMatch = link.match(/https?:\/\/[^\s)]+/);
+                            const cleanUrl = urlMatch ? urlMatch[0] : link;
+                            const label = link.replace(cleanUrl, "").replace(/[()[\]]/g, "").trim();
+                            return (
+                              <li key={i} className="flex items-start gap-1.5">
+                                <ExternalLink className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
+                                <div>
+                                  <a
+                                    href={cleanUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline font-mono text-xs break-all"
+                                    onClick={(e) => { e.stopPropagation(); window.open(cleanUrl, "_blank"); e.preventDefault(); }}
+                                  >
+                                    {cleanUrl}
+                                  </a>
+                                  {label && <span className="text-xs text-muted-foreground ml-1">— {label}</span>}
+                                </div>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </Section>
                     </div>
