@@ -113,7 +113,7 @@ export function useSettings() {
     load();
   }, []);
 
-  const saveAll = useCallback(async (newSettings: AppSettings, newGeneral: GeneralSettings) => {
+  const saveAll = useCallback(async (newSettings: ExtendedSettings, newGeneral: GeneralSettings) => {
     setSaving(true);
     try {
       // Upsert integrations
