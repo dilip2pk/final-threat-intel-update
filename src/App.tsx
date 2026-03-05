@@ -22,6 +22,13 @@ import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function AuthenticatedRoutes() {
   const { user, loading } = useAuth();
 
@@ -41,7 +48,7 @@ function AuthenticatedRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/feeds" element={<FeedManagement />} />
+      <Route path="/feeds" element={<AdminRoute><FeedManagement /></AdminRoute>} />
       <Route path="/sources" element={<SourcesView />} />
       <Route path="/feed/:id" element={<FeedDetail />} />
       <Route path="/alerts" element={<AlertMonitoring />} />
@@ -51,7 +58,7 @@ function AuthenticatedRoutes() {
       <Route path="/shodan" element={<ShodanSearch />} />
       <Route path="/software-inventory" element={<SoftwareInventory />} />
       <Route path="/scanner" element={<NetworkScanner />} />
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

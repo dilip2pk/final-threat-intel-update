@@ -7,16 +7,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/feeds", icon: Rss, label: "Feed Sources" },
-  { to: "/sources", icon: Globe, label: "By Website" },
-  { to: "/alerts", icon: AlertTriangle, label: "Alert Monitor" },
-  { to: "/activity", icon: ClipboardList, label: "Activity Log" },
-  { to: "/ransomlook", icon: Eye, label: "RansomLook" },
-  { to: "/shodan", icon: Radar, label: "Shodan" },
-  { to: "/software-inventory", icon: Monitor, label: "Software Inv." },
-  { to: "/scanner", icon: Crosshair, label: "Network Scan" },
-  { to: "/settings", icon: Settings, label: "Settings" },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", adminOnly: false },
+  { to: "/feeds", icon: Rss, label: "Feed Sources", adminOnly: true },
+  { to: "/sources", icon: Globe, label: "By Website", adminOnly: false },
+  { to: "/alerts", icon: AlertTriangle, label: "Alert Monitor", adminOnly: false },
+  { to: "/activity", icon: ClipboardList, label: "Activity Log", adminOnly: false },
+  { to: "/ransomlook", icon: Eye, label: "RansomLook", adminOnly: false },
+  { to: "/shodan", icon: Radar, label: "Shodan", adminOnly: false },
+  { to: "/software-inventory", icon: Monitor, label: "Software Inv.", adminOnly: false },
+  { to: "/scanner", icon: Crosshair, label: "Network Scan", adminOnly: false },
+  { to: "/settings", icon: Settings, label: "Settings", adminOnly: true },
 ];
 
 export function AppSidebar() {
@@ -50,7 +50,7 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 py-4 space-y-1 px-2">
-        {navItems.map((item) => (
+        {navItems.filter(item => !item.adminOnly || isAdmin).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
