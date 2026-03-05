@@ -176,6 +176,50 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_reports: {
+        Row: {
+          created_at: string
+          format: string
+          id: string
+          name: string
+          report_html: string | null
+          report_url: string | null
+          scan_id: string | null
+          scan_target: string | null
+          scan_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          format?: string
+          id?: string
+          name: string
+          report_html?: string | null
+          report_url?: string | null
+          scan_id?: string | null
+          scan_target?: string | null
+          scan_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          format?: string
+          id?: string
+          name?: string
+          report_html?: string | null
+          report_url?: string | null
+          scan_id?: string | null
+          scan_target?: string | null
+          scan_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_reports_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
