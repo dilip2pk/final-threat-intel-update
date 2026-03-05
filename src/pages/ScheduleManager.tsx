@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,14 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Calendar, Clock, Plus, Trash2, Play, Loader2, CheckCircle2, XCircle,
-  Radar, Crosshair, FileText, ToggleLeft, AlertTriangle, Edit, Download, Eye, Lock,
+  Calendar, Clock, Plus, Trash2, Play, Loader2,
+  Radar, Crosshair, AlertTriangle, Edit, Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useScheduledJobs, type ScheduledJob } from "@/hooks/useScheduledJobs";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+
 
 const JOB_TYPES = [
   { value: "shodan_scan", label: "Shodan Scan", icon: Radar, desc: "Run Shodan search queries automatically" },
@@ -71,12 +71,7 @@ export default function ScheduleManager() {
   const [scanTargetType, setScanTargetType] = useState("ip");
   const [scanType, setScanType] = useState("quick");
   const [scanPorts, setScanPorts] = useState("");
-  
-  // Report config
-  const [reportScanId, setReportScanId] = useState("");
-  const [reportFormat, setReportFormat] = useState("html");
 
-  // Fetch available scans and reports
 
   const resetForm = () => {
     setJobName(""); setJobType("shodan_scan"); setFrequency("once");
