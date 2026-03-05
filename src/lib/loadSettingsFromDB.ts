@@ -11,6 +11,7 @@ const defaultSettings: AppSettings = {
   ai: {
     model: "google/gemini-3-flash-preview", apiKey: "", endpointUrl: "",
     maxTokens: "4096", timeout: "30", temperature: "0.3",
+    apiType: "builtin", authHeaderType: "bearer",
   },
 };
 

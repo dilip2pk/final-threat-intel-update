@@ -43,6 +43,8 @@ const defaultSettings: ExtendedSettings = {
     maxTokens: "4096",
     timeout: "30",
     temperature: "0.3",
+    apiType: "builtin",
+    authHeaderType: "bearer",
   },
   shodan: { apiKey: "", enabled: false },
   defender: { tenantId: "", clientId: "", clientSecret: "", enabled: false },
