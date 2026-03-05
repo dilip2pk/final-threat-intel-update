@@ -90,7 +90,7 @@ export function useScheduledJobs() {
           last_error: null,
         } as any);
         return data;
-      }
+      } else if (job.job_type === "network_scan") {
         // Trigger network scan
         const config = job.configuration;
         const { data: scan, error } = await supabase.from("scans").insert({
