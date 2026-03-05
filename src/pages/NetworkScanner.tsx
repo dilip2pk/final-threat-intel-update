@@ -148,6 +148,16 @@ export default function NetworkScanner() {
         const results = scanResults.length > 0 ? scanResults : await getScanResults(selectedScan.id);
         const branding = await loadReportBranding();
         await generatePDFReport(selectedScan, results, branding);
+        
+        // Save record to generated_reports (no HTML for PDF, just metadata)
+        await supabase.from("generated_reports").insert({
+          scan_id: selectedScan.id,
+          name: `Scan Report — ${selectedScan.target}`,
+          format: "pdf",
+          scan_target: selectedScan.target,
+          scan_type: selectedScan.scan_type,
+        } as any);
+        
         toast({ title: "PDF Report Downloaded" });
       } else {
         const branding = await loadReportBranding();
@@ -166,6 +176,17 @@ export default function NetworkScanner() {
 
         if (error) throw new Error(error.message);
 
+        // Save to generated_reports
+        const reportContent = typeof data === "string" ? data : JSON.stringify(data);
+        await supabase.from("generated_reports").insert({
+          scan_id: selectedScan.id,
+          name: `Scan Report — ${selectedScan.target}`,
+          format: fmt,
+          report_html: reportContent,
+          scan_target: selectedScan.target,
+          scan_type: selectedScan.scan_type,
+        } as any);
+
         const blob = new Blob([data], { type: fmt === "csv" ? "text/csv" : "text/html" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -173,7 +194,7 @@ export default function NetworkScanner() {
         a.download = `scan-report-${selectedScan.id.slice(0, 8)}.${fmt}`;
         a.click();
         URL.revokeObjectURL(url);
-        toast({ title: "Report Downloaded" });
+        toast({ title: "Report Downloaded & Saved" });
       }
     } catch (e: any) {
       toast({ title: "Export Failed", description: e.message, variant: "destructive" });
