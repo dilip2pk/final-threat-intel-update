@@ -448,6 +448,49 @@ export default function ShodanSearch() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Schedule Query Dialog */}
+        <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+          <DialogContent className="bg-card border-border max-w-md">
+            <DialogHeader><DialogTitle>Schedule Shodan Scan</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label>Schedule Name</Label>
+                <Input value={schedName} onChange={e => setSchedName(e.target.value)} className="mt-1" placeholder="My scheduled scan" />
+              </div>
+              <div>
+                <Label>Query</Label>
+                <Input value={query} readOnly className="mt-1 font-mono text-muted-foreground" />
+              </div>
+              <div>
+                <Label>Frequency</Label>
+                <Select value={schedFreq} onValueChange={setSchedFreq}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="once">One-time</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="custom">Custom (Cron)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {schedFreq === "custom" && (
+                <div>
+                  <Label>Cron Expression</Label>
+                  <Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1 font-mono" placeholder="0 2 * * *" />
+                  <p className="text-xs text-muted-foreground mt-1">e.g. "0 2 * * *" = daily at 2am</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setScheduleOpen(false)}>Cancel</Button>
+              <Button onClick={handleScheduleQuery} disabled={!schedName.trim()}>
+                <Calendar className="h-4 w-4 mr-2" /> Create Schedule
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
