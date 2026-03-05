@@ -18,7 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { analyzeFeed, sendAnalysisEmail, createServiceNowTicket, type AIAnalysis } from "@/lib/api";
 import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription } from "@/lib/formatters";
-import { loadSettings, isSmtpConfigured, isServiceNowConfigured } from "@/lib/settingsStore";
+import { loadSettingsFromDB, isSmtpConfigured, isServiceNowConfigured } from "@/lib/loadSettingsFromDB";
 
 export default function FeedDetail() {
   const { id } = useParams();
@@ -71,7 +71,7 @@ export default function FeedDetail() {
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const settings = loadSettings();
+      const settings = await loadSettingsFromDB();
       const result = await analyzeFeed({
         title: feedItem.title,
         description: feedItem.description,
@@ -108,10 +108,10 @@ export default function FeedDetail() {
     toast({ title: "Exported", description: "Markdown file downloaded" });
   };
 
-  const openEmailDialog = () => {
-    const settings = loadSettings();
+  const openEmailDialog = async () => {
+    const settings = await loadSettingsFromDB();
     if (!isSmtpConfigured(settings.smtp)) {
-      toast({ title: "SMTP Not Configured", description: "Please configure email settings first.", variant: "destructive" });
+      toast({ title: "SMTP Not Configured", description: "Please configure SMTP host, port, username, password and from address in Settings → Email.", variant: "destructive" });
       navigate("/settings");
       return;
     }
@@ -124,7 +124,7 @@ export default function FeedDetail() {
     setSending(true);
     const recipients = emailTo.split(",").map((e) => e.trim());
     try {
-      const settings = loadSettings();
+      const settings = await loadSettingsFromDB();
       const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis);
       await sendAnalysisEmail({
         to: recipients,
@@ -152,10 +152,10 @@ export default function FeedDetail() {
     }
   };
 
-  const openTicketDialog = () => {
-    const settings = loadSettings();
+  const openTicketDialog = async () => {
+    const settings = await loadSettingsFromDB();
     if (!isServiceNowConfigured(settings.serviceNow)) {
-      toast({ title: "ServiceNow Not Configured", description: "Please configure ServiceNow settings first.", variant: "destructive" });
+      toast({ title: "ServiceNow Not Configured", description: "Please configure ServiceNow instance URL and credentials in Settings → ServiceDesk.", variant: "destructive" });
       navigate("/settings");
       return;
     }
@@ -167,7 +167,7 @@ export default function FeedDetail() {
     if (!analysis) return;
     setSending(true);
     try {
-      const settings = loadSettings();
+      const settings = await loadSettingsFromDB();
       const desc = formatTicketDescription(analysis);
       const result = await createServiceNowTicket({
         ticket: {
