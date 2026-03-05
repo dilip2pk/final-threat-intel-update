@@ -31,6 +31,8 @@ export interface AIConfig {
   maxTokens: string;
   timeout: string;
   temperature: string;
+  apiType: "builtin" | "openai-compatible" | "intelligence-studio";
+  authHeaderType: "bearer" | "x-api-key";
 }
 
 export interface AppSettings {
@@ -62,6 +64,8 @@ const defaultSettings: AppSettings = {
     maxTokens: "4096",
     timeout: "30",
     temperature: "0.3",
+    apiType: "builtin",
+    authHeaderType: "bearer",
   },
 };
 

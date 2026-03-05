@@ -130,7 +130,14 @@ export default function SettingsPage() {
     setTestingAI(true);
     setAiTestResult(null);
     try {
-      const result = await testAIConnection({ model: settings.ai.model, endpointUrl: settings.ai.endpointUrl, apiKey: settings.ai.apiKey, timeout: settings.ai.timeout });
+      const result = await testAIConnection({
+        model: settings.ai.model,
+        endpointUrl: settings.ai.endpointUrl,
+        apiKey: settings.ai.apiKey,
+        timeout: settings.ai.timeout,
+        apiType: settings.ai.apiType,
+        authHeaderType: settings.ai.authHeaderType,
+      });
       setAiTestResult(result);
     } catch (e: any) {
       setAiTestResult({ success: false, message: e.message });
@@ -424,32 +431,42 @@ export default function SettingsPage() {
               </h2>
               <div>
                 <Label>AI Provider</Label>
-                <Select value={settings.ai.endpointUrl || settings.ai.apiKey ? "custom" : "builtin"} onValueChange={(v) => {
+                <Select value={settings.ai.apiType || "builtin"} onValueChange={(v) => {
                   if (v === "builtin") {
                     updateAI("endpointUrl", "");
                     updateAI("apiKey", "");
                     updateAI("model", "google/gemini-3-flash-preview");
+                    updateAI("apiType", "builtin");
+                    updateAI("authHeaderType", "bearer");
+                  } else if (v === "intelligence-studio") {
+                    updateAI("apiType", "intelligence-studio");
+                    updateAI("authHeaderType", "x-api-key");
+                    updateAI("endpointUrl", " ");
                   } else {
-                    // Set a placeholder so the UI switches immediately
+                    updateAI("apiType", "openai-compatible");
+                    updateAI("authHeaderType", "bearer");
                     updateAI("endpointUrl", " ");
                   }
                 }}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="builtin">Built-in AI (Lovable Gateway)</SelectItem>
-                    <SelectItem value="custom">Custom / Self-Hosted</SelectItem>
+                    <SelectItem value="openai-compatible">Custom / Self-Hosted (OpenAI-compatible)</SelectItem>
+                    <SelectItem value="intelligence-studio">Intelligence Studio (Aptean)</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {settings.ai.endpointUrl?.trim() ? "Using custom endpoint — configure below" : "Using built-in AI service, no API key needed"}
+                  {settings.ai.apiType === "intelligence-studio" ? "Using Aptean Intelligence Studio API" : settings.ai.apiType === "openai-compatible" ? "Using custom OpenAI-compatible endpoint — configure below" : "Using built-in AI service, no API key needed"}
                 </p>
               </div>
               <div>
                 <Label>AI Model</Label>
-                {(settings.ai.endpointUrl || settings.ai.apiKey) ? (
+                {settings.ai.apiType !== "builtin" ? (
                   <>
-                    <Input value={settings.ai.model} onChange={(e) => updateAI("model", e.target.value)} className="mt-1 font-mono" placeholder="gpt-4o, llama3, mistral, etc." />
-                    <p className="text-xs text-muted-foreground mt-1">Type any model name supported by your endpoint (OpenAI-compatible API)</p>
+                    <Input value={settings.ai.model} onChange={(e) => updateAI("model", e.target.value)} className="mt-1 font-mono" placeholder={settings.ai.apiType === "intelligence-studio" ? "Flow ID or model name" : "gpt-4o, llama3, mistral, etc."} />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {settings.ai.apiType === "intelligence-studio" ? "The flow/model identifier used by Intelligence Studio" : "Type any model name supported by your endpoint"}
+                    </p>
                   </>
                 ) : (
                   <Select value={settings.ai.model} onValueChange={(v) => updateAI("model", v)}>
@@ -475,24 +492,42 @@ export default function SettingsPage() {
                 <Input value={settings.ai.timeout} onChange={(e) => updateAI("timeout", e.target.value)} className="mt-1 font-mono" />
               </div>
             </div>
-            {/* Custom Endpoint Config — shown when custom provider selected */}
-            {(settings.ai.endpointUrl || settings.ai.apiKey) && (
+
+            {/* Custom Endpoint Config — shown when non-builtin provider selected */}
+            {settings.ai.apiType !== "builtin" && (
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Key className="h-4 w-4 text-primary" /> Custom Endpoint Configuration
+                <Key className="h-4 w-4 text-primary" />
+                {settings.ai.apiType === "intelligence-studio" ? "Intelligence Studio Configuration" : "Custom Endpoint Configuration"}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Configure your self-hosted or third-party OpenAI-compatible endpoint.
+                {settings.ai.apiType === "intelligence-studio"
+                  ? "Configure your Aptean Intelligence Studio endpoint. Uses x-api-key authentication."
+                  : "Configure your self-hosted or third-party OpenAI-compatible endpoint."}
               </p>
               <div>
                 <Label>Endpoint URL</Label>
-                <Input value={settings.ai.endpointUrl?.trim() || ""} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder="http://localhost:11434/v1/chat/completions" />
-                <p className="text-xs text-muted-foreground mt-1">Supports OpenAI-compatible APIs: Ollama, LM Studio, vLLM, LocalAI, Azure OpenAI, etc.</p>
+                <Input value={settings.ai.endpointUrl?.trim() || ""} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder={settings.ai.apiType === "intelligence-studio" ? "https://appcentral-int.aptean.com/ais/api/v1/run/<flow-id>" : "http://localhost:11434/v1/chat/completions"} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {settings.ai.apiType === "intelligence-studio"
+                    ? "Full Intelligence Studio API URL including the flow/run ID"
+                    : "Supports OpenAI-compatible APIs: Ollama, LM Studio, vLLM, LocalAI, Azure OpenAI, etc."}
+                </p>
+              </div>
+              <div>
+                <Label>Authentication Header</Label>
+                <Select value={settings.ai.authHeaderType || "bearer"} onValueChange={(v) => updateAI("authHeaderType", v)}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bearer">Authorization: Bearer (standard)</SelectItem>
+                    <SelectItem value="x-api-key">x-api-key (Intelligence Studio)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>API Key <span className="text-muted-foreground font-normal">(optional for local endpoints)</span></Label>
                 <div className="relative mt-1">
-                  <Input type={showAIKey ? "text" : "password"} value={settings.ai.apiKey} onChange={(e) => updateAI("apiKey", e.target.value)} placeholder="sk-... or leave blank for local" className="font-mono" />
+                  <Input type={showAIKey ? "text" : "password"} value={settings.ai.apiKey} onChange={(e) => updateAI("apiKey", e.target.value)} placeholder={settings.ai.apiType === "intelligence-studio" ? "sk-..." : "sk-... or leave blank for local"} className="font-mono" />
                   <button type="button" onClick={() => setShowAIKey(!showAIKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -501,7 +536,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="sm" onClick={handleTestAI} disabled={testingAI} className="gap-2">
-                  {testingAI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test AI Connection
+                  {testingAI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
                 </Button>
               </div>
               <TestResultBadge result={aiTestResult} />
