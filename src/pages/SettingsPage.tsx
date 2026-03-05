@@ -384,6 +384,36 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" /> Sidebar Icon
+              </h2>
+              <p className="text-xs text-muted-foreground">Upload a custom icon for the sidebar header. Replaces the default shield icon. Recommended: 28×28px square image.</p>
+              <div className="flex items-center gap-6">
+                {general.sidebarIconUrl ? (
+                  <div className="relative group">
+                    <div className="w-16 h-16 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden">
+                      <img src={general.sidebarIconUrl} alt="Sidebar icon" className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <button onClick={removeIcon} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border bg-muted/20 flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-muted-foreground/40" />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <input ref={iconInputRef} type="file" accept="image/*" onChange={handleIconUpload} className="hidden" />
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => iconInputRef.current?.click()} disabled={uploadingIcon}>
+                    {uploadingIcon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    {uploadingIcon ? "Uploading..." : "Upload Icon"}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">PNG, SVG or WEBP. Square format recommended.</p>
+                </div>
+              </div>
+            </div>
           </TabsContent>
 
           {/* AI Integration Tab */}

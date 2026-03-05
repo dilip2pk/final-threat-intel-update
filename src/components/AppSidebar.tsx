@@ -26,6 +26,7 @@ export function AppSidebar() {
   const { user, role, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const [logoUrl, setLogoUrl] = useState("");
+  const [sidebarIconUrl, setSidebarIconUrl] = useState("");
   const [appName, setAppName] = useState("ThreatIntel");
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function AppSidebar() {
       if (data?.value) {
         const val = data.value as any;
         if (val.logoUrl) setLogoUrl(val.logoUrl);
+        if (val.sidebarIconUrl) setSidebarIconUrl(val.sidebarIconUrl);
         if (val.appName) {
           setAppName(val.appName);
           document.title = val.appName;
@@ -47,7 +49,9 @@ export function AppSidebar() {
       collapsed ? "w-16" : "w-60"
     )}>
       <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
-        {logoUrl ? (
+        {sidebarIconUrl ? (
+          <img src={sidebarIconUrl} alt="Icon" className="h-7 w-7 shrink-0 rounded object-contain" />
+        ) : logoUrl ? (
           <img src={logoUrl} alt="Logo" className="h-7 w-7 shrink-0 rounded object-contain" />
         ) : (
           <Shield className="h-7 w-7 text-primary shrink-0" />
