@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
-  CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock,
+  CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock, FileText, Palette,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { maskSecret } from "@/lib/settingsStore";
