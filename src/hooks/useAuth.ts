@@ -25,11 +25,17 @@ export function useAuth() {
     // Get initial session first
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
+      if (session?.user) {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+        if (!mounted) return;
+        setRole((data?.role as AppRole) || "user");
+      }
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchRole(session.user.id);
-      }
       if (mounted) setLoading(false);
     });
 
@@ -37,12 +43,22 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchRole(session.user.id);
+          // Fetch role BEFORE updating user state to prevent flash
+          setLoading(true);
+          const { data } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .single();
+          if (!mounted) return;
+          setRole((data?.role as AppRole) || "user");
+          setSession(session);
+          setUser(session.user);
         } else {
           setRole(null);
+          setSession(null);
+          setUser(null);
         }
         if (mounted) setLoading(false);
       }
@@ -52,7 +68,7 @@ export function useAuth() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchRole]);
+  }, []);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
