@@ -17,6 +17,7 @@ import ShodanSearch from "./pages/ShodanSearch";
 import SoftwareInventory from "./pages/SoftwareInventory";
 import NetworkScanner from "./pages/NetworkScanner";
 import AuthPage from "./pages/AuthPage";
+import ScheduleManager from "./pages/ScheduleManager";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ function AppRoutes() {
       {/* Admin-only routes */}
       <Route path="/feeds" element={<AdminRoute><FeedManagement /></AdminRoute>} />
       <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+      <Route path="/schedules" element={<AdminRoute><ScheduleManager /></AdminRoute>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
