@@ -61,7 +61,12 @@ export default function SettingsPage() {
       patchRecommendations: true,
     },
   });
-  const [savingReport, setSavingReport] = useState(false);
+  const [savingReport, setSavingReport] = false;
+
+  // CVE source URL state
+  const [cveSourceUrl, setCveSourceUrl] = useState("");
+  const [savingCve, setSavingCve] = useState(false);
+  const [cveLoaded, setCveLoaded] = useState(false);
 
   // Load report customization from DB
   useEffect(() => {
