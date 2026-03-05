@@ -237,8 +237,12 @@ export default function ShodanSearch() {
       doc.save(`shodan-report-${new Date().toISOString().slice(0, 10)}.pdf`);
       await saveReportRecord("pdf");
       toast({ title: "PDF Exported & Saved", description: "Shodan report saved as PDF" });
+    } catch (e: any) {
+      toast({ title: "Export Failed", description: e.message, variant: "destructive" });
+    }
+  };
 
-  const exportShodanHTML = () => {
+  const exportShodanHTML = async () => {
     const rows = results.map(r => `<tr><td>${r.ip_str || ""}</td><td>${r.port ? `${r.transport || "tcp"}:${r.port}` : ""}</td><td>${r.org || ""}</td><td>${r.product ? `${r.product} ${r.version || ""}`.trim() : ""}</td><td>${r.os || ""}</td><td>${r.location ? `${r.location.city || ""}, ${r.location.country_name || ""}` : ""}</td><td>${r.hostnames?.join(", ") || ""}</td><td style="color:#ef4444">${r.vulns?.join(", ") || ""}</td></tr>`).join("");
     const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Shodan Report</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a2e;font-size:14px}.header{background:#14b8a6;color:#fff;padding:30px 40px}.header h1{font-size:24px}.header p{opacity:.9;font-size:13px;margin-top:4px}.content{padding:30px 40px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#f1f5f9;font-weight:600;text-align:left;padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;text-transform:uppercase}td{padding:10px 12px;border:1px solid #e2e8f0}tr:nth-child(even){background:#fafbfc}.footer{border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;font-size:12px;color:#64748b;margin-top:30px}@media print{.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="header"><h1>Shodan Intelligence Report</h1><p>Query: ${query} | ${totalResults} results | Generated: ${new Date().toLocaleString()}</p></div><div class="content"><table><thead><tr><th>IP</th><th>Port</th><th>Organization</th><th>Product</th><th>OS</th><th>Location</th><th>Hostnames</th><th>Vulnerabilities</th></tr></thead><tbody>${rows}</tbody></table></div><div class="footer"><p>Confidential — Shodan Intelligence Report</p></div></body></html>`;
     const blob = new Blob([html], { type: "text/html" });
@@ -246,7 +250,8 @@ export default function ShodanSearch() {
     const a = document.createElement("a"); a.href = url;
     a.download = `shodan-report-${new Date().toISOString().slice(0, 10)}.html`;
     a.click(); URL.revokeObjectURL(url);
-    toast({ title: "HTML Exported", description: "Shodan report saved as HTML" });
+    await saveReportRecord("html", html);
+    toast({ title: "HTML Exported & Saved", description: "Shodan report saved as HTML" });
   };
 
   return (
