@@ -10,8 +10,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, Loader2, Globe, Shield, Plus, Star, Trash2, Download, AlertTriangle,
-  Server, Lock, Wifi, Eye, Settings2,
+  Server, Lock, Wifi, Eye, Settings2, FileText, FileDown,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
@@ -122,8 +123,11 @@ export default function ShodanSearch() {
     setIsDork(q.is_dork);
   };
 
-  const exportResults = (format: "csv" | "json") => {
+  const exportResults = (format: "csv" | "json" | "pdf" | "html") => {
     if (!results.length) return;
+    if (format === "pdf") return exportShodanPDF();
+    if (format === "html") return exportShodanHTML();
+
     let content: string, mimeType: string, ext: string;
     if (format === "json") {
       content = JSON.stringify(results, null, 2);
@@ -143,6 +147,66 @@ export default function ShodanSearch() {
     a.download = `shodan-results.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportShodanPDF = async () => {
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+
+      doc.setFillColor(20, 184, 166);
+      doc.rect(0, 0, pageWidth, 30, "F");
+      doc.setTextColor(255);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Shodan Intelligence Report", margin, 16);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Query: ${query} | ${totalResults} results | Generated: ${new Date().toLocaleString()}`, margin, 24);
+
+      const tableData = results.map(r => [
+        r.ip_str || "", r.port ? `${r.transport || "tcp"}:${r.port}` : "",
+        r.org || "", r.product ? `${r.product} ${r.version || ""}`.trim() : "",
+        r.os || "", r.location ? `${r.location.city || ""}, ${r.location.country_name || ""}` : "",
+        r.hostnames?.join(", ") || "", r.vulns?.join(", ") || "",
+      ]);
+
+      autoTable(doc, {
+        startY: 35,
+        head: [["IP", "Port", "Organization", "Product", "OS", "Location", "Hostnames", "Vulnerabilities"]],
+        body: tableData, theme: "grid",
+        headStyles: { fillColor: [20, 184, 166], fontSize: 8, fontStyle: "bold" },
+        bodyStyles: { fontSize: 7 }, alternateRowStyles: { fillColor: [250, 251, 252] },
+        margin: { left: margin, right: margin },
+        columnStyles: { 7: { cellWidth: 40, textColor: [239, 68, 68] } },
+      });
+
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8); doc.setTextColor(150);
+        doc.text("Confidential — Shodan Intelligence Report", margin, doc.internal.pageSize.getHeight() - 8);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 8, { align: "right" });
+      }
+      doc.save(`shodan-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast({ title: "PDF Exported", description: "Shodan report saved as PDF" });
+    } catch (e: any) {
+      toast({ title: "Export Failed", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const exportShodanHTML = () => {
+    const rows = results.map(r => `<tr><td>${r.ip_str || ""}</td><td>${r.port ? `${r.transport || "tcp"}:${r.port}` : ""}</td><td>${r.org || ""}</td><td>${r.product ? `${r.product} ${r.version || ""}`.trim() : ""}</td><td>${r.os || ""}</td><td>${r.location ? `${r.location.city || ""}, ${r.location.country_name || ""}` : ""}</td><td>${r.hostnames?.join(", ") || ""}</td><td style="color:#ef4444">${r.vulns?.join(", ") || ""}</td></tr>`).join("");
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Shodan Report</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a2e;font-size:14px}.header{background:#14b8a6;color:#fff;padding:30px 40px}.header h1{font-size:24px}.header p{opacity:.9;font-size:13px;margin-top:4px}.content{padding:30px 40px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#f1f5f9;font-weight:600;text-align:left;padding:10px 12px;border:1px solid #e2e8f0;font-size:12px;text-transform:uppercase}td{padding:10px 12px;border:1px solid #e2e8f0}tr:nth-child(even){background:#fafbfc}.footer{border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;font-size:12px;color:#64748b;margin-top:30px}@media print{.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="header"><h1>Shodan Intelligence Report</h1><p>Query: ${query} | ${totalResults} results | Generated: ${new Date().toLocaleString()}</p></div><div class="content"><table><thead><tr><th>IP</th><th>Port</th><th>Organization</th><th>Product</th><th>OS</th><th>Location</th><th>Hostnames</th><th>Vulnerabilities</th></tr></thead><tbody>${rows}</tbody></table></div><div class="footer"><p>Confidential — Shodan Intelligence Report</p></div></body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `shodan-report-${new Date().toISOString().slice(0, 10)}.html`;
+    a.click(); URL.revokeObjectURL(url);
+    toast({ title: "HTML Exported", description: "Shodan report saved as HTML" });
   };
 
   return (
@@ -206,14 +270,27 @@ export default function ShodanSearch() {
                 Results {totalResults > 0 && <span className="text-muted-foreground font-normal">({totalResults.toLocaleString()} total)</span>}
               </h2>
               {results.length > 0 && (
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => exportResults("csv")} className="gap-1 text-xs h-7">
-                    <Download className="h-3 w-3" /> CSV
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => exportResults("json")} className="gap-1 text-xs h-7">
-                    <Download className="h-3 w-3" /> JSON
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-7">
+                      <FileDown className="h-3 w-3" /> Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => exportResults("pdf")} className="gap-2 text-xs">
+                      <FileText className="h-3 w-3" /> Export as PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportResults("html")} className="gap-2 text-xs">
+                      <Globe className="h-3 w-3" /> Export as HTML
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportResults("csv")} className="gap-2 text-xs">
+                      <Download className="h-3 w-3" /> Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportResults("json")} className="gap-2 text-xs">
+                      <Download className="h-3 w-3" /> Export as JSON
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 
