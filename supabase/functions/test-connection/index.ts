@@ -32,8 +32,9 @@ serve(async (req) => {
 });
 
 async function testAI(params: any) {
-  const { model, endpointUrl, apiKey, timeout } = params;
+  const { model, endpointUrl, apiKey, timeout, apiType, authHeaderType } = params;
   const timeoutMs = parseInt(timeout || "30") * 1000;
+  const isIntelStudio = apiType === "intelligence-studio";
 
   // Use custom endpoint or default Lovable AI
   const url = endpointUrl?.trim() || "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -50,16 +51,35 @@ async function testAI(params: any) {
 
   try {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (key) headers["Authorization"] = `Bearer ${key}`;
+
+    if (key) {
+      if (authHeaderType === "x-api-key" || isIntelStudio) {
+        headers["x-api-key"] = key;
+      } else {
+        headers["Authorization"] = `Bearer ${key}`;
+      }
+    }
+
+    let requestBody: string;
+    if (isIntelStudio) {
+      requestBody = JSON.stringify({
+        output_type: "text",
+        input_type: "text",
+        input_value: "Reply with exactly: CONNECTION_OK",
+        session_id: `test_${Date.now()}`,
+      });
+    } else {
+      requestBody = JSON.stringify({
+        model: model || "google/gemini-3-flash-preview",
+        messages: [{ role: "user", content: "Reply with exactly: CONNECTION_OK" }],
+        max_tokens: 20,
+      });
+    }
 
     const response = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        model: model || "google/gemini-3-flash-preview",
-        messages: [{ role: "user", content: "Reply with exactly: CONNECTION_OK" }],
-        max_tokens: 20,
-      }),
+      body: requestBody,
       signal: controller.signal,
     });
 
@@ -72,11 +92,20 @@ async function testAI(params: any) {
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+
+    let content = "";
+    if (isIntelStudio) {
+      content = data?.outputs?.[0]?.outputs?.[0]?.results?.message?.text
+        || data?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message
+        || data?.result || data?.output || data?.text
+        || (typeof data === "string" ? data : "Response received");
+    } else {
+      content = data.choices?.[0]?.message?.content || "";
+    }
 
     return jsonResponse({
       success: true,
-      message: `Connected successfully. Model: ${model || "default"}. Response: "${content.slice(0, 50)}"`,
+      message: `Connected successfully. ${isIntelStudio ? "Intelligence Studio" : `Model: ${model || "default"}`}. Response: "${String(content).slice(0, 50)}"`,
       latencyMs,
     });
   } catch (e: any) {
