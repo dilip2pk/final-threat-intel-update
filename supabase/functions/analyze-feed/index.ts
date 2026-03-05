@@ -9,9 +9,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { title, description, content, source, model } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const { title, description, content, source, model, endpointUrl, apiKey } = await req.json();
+    
+    // Use custom endpoint if provided, otherwise Lovable AI gateway
+    const aiUrl = endpointUrl?.trim() || "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const aiKey = apiKey?.trim() || Deno.env.get("LOVABLE_API_KEY");
+    if (!aiKey && !endpointUrl) throw new Error("LOVABLE_API_KEY is not configured");
 
     const selectedModel = model || "google/gemini-3-flash-preview";
 
@@ -26,12 +29,14 @@ Content: ${content || "No additional content"}
 
 Provide a comprehensive security analysis.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (aiKey) headers["Authorization"] = `Bearer ${aiKey}`;
+
+    const response = await fetch(aiUrl, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         model: selectedModel,
         messages: [
