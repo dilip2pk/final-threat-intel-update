@@ -650,6 +650,99 @@ export default function SettingsPage() {
               </div>
             </div>
           </TabsContent>
+
+          {/* Report Customization Tab */}
+          <TabsContent value="reports" className="space-y-6">
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" /> Report Branding
+              </h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Organization Name</Label>
+                  <Input value={reportConfig.orgName} onChange={e => setReportConfig(c => ({ ...c, orgName: e.target.value }))} className="mt-1" placeholder="Your Organization" />
+                </div>
+                <div>
+                  <Label>Report Title</Label>
+                  <Input value={reportConfig.reportTitle} onChange={e => setReportConfig(c => ({ ...c, reportTitle: e.target.value }))} className="mt-1" placeholder="Security Scan Report" />
+                </div>
+              </div>
+              <div>
+                <Label>Header Text (optional)</Label>
+                <Input value={reportConfig.headerText} onChange={e => setReportConfig(c => ({ ...c, headerText: e.target.value }))} className="mt-1" placeholder="Internal Use Only" />
+              </div>
+              <div>
+                <Label>Footer / Disclaimer</Label>
+                <Textarea value={reportConfig.footerText} onChange={e => setReportConfig(c => ({ ...c, footerText: e.target.value }))} className="mt-1 text-sm" rows={2} />
+              </div>
+              <div>
+                <Label>Logo URL</Label>
+                <Input value={reportConfig.logoUrl} onChange={e => setReportConfig(c => ({ ...c, logoUrl: e.target.value }))} className="mt-1 font-mono text-sm" placeholder="https://... (or use the one from Branding tab)" />
+                <p className="text-xs text-muted-foreground mt-1">Leave empty to use the organization logo from the Branding tab.</p>
+              </div>
+            </div>
+
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Palette className="h-4 w-4 text-primary" /> Appearance
+              </h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Primary Color</Label>
+                  <div className="flex gap-2 mt-1">
+                    <input type="color" value={reportConfig.primaryColor} onChange={e => setReportConfig(c => ({ ...c, primaryColor: e.target.value }))} className="w-10 h-10 rounded border border-border cursor-pointer" />
+                    <Input value={reportConfig.primaryColor} onChange={e => setReportConfig(c => ({ ...c, primaryColor: e.target.value }))} className="font-mono" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Date/Time Format</Label>
+                  <Select value={reportConfig.dateFormat} onValueChange={v => setReportConfig(c => ({ ...c, dateFormat: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MMM d, yyyy HH:mm">MMM d, yyyy HH:mm</SelectItem>
+                      <SelectItem value="yyyy-MM-dd HH:mm:ss">yyyy-MM-dd HH:mm:ss</SelectItem>
+                      <SelectItem value="dd/MM/yyyy HH:mm">dd/MM/yyyy HH:mm</SelectItem>
+                      <SelectItem value="MM/dd/yyyy hh:mm a">MM/dd/yyyy hh:mm a</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-primary" /> Sections to Include
+              </h2>
+              <p className="text-xs text-muted-foreground">Choose which sections appear in the generated PDF/HTML reports.</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                {([
+                  { key: "summary", label: "Scan Summary" },
+                  { key: "hostDetails", label: "Host & Port Details" },
+                  { key: "aiAnalysis", label: "AI Security Analysis" },
+                  { key: "remediation", label: "Remediation Recommendations" },
+                  { key: "firewallRules", label: "Firewall Hardening Rules" },
+                  { key: "patchRecommendations", label: "Patch Recommendations" },
+                ] as const).map(section => (
+                  <div key={section.key} className="flex items-center gap-3">
+                    <Checkbox
+                      id={`section-${section.key}`}
+                      checked={reportConfig.includeSections[section.key]}
+                      onCheckedChange={(v) => setReportConfig(c => ({
+                        ...c,
+                        includeSections: { ...c.includeSections, [section.key]: !!v },
+                      }))}
+                    />
+                    <Label htmlFor={`section-${section.key}`} className="text-sm cursor-pointer">{section.label}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={saveReportConfig} className="gap-2" disabled={savingReport}>
+              {savingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {savingReport ? "Saving..." : "Save Report Settings"}
+            </Button>
+          </TabsContent>
         </Tabs>
 
         <Button onClick={handleSave} className="gap-2" disabled={saving}>
