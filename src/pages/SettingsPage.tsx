@@ -61,7 +61,7 @@ export default function SettingsPage() {
       patchRecommendations: true,
     },
   });
-  const [savingReport, setSavingReport] = false;
+  const [savingReport, setSavingReport] = useState(false);
 
   // CVE source URL state
   const [cveSourceUrl, setCveSourceUrl] = useState("");
