@@ -81,6 +81,8 @@ export default function FeedDetail() {
         model: settings.ai.model,
         endpointUrl: settings.ai.endpointUrl,
         apiKey: settings.ai.apiKey,
+        apiType: (settings.ai as any).apiType,
+        authHeaderType: (settings.ai as any).authHeaderType,
       });
       setAnalysis(result);
       toast({ title: "Analysis Complete", description: "AI-generated analysis is ready" });
