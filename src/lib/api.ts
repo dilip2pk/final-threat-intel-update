@@ -17,6 +17,8 @@ export async function analyzeFeed(params: {
   model?: string;
   endpointUrl?: string;
   apiKey?: string;
+  apiType?: string;
+  authHeaderType?: string;
 }): Promise<AIAnalysis> {
   const { data, error } = await supabase.functions.invoke("analyze-feed", {
     body: params,
@@ -81,6 +83,8 @@ export async function testAIConnection(params: {
   endpointUrl?: string;
   apiKey?: string;
   timeout?: string;
+  apiType?: string;
+  authHeaderType?: string;
 }): Promise<{ success: boolean; message: string; latencyMs?: number }> {
   const { data, error } = await supabase.functions.invoke("test-connection", {
     body: { type: "ai", ...params },
