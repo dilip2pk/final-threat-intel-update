@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, Rss, Loader2, Zap, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Rss, Loader2, Zap, CheckCircle2, XCircle, ShieldAlert, Save, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { formatDate } from "@/lib/mockData";
 import { useAuth } from "@/hooks/useAuth";
-import { TopCVEsManager } from "@/components/TopCVEsManager";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function FeedManagement() {
   const { isAdmin } = useAuth();
@@ -25,6 +25,33 @@ export default function FeedManagement() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const { toast } = useToast();
+
+  // CVE source URL state
+  const [cveSourceUrl, setCveSourceUrl] = useState("");
+  const [savingCve, setSavingCve] = useState(false);
+  const [cveLoaded, setCveLoaded] = useState(false);
+
+  useEffect(() => {
+    supabase.from("app_settings").select("value").eq("key", "cve_source").single().then(({ data }) => {
+      setCveSourceUrl((data?.value as any)?.url || "");
+      setCveLoaded(true);
+    });
+  }, []);
+
+  const saveCveSource = async () => {
+    setSavingCve(true);
+    try {
+      await supabase.from("app_settings").upsert(
+        { key: "cve_source", value: { url: cveSourceUrl.trim() } as any },
+        { onConflict: "key" }
+      );
+      toast({ title: "CVE Source Saved", description: "Top CVEs will now fetch from the configured URL" });
+    } catch (e: any) {
+      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingCve(false);
+    }
+  };
 
   const openNew = () => {
     setEditingId(null);
@@ -173,11 +200,42 @@ export default function FeedManagement() {
           </div>
         )}
 
-        {/* Top CVEs Management - Admin Only */}
+        {/* Top CVEs Source Configuration - Admin Only */}
         {isAdmin && (
           <>
             <Separator className="my-6" />
-            <TopCVEsManager />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-destructive" />
+                <h2 className="text-lg font-semibold text-foreground">Top CVEs Source</h2>
+              </div>
+              <div className="border border-border rounded-lg bg-card p-5 space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Configure the JSON feed URL for the Top CVEs widget on the dashboard. Supports formats like{" "}
+                  <a href="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json" target="_blank" rel="noopener noreferrer" className="text-primary underline">CISA KEV</a>, NVD API, or any JSON endpoint returning CVE data.
+                </p>
+                <div>
+                  <Label>CVE Source URL</Label>
+                  <Input
+                    value={cveSourceUrl}
+                    onChange={e => setCveSourceUrl(e.target.value)}
+                    className="mt-1 font-mono text-sm"
+                    placeholder="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">The top 12 CVEs from this feed will be shown on the dashboard.</p>
+                </div>
+                <Button onClick={saveCveSource} className="gap-2" disabled={savingCve} size="sm">
+                  {savingCve ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {savingCve ? "Saving..." : "Save CVE Source"}
+                </Button>
+                {!cveSourceUrl && cveLoaded && (
+                  <div className="flex items-center gap-2 p-3 rounded-md border border-destructive/30 bg-destructive/10 text-xs text-destructive">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>No source URL configured. The Top CVEs widget will not display data until a URL is set.</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
 
