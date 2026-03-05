@@ -82,12 +82,12 @@ export default function SettingsPage() {
   };
 
   // Integration-specific settings stored in the integrations key
-  const shodanApiKey = (settings as any).shodan?.apiKey || "";
-  const shodanEnabled = (settings as any).shodan?.enabled ?? false;
-  const defenderTenantId = (settings as any).defender?.tenantId || "";
-  const defenderClientId = (settings as any).defender?.clientId || "";
-  const defenderClientSecret = (settings as any).defender?.clientSecret || "";
-  const defenderEnabled = (settings as any).defender?.enabled ?? false;
+  const shodanApiKey = settings.shodan?.apiKey || "";
+  const shodanEnabled = settings.shodan?.enabled ?? false;
+  const defenderTenantId = settings.defender?.tenantId || "";
+  const defenderClientId = settings.defender?.clientId || "";
+  const defenderClientSecret = settings.defender?.clientSecret || "";
+  const defenderEnabled = settings.defender?.enabled ?? false;
 
   const updateShodan = (field: string, value: any) => {
     setSettings((s: any) => ({ ...s, shodan: { ...s.shodan, [field]: value } }));

@@ -65,8 +65,8 @@ export default function ShodanSearch() {
   const [isDork, setIsDork] = useState(false);
   const { toast } = useToast();
   const { settings } = useSettings();
-  const shodanApiKey = (settings as any).shodan?.apiKey || "";
-  const shodanEnabled = (settings as any).shodan?.enabled ?? false;
+  const shodanApiKey = settings.shodan?.apiKey || "";
+  const shodanEnabled = settings.shodan?.enabled ?? false;
 
   // Load saved queries
   useEffect(() => {
