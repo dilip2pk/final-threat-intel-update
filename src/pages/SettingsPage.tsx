@@ -130,7 +130,14 @@ export default function SettingsPage() {
     setTestingAI(true);
     setAiTestResult(null);
     try {
-      const result = await testAIConnection({ model: settings.ai.model, endpointUrl: settings.ai.endpointUrl, apiKey: settings.ai.apiKey, timeout: settings.ai.timeout });
+      const result = await testAIConnection({
+        model: settings.ai.model,
+        endpointUrl: settings.ai.endpointUrl,
+        apiKey: settings.ai.apiKey,
+        timeout: settings.ai.timeout,
+        apiType: settings.ai.apiType,
+        authHeaderType: settings.ai.authHeaderType,
+      });
       setAiTestResult(result);
     } catch (e: any) {
       setAiTestResult({ success: false, message: e.message });
