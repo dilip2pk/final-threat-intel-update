@@ -235,11 +235,8 @@ export default function ShodanSearch() {
         doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 8, { align: "right" });
       }
       doc.save(`shodan-report-${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast({ title: "PDF Exported", description: "Shodan report saved as PDF" });
-    } catch (e: any) {
-      toast({ title: "Export Failed", description: e.message, variant: "destructive" });
-    }
-  };
+      await saveReportRecord("pdf");
+      toast({ title: "PDF Exported & Saved", description: "Shodan report saved as PDF" });
 
   const exportShodanHTML = () => {
     const rows = results.map(r => `<tr><td>${r.ip_str || ""}</td><td>${r.port ? `${r.transport || "tcp"}:${r.port}` : ""}</td><td>${r.org || ""}</td><td>${r.product ? `${r.product} ${r.version || ""}`.trim() : ""}</td><td>${r.os || ""}</td><td>${r.location ? `${r.location.city || ""}, ${r.location.country_name || ""}` : ""}</td><td>${r.hostnames?.join(", ") || ""}</td><td style="color:#ef4444">${r.vulns?.join(", ") || ""}</td></tr>`).join("");
