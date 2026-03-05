@@ -320,6 +320,16 @@ export default function SettingsPage() {
           <TabsContent value="branding" className="space-y-6">
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Palette className="h-4 w-4 text-primary" /> Application Name
+              </h2>
+              <p className="text-xs text-muted-foreground">Set the name displayed across the application — sidebar, page title, and reports.</p>
+              <div>
+                <Label>App Name</Label>
+                <Input value={general.appName} onChange={e => setGeneral(g => ({ ...g, appName: e.target.value }))} className="mt-1" placeholder="ThreatIntel" />
+              </div>
+            </div>
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-primary" /> Organization Logo
               </h2>
               <p className="text-xs text-muted-foreground">Upload your organization's logo. It will appear in the sidebar and reports.</p>
@@ -357,13 +367,38 @@ export default function SettingsPage() {
                 <Brain className="h-4 w-4 text-primary" /> AI Model Configuration
               </h2>
               <div>
-                <Label>AI Model</Label>
-                <Select value={settings.ai.model} onValueChange={(v) => updateAI("model", v)}>
+                <Label>AI Provider</Label>
+                <Select value={settings.ai.endpointUrl ? "custom" : "builtin"} onValueChange={(v) => {
+                  if (v === "builtin") {
+                    updateAI("endpointUrl", "");
+                    updateAI("apiKey", "");
+                  }
+                }}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {aiModels.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    <SelectItem value="builtin">Built-in AI (Lovable Gateway)</SelectItem>
+                    <SelectItem value="custom">Custom / Self-Hosted</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {settings.ai.endpointUrl ? "Using custom endpoint — configure below" : "Using built-in AI service, no API key needed"}
+                </p>
+              </div>
+              <div>
+                <Label>AI Model</Label>
+                {settings.ai.endpointUrl ? (
+                  <>
+                    <Input value={settings.ai.model} onChange={(e) => updateAI("model", e.target.value)} className="mt-1 font-mono" placeholder="gpt-4o, llama3, mistral, etc." />
+                    <p className="text-xs text-muted-foreground mt-1">Type any model name supported by your endpoint (OpenAI-compatible API)</p>
+                  </>
+                ) : (
+                  <Select value={settings.ai.model} onValueChange={(v) => updateAI("model", v)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {aiModels.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
@@ -380,19 +415,25 @@ export default function SettingsPage() {
                 <Input value={settings.ai.timeout} onChange={(e) => updateAI("timeout", e.target.value)} className="mt-1 font-mono" />
               </div>
             </div>
+            {/* Custom Endpoint Config — shown when custom provider selected or URL already set */}
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Key className="h-4 w-4 text-primary" /> Custom AI API (Optional)
+                <Key className="h-4 w-4 text-primary" /> {settings.ai.endpointUrl ? "Custom Endpoint Configuration" : "Custom AI API (Optional)"}
               </h2>
-              <p className="text-xs text-muted-foreground">Leave blank to use the built-in AI service.</p>
+              <p className="text-xs text-muted-foreground">
+                {settings.ai.endpointUrl
+                  ? "Configure your self-hosted or third-party OpenAI-compatible endpoint."
+                  : "Leave blank to use the built-in AI service. Fill in to use your own model."}
+              </p>
               <div>
-                <Label>Custom Endpoint URL</Label>
-                <Input value={settings.ai.endpointUrl} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder="https://api.openai.com/v1/chat/completions" />
+                <Label>Endpoint URL</Label>
+                <Input value={settings.ai.endpointUrl} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder="http://localhost:11434/v1/chat/completions" />
+                <p className="text-xs text-muted-foreground mt-1">Supports OpenAI-compatible APIs: Ollama, LM Studio, vLLM, LocalAI, Azure OpenAI, etc.</p>
               </div>
               <div>
-                <Label>API Key</Label>
+                <Label>API Key {!settings.ai.endpointUrl && "(optional)"}</Label>
                 <div className="relative mt-1">
-                  <Input type={showAIKey ? "text" : "password"} value={settings.ai.apiKey} onChange={(e) => updateAI("apiKey", e.target.value)} placeholder="sk-..." className="font-mono" />
+                  <Input type={showAIKey ? "text" : "password"} value={settings.ai.apiKey} onChange={(e) => updateAI("apiKey", e.target.value)} placeholder="sk-... or leave blank for local" className="font-mono" />
                   <button type="button" onClick={() => setShowAIKey(!showAIKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>

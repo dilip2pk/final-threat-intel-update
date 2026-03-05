@@ -26,11 +26,17 @@ export function AppSidebar() {
   const { user, role, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const [logoUrl, setLogoUrl] = useState("");
+  const [appName, setAppName] = useState("ThreatIntel");
 
   useEffect(() => {
     supabase.from("app_settings").select("value").eq("key", "general").single().then(({ data }) => {
-      if (data?.value && (data.value as any).logoUrl) {
-        setLogoUrl((data.value as any).logoUrl);
+      if (data?.value) {
+        const val = data.value as any;
+        if (val.logoUrl) setLogoUrl(val.logoUrl);
+        if (val.appName) {
+          setAppName(val.appName);
+          document.title = val.appName;
+        }
       }
     });
   }, []);
@@ -47,7 +53,7 @@ export function AppSidebar() {
           <Shield className="h-7 w-7 text-primary shrink-0" />
         )}
         {!collapsed && (
-          <span className="text-lg font-bold text-foreground tracking-tight font-mono">ThreatIntel</span>
+          <span className="text-lg font-bold text-foreground tracking-tight font-mono">{appName}</span>
         )}
       </div>
 
