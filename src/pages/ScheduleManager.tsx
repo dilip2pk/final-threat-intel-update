@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar, Clock, Plus, Trash2, Play, Loader2, CheckCircle2, XCircle,
-  Radar, Crosshair, FileText, ToggleLeft, AlertTriangle, Edit,
+  Radar, Crosshair, FileText, ToggleLeft, AlertTriangle, Edit, Download, Eye, Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useScheduledJobs, type ScheduledJob } from "@/hooks/useScheduledJobs";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { Lock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const JOB_TYPES = [
   { value: "shodan_scan", label: "Shodan Scan", icon: Radar, desc: "Run Shodan search queries automatically" },
@@ -48,6 +48,25 @@ function jobTypeIcon(type: string) {
   return <Icon className="h-4 w-4" />;
 }
 
+interface GeneratedReport {
+  id: string;
+  scan_id: string | null;
+  name: string;
+  format: string;
+  report_html: string | null;
+  scan_target: string | null;
+  scan_type: string | null;
+  created_at: string;
+}
+
+interface ScanOption {
+  id: string;
+  target: string;
+  scan_type: string;
+  status: string;
+  created_at: string;
+}
+
 export default function ScheduleManager() {
   const { jobs, loading, addJob, deleteJob, toggleJob, runJobNow, updateJob } = useScheduledJobs();
   const { isAdmin, role, loading: authLoading } = useAuth();
@@ -56,6 +75,13 @@ export default function ScheduleManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
+
+  // Available scans for dropdown
+  const [availableScans, setAvailableScans] = useState<ScanOption[]>([]);
+  // Generated reports
+  const [reports, setReports] = useState<GeneratedReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [previewReport, setPreviewReport] = useState<GeneratedReport | null>(null);
 
   // Form state
   const [jobName, setJobName] = useState("");
@@ -75,7 +101,30 @@ export default function ScheduleManager() {
   
   // Report config
   const [reportScanId, setReportScanId] = useState("");
-  const [reportFormat, setReportFormat] = useState("pdf");
+  const [reportFormat, setReportFormat] = useState("html");
+
+  // Fetch available scans and reports
+  useEffect(() => {
+    const fetchScans = async () => {
+      const { data } = await supabase
+        .from("scans")
+        .select("id, target, scan_type, status, created_at")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (data) setAvailableScans(data as ScanOption[]);
+    };
+    const fetchReports = async () => {
+      const { data } = await supabase
+        .from("generated_reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setReports(data as unknown as GeneratedReport[]);
+      setReportsLoading(false);
+    };
+    fetchScans();
+    fetchReports();
+  }, []);
 
   const resetForm = () => {
     setJobName(""); setJobType("shodan_scan"); setFrequency("once");
@@ -144,13 +193,49 @@ export default function ScheduleManager() {
   const handleRunNow = async (job: ScheduledJob) => {
     setRunningJobId(job.id);
     try {
-      await runJobNow(job);
+      const result = await runJobNow(job);
+      
+      // If report generation, save to generated_reports table
+      if (job.job_type === "report_generation" && result) {
+        const config = job.configuration as any;
+        const scanId = config?.scanId;
+        const scan = availableScans.find(s => s.id === scanId);
+        await supabase.from("generated_reports").insert({
+          scan_id: scanId || null,
+          name: job.name,
+          format: config?.format || "html",
+          report_html: typeof result === "string" ? result : null,
+          scan_target: scan?.target || null,
+          scan_type: scan?.scan_type || null,
+        } as any);
+        // Refresh reports list
+        const { data } = await supabase.from("generated_reports").select("*").order("created_at", { ascending: false });
+        if (data) setReports(data as unknown as GeneratedReport[]);
+      }
+      
       toast({ title: "Job Executed", description: `${job.name} completed successfully` });
     } catch (e: any) {
       toast({ title: "Job Failed", description: e.message, variant: "destructive" });
     } finally {
       setRunningJobId(null);
     }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    await supabase.from("generated_reports").delete().eq("id", reportId);
+    setReports(prev => prev.filter(r => r.id !== reportId));
+    toast({ title: "Report Deleted" });
+  };
+
+  const handleDownloadReport = (report: GeneratedReport) => {
+    if (!report.report_html) return;
+    const blob = new Blob([report.report_html], { type: report.format === "csv" ? "text/csv" : "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${report.name.replace(/\s+/g, "-")}.${report.format === "csv" ? "csv" : "html"}`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading || authLoading) {
@@ -386,15 +471,26 @@ export default function ScheduleManager() {
                     <FileText className="h-3 w-3 text-primary" /> Report Configuration
                   </h3>
                   <div>
-                    <Label className="text-xs">Scan ID (from latest scan or specific)</Label>
-                    <Input value={reportScanId} onChange={e => setReportScanId(e.target.value)} className="mt-1 font-mono text-sm" placeholder="Leave empty for latest scan" />
+                    <Label className="text-xs">Select Scan</Label>
+                    <Select value={reportScanId} onValueChange={setReportScanId}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Choose a completed scan..." /></SelectTrigger>
+                      <SelectContent>
+                        {availableScans.map(scan => (
+                          <SelectItem key={scan.id} value={scan.id}>
+                            {scan.target} — {scan.scan_type} ({format(new Date(scan.created_at), "MMM d, HH:mm")})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {availableScans.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">No completed scans found. Run a network scan first.</p>
+                    )}
                   </div>
                   <div>
                     <Label className="text-xs">Format</Label>
                     <Select value={reportFormat} onValueChange={setReportFormat}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pdf">PDF</SelectItem>
                         <SelectItem value="html">HTML</SelectItem>
                         <SelectItem value="csv">CSV</SelectItem>
                       </SelectContent>
@@ -408,6 +504,87 @@ export default function ScheduleManager() {
               <Button onClick={handleSave} disabled={!jobName.trim()}>
                 {editingJob ? "Update Schedule" : "Create Schedule"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Generated Reports Section */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" /> Generated Reports ({reports.length})
+          </h2>
+          {reportsLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm p-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading reports...
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="border border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
+              <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No reports generated yet. Create a Report Generation schedule and run it.</p>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {reports.map(report => (
+                <div key={report.id} className="border border-border rounded-lg bg-card p-4 flex items-center gap-4 hover:border-primary/30 transition-colors">
+                  <div className="p-2 rounded-md bg-primary/10">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">{report.name}</span>
+                      <Badge variant="outline" className="text-[10px]">{report.format.toUpperCase()}</Badge>
+                    </div>
+                    <div className="flex gap-4 mt-1 text-[11px] text-muted-foreground">
+                      {report.scan_target && <span>Target: {report.scan_target}</span>}
+                      {report.scan_type && <span>Type: {report.scan_type}</span>}
+                      <span>{format(new Date(report.created_at), "MMM d, yyyy HH:mm")}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {report.report_html && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPreviewReport(report)} title="Preview">
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadReport(report)} title="Download">
+                          <Download className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteReport(report.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Report Preview Dialog */}
+        <Dialog open={!!previewReport} onOpenChange={() => setPreviewReport(null)}>
+          <DialogContent className="bg-card border-border max-w-4xl max-h-[85vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                {previewReport?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="overflow-auto max-h-[70vh] rounded border border-border">
+              {previewReport?.report_html && (
+                <iframe
+                  srcDoc={previewReport.report_html}
+                  className="w-full min-h-[60vh] border-0"
+                  title="Report Preview"
+                />
+              )}
+            </div>
+            <DialogFooter>
+              {previewReport && (
+                <Button onClick={() => handleDownloadReport(previewReport)} className="gap-2">
+                  <Download className="h-4 w-4" /> Download
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
