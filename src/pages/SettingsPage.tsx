@@ -282,7 +282,7 @@ export default function SettingsPage() {
             <TabsTrigger value="defender">Defender</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="template">Alert Template</TabsTrigger>
-          </TabsList>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-6">
