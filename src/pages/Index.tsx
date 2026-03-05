@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { useRSSFeeds, type RSSFeedItem, type RSSSource } from "@/hooks/useRSSFeeds";
 import { Search, Shield, AlertTriangle, Rss, Activity, Loader2, Clock, Brain, Plus } from "lucide-react";
+import { TopCVEsWidget } from "@/components/TopCVEsWidget";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -162,8 +163,9 @@ const Index = () => {
           </div>
         )}
 
-        {/* Feed Grid */}
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {/* Feed Grid + Top CVEs */}
+        <div className="grid xl:grid-cols-[1fr_300px] gap-4">
+          <div className="grid md:grid-cols-2 gap-3">
           {paginated.map((item, idx) => (
             <div
               key={`${item.id}-${idx}`}
@@ -191,6 +193,15 @@ const Index = () => {
               )}
             </div>
           ))}
+          </div>
+          <div className="hidden xl:block">
+            <TopCVEsWidget />
+          </div>
+        </div>
+
+        {/* Top CVEs mobile */}
+        <div className="xl:hidden">
+          <TopCVEsWidget />
         </div>
 
         {filtered.length === 0 && (

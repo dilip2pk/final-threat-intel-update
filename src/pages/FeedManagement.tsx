@@ -10,8 +10,12 @@ import { Plus, Pencil, Trash2, Rss, Loader2, Zap, CheckCircle2, XCircle } from "
 import { useToast } from "@/hooks/use-toast";
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { formatDate } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { TopCVEsManager } from "@/components/TopCVEsManager";
+import { Separator } from "@/components/ui/separator";
 
 export default function FeedManagement() {
+  const { isAdmin } = useAuth();
   const { sources, loading, addSource, updateSource, deleteSource, testFeedUrl } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -167,6 +171,14 @@ export default function FeedManagement() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Top CVEs Management - Admin Only */}
+        {isAdmin && (
+          <>
+            <Separator className="my-6" />
+            <TopCVEsManager />
+          </>
         )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
