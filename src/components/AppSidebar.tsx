@@ -1,8 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair } from "lucide-react";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { user, role, signOut } = useAuth();
   const [logoUrl, setLogoUrl] = useState("");
 
   useEffect(() => {
@@ -67,6 +69,24 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t border-border">
+        {user && (
+          <div className="px-4 py-2 border-b border-border">
+            {!collapsed && (
+              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+            )}
+            {!collapsed && (
+              <span className="text-[10px] font-medium text-primary uppercase">{role || "user"}</span>
+            )}
+          </div>
+        )}
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 w-full px-5 py-3 text-muted-foreground hover:text-destructive transition-colors"
+          title="Sign out"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          {!collapsed && <span className="text-sm">Sign Out</span>}
+        </button>
         <button
           onClick={toggleTheme}
           className="flex items-center gap-3 w-full px-5 py-3 text-muted-foreground hover:text-foreground transition-colors"
