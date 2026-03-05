@@ -164,7 +164,7 @@ const Index = () => {
         )}
 
         {/* Feed Grid + Top CVEs */}
-        <div className="grid xl:grid-cols-[1fr_300px] gap-4">
+        <div className="grid lg:grid-cols-[1fr_300px] gap-4">
           <div className="grid md:grid-cols-2 gap-3">
           {paginated.map((item, idx) => (
             <div
@@ -194,13 +194,13 @@ const Index = () => {
             </div>
           ))}
           </div>
-          <div className="hidden xl:block">
+          <div className="hidden lg:block">
             <TopCVEsWidget />
           </div>
         </div>
 
         {/* Top CVEs mobile */}
-        <div className="xl:hidden">
+        <div className="lg:hidden">
           <TopCVEsWidget />
         </div>
 
