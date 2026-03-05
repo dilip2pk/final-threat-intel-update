@@ -151,6 +151,8 @@ export default function ShodanSearch() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
+
+  const exportResults = (format: "csv" | "json" | "pdf" | "html") => {
     if (!results.length) return;
     if (format === "pdf") return exportShodanPDF();
     if (format === "html") return exportShodanHTML();
