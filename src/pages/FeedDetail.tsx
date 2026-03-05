@@ -79,6 +79,8 @@ export default function FeedDetail() {
         content: feedItem.content,
         source: feedItem.feedName,
         model: settings.ai.model,
+        endpointUrl: settings.ai.endpointUrl,
+        apiKey: settings.ai.apiKey,
       });
       setAnalysis(result);
       toast({ title: "Analysis Complete", description: "AI-generated analysis is ready" });
