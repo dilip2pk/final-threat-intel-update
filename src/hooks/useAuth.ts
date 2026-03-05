@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -10,14 +11,7 @@ export function useAuth() {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
-    setRole((data?.role as AppRole) || "user");
-  }, []);
+  // Role is fetched inline to prevent race conditions
 
   useEffect(() => {
     let mounted = true;
