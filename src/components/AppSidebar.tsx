@@ -22,7 +22,7 @@ const navItems = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { user, role, signOut } = useAuth();
+  const { user, role, isAdmin, signOut } = useAuth();
   const [logoUrl, setLogoUrl] = useState("");
 
   useEffect(() => {
