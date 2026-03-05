@@ -96,6 +96,21 @@ export default function SettingsPage() {
     }
   };
 
+  const saveCveSource = async () => {
+    setSavingCve(true);
+    try {
+      await supabase.from("app_settings").upsert(
+        { key: "cve_source", value: { url: cveSourceUrl.trim() } as any },
+        { onConflict: "key" }
+      );
+      toast({ title: "CVE Source Saved", description: "Top CVEs will now fetch from the configured URL" });
+    } catch (e: any) {
+      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingCve(false);
+    }
+  };
+
   // Integration-specific settings stored in the integrations key
   const shodanApiKey = settings.shodan?.apiKey || "";
   const shodanEnabled = settings.shodan?.enabled ?? false;
