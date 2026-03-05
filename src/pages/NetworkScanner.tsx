@@ -20,6 +20,7 @@ import { useScans, useScanSchedules, type Scan, type ScanResult } from "@/hooks/
 import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { generatePDFReport, type ReportBranding } from "@/lib/pdfReportGenerator";
 
 const SCAN_TYPES = [
   { value: "quick", label: "Quick Scan", desc: "Top 20 common ports" },
@@ -130,32 +131,50 @@ export default function NetworkScanner() {
     }
   };
 
-  const handleExport = async (fmt: "html" | "csv") => {
+  const loadReportBranding = async (): Promise<Partial<ReportBranding>> => {
+    try {
+      const { data } = await supabase.from("app_settings").select("value").eq("key", "report_customization").single();
+      if (data?.value) return data.value as any;
+    } catch {}
+    return { orgName: "ThreatIntel", footerText: "Confidential — for authorized personnel only.", logoUrl: general.logoUrl || "" };
+  };
+
+  const handleExport = async (fmt: "html" | "csv" | "pdf") => {
     if (!selectedScan) return;
     setExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-scan-report", {
-        body: {
-          scanId: selectedScan.id,
-          format: fmt,
-          branding: {
-            logoUrl: general.logoUrl || "",
-            orgName: "ThreatIntel",
-            disclaimer: "Confidential — for authorized personnel only.",
+      if (fmt === "pdf") {
+        // Client-side PDF generation
+        const results = scanResults.length > 0 ? scanResults : await getScanResults(selectedScan.id);
+        const branding = await loadReportBranding();
+        await generatePDFReport(selectedScan, results, branding);
+        toast({ title: "PDF Report Downloaded" });
+      } else {
+        const branding = await loadReportBranding();
+        const { data, error } = await supabase.functions.invoke("generate-scan-report", {
+          body: {
+            scanId: selectedScan.id,
+            format: fmt,
+            branding: {
+              logoUrl: branding.logoUrl || general.logoUrl || "",
+              orgName: branding.orgName || "ThreatIntel",
+              disclaimer: branding.footerText || "Confidential — for authorized personnel only.",
+              primaryColor: branding.primaryColor,
+            },
           },
-        },
-      });
+        });
 
-      if (error) throw new Error(error.message);
+        if (error) throw new Error(error.message);
 
-      const blob = new Blob([data], { type: fmt === "csv" ? "text/csv" : "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `scan-report-${selectedScan.id.slice(0, 8)}.${fmt}`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast({ title: "Report Downloaded" });
+        const blob = new Blob([data], { type: fmt === "csv" ? "text/csv" : "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `scan-report-${selectedScan.id.slice(0, 8)}.${fmt}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "Report Downloaded" });
+      }
     } catch (e: any) {
       toast({ title: "Export Failed", description: e.message, variant: "destructive" });
     } finally {
@@ -384,6 +403,9 @@ export default function NetworkScanner() {
                     <Button variant="outline" size="sm" onClick={handleAnalyze} disabled={analyzing || selectedScan.status !== "completed"} className="gap-1">
                       {analyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
                       Analyze with AI
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1">
+                      {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} PDF
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handleExport("html")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1">
                       <Download className="h-3 w-3" /> HTML

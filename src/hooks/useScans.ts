@@ -112,8 +112,8 @@ export function useScans() {
     if (error) throw error;
     if (!scan) throw new Error("Failed to create scan");
 
-    // Trigger the scan
-    const { error: fnError } = await supabase.functions.invoke("port-scan", {
+    // Trigger the scan (don't await - let it run in background)
+    supabase.functions.invoke("port-scan", {
       body: {
         scanId: (scan as any).id,
         targets,
@@ -121,12 +121,16 @@ export function useScans() {
         ports: params.ports,
         timingTemplate: params.timing_template,
       },
+    }).then(({ error: fnError }) => {
+      if (fnError) {
+        console.error("Scan function error:", fnError);
+        supabase.from("scans").update({ status: "failed", error_message: fnError.message } as any).eq("id", (scan as any).id);
+        toast({ title: "Scan Failed", description: fnError.message, variant: "destructive" });
+      }
+    }).catch(err => {
+      console.error("Scan invocation error:", err);
+      supabase.from("scans").update({ status: "failed", error_message: err.message } as any).eq("id", (scan as any).id);
     });
-
-    if (fnError) {
-      await supabase.from("scans").update({ status: "failed", error_message: fnError.message } as any).eq("id", (scan as any).id);
-      throw fnError;
-    }
 
     return scan;
   };
