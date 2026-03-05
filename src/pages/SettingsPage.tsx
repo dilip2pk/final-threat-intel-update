@@ -40,7 +40,9 @@ export default function SettingsPage() {
   const [testingDefender, setTestingDefender] = useState(false);
   const [defenderTestResult, setDefenderTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iconInputRef = useRef<HTMLInputElement>(null);
 
   // Report customization state
   const [reportConfig, setReportConfig] = useState({
@@ -215,6 +217,30 @@ export default function SettingsPage() {
 
   const removeLogo = () => {
     setGeneral(prev => ({ ...prev, logoUrl: "" }));
+  };
+
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingIcon(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `sidebar-icon.${ext}`;
+      await supabase.storage.from("org-assets").remove(["sidebar-icon.png", "sidebar-icon.jpg", "sidebar-icon.jpeg", "sidebar-icon.svg", "sidebar-icon.webp"]);
+      const { error } = await supabase.storage.from("org-assets").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("org-assets").getPublicUrl(path);
+      setGeneral(prev => ({ ...prev, sidebarIconUrl: urlData.publicUrl }));
+      toast({ title: "Icon Uploaded", description: "Sidebar icon has been updated" });
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
+
+  const removeIcon = () => {
+    setGeneral(prev => ({ ...prev, sidebarIconUrl: "" }));
   };
 
   const aiModels = [
