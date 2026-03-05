@@ -133,7 +133,24 @@ export default function ShodanSearch() {
     setIsDork(q.is_dork);
   };
 
-  const exportResults = (format: "csv" | "json" | "pdf" | "html") => {
+  const handleScheduleQuery = async () => {
+    if (!schedName || !query.trim()) return;
+    try {
+      await addJob({
+        name: schedName,
+        job_type: "shodan_scan",
+        frequency: schedFreq,
+        cron_expression: schedFreq === "custom" ? schedCron : "",
+        configuration: { query: query.trim(), queryType },
+        active: true,
+      });
+      toast({ title: "Scan Scheduled", description: `"${schedName}" has been scheduled` });
+      setScheduleOpen(false);
+      setSchedName("");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
     if (!results.length) return;
     if (format === "pdf") return exportShodanPDF();
     if (format === "html") return exportShodanHTML();
