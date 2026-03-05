@@ -377,6 +377,7 @@ export default function ScheduleManager() {
                 </div>
               )}
 
+            </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
               <Button onClick={handleSave} disabled={!jobName.trim()}>
