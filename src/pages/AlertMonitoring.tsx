@@ -91,7 +91,7 @@ export default function AlertMonitoring() {
     await updateRule(id, { active });
   };
 
-  if (loading || sourcesLoading) {
+  if (loading || sourcesLoading || authLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh] gap-3">
