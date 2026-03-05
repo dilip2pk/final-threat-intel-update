@@ -808,7 +808,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
               {!cveSourceUrl && cveLoaded && (
-                <div className="flex items-center gap-2 p-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 text-xs text-yellow-600 dark:text-yellow-400">
+                <div className="flex items-center gap-2 p-3 rounded-md border border-destructive/30 bg-destructive/10 text-xs text-destructive">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>No source URL configured. The Top CVEs widget on the dashboard will not display any data until a URL is set.</span>
                 </div>
