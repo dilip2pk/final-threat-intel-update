@@ -68,10 +68,19 @@ export default function SettingsPage() {
   const [savingCve, setSavingCve] = useState(false);
   const [cveLoaded, setCveLoaded] = useState(false);
 
-  // Load report customization from DB
+  // Load report customization + CVE source from DB
   useEffect(() => {
-    supabase.from("app_settings").select("value").eq("key", "report_customization").single().then(({ data }) => {
-      if (data?.value) setReportConfig(prev => ({ ...prev, ...(data.value as any), includeSections: { ...prev.includeSections, ...(data.value as any)?.includeSections } }));
+    supabase.from("app_settings").select("key, value").in("key", ["report_customization", "cve_source"]).then(({ data }) => {
+      if (data) {
+        for (const row of data) {
+          if (row.key === "report_customization") {
+            setReportConfig(prev => ({ ...prev, ...(row.value as any), includeSections: { ...prev.includeSections, ...(row.value as any)?.includeSections } }));
+          } else if (row.key === "cve_source") {
+            setCveSourceUrl((row.value as any)?.url || "");
+          }
+        }
+      }
+      setCveLoaded(true);
     });
   }, []);
 
