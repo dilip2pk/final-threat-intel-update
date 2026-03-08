@@ -11,11 +11,13 @@ serve(async (req) => {
   try {
     const { title, description, content, source, model, endpointUrl, apiKey, apiType, authHeaderType } = await req.json();
 
-    const isIntelStudio = apiType === "intelligence-studio";
+    // Only use Intelligence Studio if both endpoint and key are provided
+    const hasIntelStudio = apiType === "intelligence-studio" && apiKey?.trim() && endpointUrl?.trim();
+    const isIntelStudio = hasIntelStudio;
 
-    // Use custom endpoint if provided, otherwise Lovable AI gateway
-    const aiUrl = endpointUrl?.trim() || "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const aiKey = apiKey?.trim() || (endpointUrl?.trim() ? "" : Deno.env.get("LOVABLE_API_KEY"));
+    // Fall back to Lovable AI gateway when no valid custom config
+    const aiUrl = (hasIntelStudio ? endpointUrl?.trim() : null) || (endpointUrl?.trim() && apiKey?.trim() ? endpointUrl.trim() : "https://ai.gateway.lovable.dev/v1/chat/completions");
+    const aiKey = (hasIntelStudio ? apiKey?.trim() : null) || apiKey?.trim() || Deno.env.get("LOVABLE_API_KEY");
     if (!aiKey && !endpointUrl?.trim()) throw new Error("LOVABLE_API_KEY is not configured");
 
     const selectedModel = model || "google/gemini-3-flash-preview";
