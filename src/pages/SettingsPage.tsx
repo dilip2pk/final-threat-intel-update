@@ -805,6 +805,78 @@ export default function SettingsPage() {
                 <Switch checked={general.emailEnabled} onCheckedChange={v => setGeneral(g => ({ ...g, emailEnabled: v }))} />
               </div>
             </div>
+
+            {/* RansomLook Watchlist Notifications */}
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Eye className="h-4 w-4 text-severity-high" /> RansomLook Watchlist Notifications
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                When organizations on the watchlist are detected in new ransomware leak posts, send notifications via the configured method.
+              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Enable Watchlist Alerts</Label>
+                  <p className="text-xs text-muted-foreground">Automatically check new leaks against your watchlist</p>
+                </div>
+                <Switch
+                  checked={watchlistNotify.enabled}
+                  onCheckedChange={v => setWatchlistNotify(c => ({ ...c, enabled: v }))}
+                />
+              </div>
+              <div>
+                <Label>Notification Recipients (email)</Label>
+                <Input
+                  value={watchlistNotify.recipients}
+                  onChange={e => setWatchlistNotify(c => ({ ...c, recipients: e.target.value }))}
+                  className="mt-1 font-mono text-sm"
+                  placeholder="user@company.com, soc@company.com"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Comma-separated list of email addresses</p>
+              </div>
+              <div>
+                <Label>Check Frequency</Label>
+                <Select value={watchlistNotify.frequency} onValueChange={v => setWatchlistNotify(c => ({ ...c, frequency: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="realtime">Real-time (every new check)</SelectItem>
+                    <SelectItem value="hourly">Hourly Digest</SelectItem>
+                    <SelectItem value="daily">Daily Digest</SelectItem>
+                    <SelectItem value="weekly">Weekly Digest</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Notification Method</Label>
+                <Select value={watchlistNotify.method} onValueChange={v => setWatchlistNotify(c => ({ ...c, method: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">Email (via SMTP)</SelectItem>
+                    <SelectItem value="webhook">Webhook</SelectItem>
+                    <SelectItem value="slack">Slack</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleSaveWatchlistNotify} disabled={savingWatchlistNotify} className="gap-2">
+                {savingWatchlistNotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {savingWatchlistNotify ? "Saving..." : "Save Watchlist Settings"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleTestWatchlistCheck}
+                disabled={testingWatchlist}
+                className="gap-2 ml-2"
+              >
+                {testingWatchlist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                Test Watchlist Check Now
+              </Button>
+              {watchlistTestResult && (
+                <div className={`mt-2 flex items-center gap-2 text-xs ${watchlistTestResult.success ? "text-severity-low" : "text-severity-high"}`}>
+                  {watchlistTestResult.success ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {watchlistTestResult.message}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* Alert Template Tab */}
