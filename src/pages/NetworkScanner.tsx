@@ -380,23 +380,47 @@ export default function NetworkScanner() {
                   <p className="text-[11px] text-muted-foreground mt-0.5">Define the hosts, domains, or IP ranges to scan</p>
                 </div>
                 <div className="p-5 space-y-5">
-                  <div className="flex gap-3">
-                    <Select value={targetType} onValueChange={setTargetType}>
-                      <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ip">Single IP</SelectItem>
-                        <SelectItem value="multiple">Multiple IPs</SelectItem>
-                        <SelectItem value="domain">Domain</SelectItem>
-                        <SelectItem value="cidr">CIDR Range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {targetType === "multiple" ? (
-                    <Textarea value={target} onChange={e => setTarget(e.target.value)} placeholder="Enter IPs/domains, one per line&#10;192.168.1.1&#10;example.com&#10;10.0.0.0/24" rows={4} className="font-mono text-sm bg-muted/20" />
+                  {scanType === "raw" ? (
+                    <div>
+                      <Label className="text-xs font-medium mb-1.5 block">Full Nmap Command</Label>
+                      <Textarea
+                        value={rawCommand}
+                        onChange={e => setRawCommand(e.target.value)}
+                        placeholder="nmap -sV -O -T4 --script=vuln 192.168.1.0/24"
+                        rows={4}
+                        className="font-mono text-sm bg-muted/20"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        Enter the complete nmap command. The target is extracted automatically. Example: <code className="bg-muted px-1 rounded">nmap -sS -sV -O -T4 192.168.1.1</code>
+                      </p>
+                      <div className="mt-3 p-3 rounded-lg bg-[hsl(var(--severity-medium))]/5 border border-[hsl(var(--severity-medium))]/20">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--severity-medium))] shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-[hsl(var(--severity-medium))]">Raw commands run as-is on the server. Ensure you have authorization to scan the target. The <code className="bg-muted px-1 rounded">-oX -</code> flag is appended automatically for XML output.</p>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <Input value={target} onChange={e => setTarget(e.target.value)}
-                      placeholder={targetType === "domain" ? "example.com" : targetType === "cidr" ? "192.168.1.0/24" : "192.168.1.1"}
-                      className="font-mono bg-muted/20" />
+                    <>
+                      <div className="flex gap-3">
+                        <Select value={targetType} onValueChange={setTargetType}>
+                          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ip">Single IP</SelectItem>
+                            <SelectItem value="multiple">Multiple IPs</SelectItem>
+                            <SelectItem value="domain">Domain</SelectItem>
+                            <SelectItem value="cidr">CIDR Range</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {targetType === "multiple" ? (
+                        <Textarea value={target} onChange={e => setTarget(e.target.value)} placeholder="Enter IPs/domains, one per line&#10;192.168.1.1&#10;example.com&#10;10.0.0.0/24" rows={4} className="font-mono text-sm bg-muted/20" />
+                      ) : (
+                        <Input value={target} onChange={e => setTarget(e.target.value)}
+                          placeholder={targetType === "domain" ? "example.com" : targetType === "cidr" ? "192.168.1.0/24" : "192.168.1.1"}
+                          className="font-mono bg-muted/20" />
+                      )}
+                    </>
                   )}
                   <div>
                     <Label className="text-xs text-muted-foreground mb-3 block uppercase tracking-wider font-semibold">Scan Profile</Label>
