@@ -938,6 +938,14 @@ export default function NetworkScanner() {
                   <Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1.5 font-mono" placeholder="0 2 * * *" />
                 </div>
               )}
+              {schedFreq !== "once" && schedFreq !== "custom" && (
+                <div className="text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
+                  <span className="font-medium text-foreground">Auto-scheduled:</span>{" "}
+                  {schedFreq === "daily" && "Runs daily at 2:00 AM (cron: 0 2 * * *)"}
+                  {schedFreq === "weekly" && "Runs every Monday at 2:00 AM (cron: 0 2 * * 1)"}
+                  {schedFreq === "monthly" && "Runs 1st of each month at 2:00 AM (cron: 0 2 1 * *)"}
+                </div>
+              )}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
                   <Label className="text-xs cursor-pointer">Email on completion</Label>
