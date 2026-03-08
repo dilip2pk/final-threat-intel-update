@@ -108,16 +108,39 @@ export default function ScheduleManager() {
     return {};
   };
 
+  const getCronForFrequency = (freq: string, customCron: string): string => {
+    switch (freq) {
+      case "daily": return "0 2 * * *";       // daily at 2am
+      case "weekly": return "0 2 * * 1";      // weekly Monday 2am
+      case "monthly": return "0 2 1 * *";     // 1st of month 2am
+      case "custom": return customCron;
+      default: return "";
+    }
+  };
+
+  const getNextRunAt = (freq: string): string | null => {
+    if (freq === "once") return null;
+    const now = new Date();
+    switch (freq) {
+      case "daily": { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "weekly": { const d = new Date(now); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "monthly": { const d = new Date(now.getFullYear(), now.getMonth() + 1, 1, 2, 0, 0); return d.toISOString(); }
+      default: return null;
+    }
+  };
+
   const handleSave = async () => {
     if (!jobName.trim()) return;
     try {
+      const resolvedCron = getCronForFrequency(frequency, cronExpression);
       const jobData = {
         name: jobName,
         job_type: jobType,
         frequency,
-        cron_expression: cronExpression,
+        cron_expression: resolvedCron,
         configuration: buildConfig(),
         active: true,
+        next_run_at: getNextRunAt(frequency),
       };
       if (editingJob) {
         await updateJob(editingJob.id, jobData);
