@@ -97,6 +97,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveWatchlistNotify = async () => {
+    setSavingWatchlistNotify(true);
+    try {
+      await supabase.from("app_settings").upsert({ key: "watchlist_notifications", value: watchlistNotify as any }, { onConflict: "key" });
+      toast({ title: "Watchlist Notification Settings Saved" });
+    } catch (e: any) {
+      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingWatchlistNotify(false);
+    }
+  };
+
+  const handleTestWatchlistCheck = async () => {
+    setTestingWatchlist(true);
+    setWatchlistTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("watchlist-check", {
+        body: { test: true },
+      });
+      if (error) throw new Error(error.message);
+      setWatchlistTestResult({ success: data?.success ?? true, message: data?.message || `Found ${data?.matches?.length || 0} matches across watchlist` });
+    } catch (e: any) {
+      setWatchlistTestResult({ success: false, message: e.message });
+    } finally {
+      setTestingWatchlist(false);
+    }
+  };
+
   // Integration-specific settings stored in the integrations key
   const shodanApiKey = settings.shodan?.apiKey || "";
   const shodanEnabled = settings.shodan?.enabled ?? false;
