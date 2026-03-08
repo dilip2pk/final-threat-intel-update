@@ -209,8 +209,11 @@ function exportPDF(tickets: any[], emails: any[], tab: string) {
 
 // ── Stat Card ──
 
-const StatCard = ({ label, value, icon: Icon, color }: { label: string; value: number; icon: any; color: string }) => (
-  <Card>
+const StatCard = ({ label, value, icon: Icon, color, active, onClick }: { label: string; value: number; icon: any; color: string; active?: boolean; onClick?: () => void }) => (
+  <Card
+    className={`cursor-pointer transition-all hover:shadow-md ${active ? "ring-2 ring-primary shadow-md" : ""}`}
+    onClick={onClick}
+  >
     <CardContent className="flex items-center gap-3 py-4">
       <div className={`rounded-lg p-2.5 ${color}`}>
         <Icon className="h-4 w-4" />
@@ -525,11 +528,46 @@ export default function ActivityLog() {
 
         {/* Stats */}
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-          <StatCard label="Total Tickets" value={ticketStats.total} icon={Ticket} color="bg-primary/10 text-primary" />
-          <StatCard label="Open" value={ticketStats.open} icon={Circle} color="bg-orange-500/10 text-orange-500" />
-          <StatCard label="In Progress" value={ticketStats.inProgress} icon={TrendingUp} color="bg-blue-500/10 text-blue-500" />
-          <StatCard label="Emails Sent" value={emailStats.sent} icon={Mail} color="bg-emerald-500/10 text-emerald-500" />
-          <StatCard label="Failed" value={emailStats.failed} icon={AlertCircle} color="bg-destructive/10 text-destructive" />
+          <StatCard
+            label="Total Tickets"
+            value={ticketStats.total}
+            icon={Ticket}
+            color="bg-primary/10 text-primary"
+            active={activeTab === "tickets" && statusFilter === "all"}
+            onClick={() => { setActiveTab("tickets"); setStatusFilter("all"); setPriorityFilter("all"); }}
+          />
+          <StatCard
+            label="Open"
+            value={ticketStats.open}
+            icon={Circle}
+            color="bg-orange-500/10 text-orange-500"
+            active={activeTab === "tickets" && statusFilter === "Open"}
+            onClick={() => { setActiveTab("tickets"); setStatusFilter("Open"); }}
+          />
+          <StatCard
+            label="In Progress"
+            value={ticketStats.inProgress}
+            icon={TrendingUp}
+            color="bg-blue-500/10 text-blue-500"
+            active={activeTab === "tickets" && statusFilter === "In Progress"}
+            onClick={() => { setActiveTab("tickets"); setStatusFilter("In Progress"); }}
+          />
+          <StatCard
+            label="Emails Sent"
+            value={emailStats.sent}
+            icon={Mail}
+            color="bg-emerald-500/10 text-emerald-500"
+            active={activeTab === "emails" && statusFilter === "sent"}
+            onClick={() => { setActiveTab("emails"); setStatusFilter("sent"); }}
+          />
+          <StatCard
+            label="Failed"
+            value={emailStats.failed}
+            icon={AlertCircle}
+            color="bg-destructive/10 text-destructive"
+            active={activeTab === "emails" && statusFilter === "failed"}
+            onClick={() => { setActiveTab("emails"); setStatusFilter("failed"); }}
+          />
         </div>
 
         {/* Filters */}
@@ -547,12 +585,19 @@ export default function ActivityLog() {
                 <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
+                  {activeTab === "tickets" ? (
+                    <>
+                      <SelectItem value="Open">Open</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Resolved">Resolved</SelectItem>
+                      <SelectItem value="Closed">Closed</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="sent">Sent</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -585,7 +630,7 @@ export default function ActivityLog() {
         </Card>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setStatusFilter("all"); }} className="space-y-4">
           <div className="flex items-center justify-between">
             <TabsList className="bg-muted/50">
               <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-background">
