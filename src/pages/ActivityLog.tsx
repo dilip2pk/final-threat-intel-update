@@ -630,7 +630,7 @@ export default function ActivityLog() {
         </Card>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setStatusFilter("all"); }} className="space-y-4">
           <div className="flex items-center justify-between">
             <TabsList className="bg-muted/50">
               <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-background">
