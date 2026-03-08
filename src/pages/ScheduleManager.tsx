@@ -108,16 +108,39 @@ export default function ScheduleManager() {
     return {};
   };
 
+  const getCronForFrequency = (freq: string, customCron: string): string => {
+    switch (freq) {
+      case "daily": return "0 2 * * *";       // daily at 2am
+      case "weekly": return "0 2 * * 1";      // weekly Monday 2am
+      case "monthly": return "0 2 1 * *";     // 1st of month 2am
+      case "custom": return customCron;
+      default: return "";
+    }
+  };
+
+  const getNextRunAt = (freq: string): string | null => {
+    if (freq === "once") return null;
+    const now = new Date();
+    switch (freq) {
+      case "daily": { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "weekly": { const d = new Date(now); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "monthly": { const d = new Date(now.getFullYear(), now.getMonth() + 1, 1, 2, 0, 0); return d.toISOString(); }
+      default: return null;
+    }
+  };
+
   const handleSave = async () => {
     if (!jobName.trim()) return;
     try {
+      const resolvedCron = getCronForFrequency(frequency, cronExpression);
       const jobData = {
         name: jobName,
         job_type: jobType,
         frequency,
-        cron_expression: cronExpression,
+        cron_expression: resolvedCron,
         configuration: buildConfig(),
         active: true,
+        next_run_at: getNextRunAt(frequency),
       };
       if (editingJob) {
         await updateJob(editingJob.id, jobData);
@@ -231,6 +254,7 @@ export default function ScheduleManager() {
                   </div>
                   <div className="flex gap-4 mt-1 text-[11px] text-muted-foreground">
                     {job.last_run_at && <span>Last run: {format(new Date(job.last_run_at), "MMM d, HH:mm")}</span>}
+                    {job.next_run_at && <span>Next run: {format(new Date(job.next_run_at), "MMM d, HH:mm")}</span>}
                     {job.cron_expression && <span className="font-mono">Cron: {job.cron_expression}</span>}
                     {job.last_error && (
                       <span className="text-destructive flex items-center gap-1">
@@ -303,6 +327,15 @@ export default function ScheduleManager() {
                   <Label>Cron Expression</Label>
                   <Input value={cronExpression} onChange={e => setCronExpression(e.target.value)} className="mt-1 font-mono" placeholder="0 2 * * *" />
                   <p className="text-xs text-muted-foreground mt-1">e.g., "0 2 * * *" = daily at 2am</p>
+                </div>
+              )}
+
+              {frequency !== "once" && frequency !== "custom" && (
+                <div className="text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
+                  <span className="font-medium text-foreground">Auto-scheduled:</span>{" "}
+                  {frequency === "daily" && "Runs daily at 2:00 AM (cron: 0 2 * * *)"}
+                  {frequency === "weekly" && "Runs every Monday at 2:00 AM (cron: 0 2 * * 1)"}
+                  {frequency === "monthly" && "Runs 1st of each month at 2:00 AM (cron: 0 2 1 * *)"}
                 </div>
               )}
 
