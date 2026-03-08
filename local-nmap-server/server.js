@@ -4,28 +4,11 @@
  * 
  * A standalone Express server that executes real Nmap scans and exposes
  * a REST API compatible with ThreatIntel's Network Scanner.
- * 
- * SETUP:
- *   1. Install Node.js 18+ and Nmap on your system
- *   2. cd local-nmap-server
- *   3. npm install
- *   4. node server.js
- *   (or: NMAP_API_KEY=mysecretkey PORT=3001 node server.js)
- * 
- * ENVIRONMENT VARIABLES:
- *   PORT           - Server port (default: 3001)
- *   NMAP_API_KEY   - Optional API key for authentication
- *   NMAP_PATH      - Path to nmap binary (default: "nmap")
- * 
- * ENDPOINTS:
- *   POST /api/scan          - Start a scan (returns results synchronously)
- *   POST /api/scan/async    - Start a scan (returns immediately, poll for results)
- *   GET  /api/scan/:id      - Get scan status/results
- *   GET  /api/health        - Health check
  */
 
 const express = require("express");
 const cors = require("cors");
+const { spawn } = require("child_process");
 const { exec } = require("child_process");
 const { randomUUID } = require("crypto");
 const { parseString } = require("xml2js");
@@ -37,6 +20,8 @@ const NMAP_PATH = process.env.NMAP_PATH || "nmap";
 
 // In-memory scan store (for async scans)
 const scanStore = new Map();
+// Progress tracking
+const progressStore = new Map();
 
 app.use(cors());
 app.use(express.json());
@@ -66,7 +51,24 @@ app.get("/api/health", (req, res) => {
 
 // Build nmap command from params
 function buildNmapCommand(params) {
-  const { targets, scanType, ports, timingTemplate, enableScripts, customOptions } = params;
+  const { targets, scanType, ports, timingTemplate, enableScripts, customOptions, rawCommand } = params;
+
+  // Raw command mode — user provides the full command
+  if (scanType === "raw" && rawCommand) {
+    let cmd = rawCommand.trim();
+    // Strip any existing -oX flag to avoid conflicts
+    cmd = cmd.replace(/-oX\s+\S+/g, "").trim();
+    // Ensure it starts with nmap
+    if (!cmd.startsWith("nmap") && !cmd.startsWith(NMAP_PATH)) {
+      cmd = `${NMAP_PATH} ${cmd}`;
+    } else if (cmd.startsWith("nmap") && NMAP_PATH !== "nmap") {
+      cmd = cmd.replace(/^nmap/, NMAP_PATH);
+    }
+    // Append XML output
+    cmd += " -oX - --stats-every 3s";
+    return cmd;
+  }
+
   const parts = [NMAP_PATH];
 
   // Timing
@@ -98,8 +100,8 @@ function buildNmapCommand(params) {
   // Custom options
   if (customOptions) parts.push(customOptions);
 
-  // XML output
-  parts.push("-oX -");
+  // XML output + stats for progress
+  parts.push("-oX - --stats-every 3s");
 
   // Targets
   const targetList = Array.isArray(targets) ? targets : [targets];
@@ -125,7 +127,6 @@ function parseNmapXML(xml) {
         const mac = addr.find(a => a.addrtype === "mac");
         const hostStatus = h.status?.state || "unknown";
 
-        // OS detection
         let osDetection = null;
         if (h.os?.osmatch) {
           const matches = Array.isArray(h.os.osmatch) ? h.os.osmatch : [h.os.osmatch];
@@ -135,7 +136,6 @@ function parseNmapXML(xml) {
           }));
         }
 
-        // Ports
         const portsRaw = h.ports?.port ? (Array.isArray(h.ports.port) ? h.ports.port : [h.ports.port]) : [];
         const ports = portsRaw.map(p => {
           const scripts = p.script ? (Array.isArray(p.script) ? p.script : [p.script]) : [];
@@ -149,7 +149,6 @@ function parseNmapXML(xml) {
           };
         });
 
-        // Vulnerabilities from scripts
         const vulnerabilities = [];
         for (const p of portsRaw) {
           const scripts = p.script ? (Array.isArray(p.script) ? p.script : [p.script]) : [];
@@ -176,7 +175,6 @@ function parseNmapXML(xml) {
         };
       });
 
-      // Summary
       const runstats = nmaprun.runstats;
       const summary = {
         total_hosts: hosts.length,
@@ -195,19 +193,93 @@ function parseNmapXML(xml) {
   });
 }
 
-// Execute scan
-async function executeScan(params) {
+// Parse progress from nmap stderr output
+function parseProgress(stderrLine) {
+  // Nmap outputs progress like: "Stats: 0:00:15 elapsed; 0 hosts completed (1 up), 1 undergoing SYN Stealth Scan"
+  // Or: "SYN Stealth Scan Timing: About 45.67% done; ETC: 16:35 (0:00:12 remaining)"
+  const percentMatch = stderrLine.match(/About\s+([\d.]+)%\s+done/);
+  if (percentMatch) {
+    return { percent: Math.round(parseFloat(percentMatch[1])), phase: stderrLine.trim() };
+  }
+  // Also match: "Completed SYN Stealth Scan at 16:35, 25.03s elapsed (1000 total ports)"
+  const completedMatch = stderrLine.match(/Completed\s+(.+?)\s+at/);
+  if (completedMatch) {
+    return { percent: 100, phase: `Completed ${completedMatch[1]}` };
+  }
+  // Stats line
+  const statsMatch = stderrLine.match(/Stats:\s+(.+)/);
+  if (statsMatch) {
+    return { phase: statsMatch[1].trim() };
+  }
+  return null;
+}
+
+// Execute scan with progress tracking
+async function executeScan(params, scanId) {
   const cmd = buildNmapCommand(params);
   console.log(`[nmap] Executing: ${cmd}`);
 
+  // Initialize progress
+  if (scanId) {
+    progressStore.set(scanId, { percent: 0, phase: "Initializing scan...", startedAt: Date.now() });
+  }
+
   return new Promise((resolve, reject) => {
-    const timeout = parseInt(params.timeout) || 300; // 5 min default
-    const child = exec(cmd, { maxBuffer: 50 * 1024 * 1024, timeout: timeout * 1000 }, async (err, stdout, stderr) => {
-      if (err && !stdout) {
-        return reject(new Error(`Nmap execution failed: ${err.message}. ${stderr || ""}`));
+    const timeout = parseInt(params.timeout) || 600; // 10 min default
+    let stdout = "";
+    let stderr = "";
+
+    // Use spawn for real-time stderr capture
+    const args = cmd.split(/\s+/).slice(1); // Remove the nmap binary from args
+    const nmapBin = cmd.split(/\s+/)[0];
+    const child = spawn(nmapBin, args, { timeout: timeout * 1000 });
+
+    child.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      const chunk = data.toString();
+      stderr += chunk;
+      
+      // Parse progress from stderr
+      if (scanId) {
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.trim()) {
+            const progress = parseProgress(line);
+            if (progress) {
+              const current = progressStore.get(scanId) || {};
+              progressStore.set(scanId, {
+                ...current,
+                ...progress,
+                percent: progress.percent ?? current.percent ?? 0,
+                lastUpdate: Date.now(),
+              });
+            }
+          }
+        }
       }
+    });
+
+    child.on("error", (err) => {
+      if (scanId) progressStore.delete(scanId);
+      reject(new Error(`Nmap execution failed: ${err.message}`));
+    });
+
+    child.on("close", async (code) => {
+      if (scanId) {
+        progressStore.set(scanId, { percent: 100, phase: "Parsing results...", lastUpdate: Date.now() });
+      }
+
+      if (code !== 0 && !stdout) {
+        if (scanId) progressStore.delete(scanId);
+        return reject(new Error(`Nmap exited with code ${code}. ${stderr || ""}`));
+      }
+
       try {
         const parsed = await parseNmapXML(stdout);
+        if (scanId) progressStore.delete(scanId);
         resolve({
           ...parsed,
           raw_xml: stdout,
@@ -215,25 +287,40 @@ async function executeScan(params) {
           command: cmd,
         });
       } catch (parseErr) {
+        if (scanId) progressStore.delete(scanId);
         reject(new Error(`Failed to parse nmap output: ${parseErr.message}`));
       }
     });
   });
 }
 
+// Progress endpoint
+app.get("/api/scan/:id/progress", (req, res) => {
+  const progress = progressStore.get(req.params.id);
+  if (!progress) {
+    // Check if scan completed
+    const scan = scanStore.get(req.params.id);
+    if (scan && scan.status === "completed") {
+      return res.json({ percent: 100, phase: "Completed" });
+    }
+    return res.json({ percent: 0, phase: "Waiting..." });
+  }
+  res.json(progress);
+});
+
 // Synchronous scan endpoint
 app.post("/api/scan", async (req, res) => {
-  const { targets, scanType, ports, timingTemplate, enableScripts, customOptions } = req.body;
+  const { targets, scanType, ports, timingTemplate, enableScripts, customOptions, rawCommand, scanId: providedScanId } = req.body;
 
-  if (!targets || (Array.isArray(targets) && targets.length === 0)) {
+  if (scanType !== "raw" && (!targets || (Array.isArray(targets) && targets.length === 0))) {
     return res.status(400).json({ error: "No targets specified" });
   }
 
-  const scanId = randomUUID();
+  const scanId = providedScanId || randomUUID();
   const startTime = new Date().toISOString();
 
   try {
-    const result = await executeScan({ targets, scanType, ports, timingTemplate, enableScripts, customOptions });
+    const result = await executeScan({ targets, scanType, ports, timingTemplate, enableScripts, customOptions, rawCommand }, scanId);
 
     res.json({
       success: true,
@@ -257,21 +344,19 @@ app.post("/api/scan", async (req, res) => {
 
 // Async scan endpoint
 app.post("/api/scan/async", async (req, res) => {
-  const { scanId: providedId, targets, scanType, ports, timingTemplate, enableScripts, customOptions } = req.body;
+  const { scanId: providedId, targets, scanType, ports, timingTemplate, enableScripts, customOptions, rawCommand } = req.body;
 
-  if (!targets || (Array.isArray(targets) && targets.length === 0)) {
+  if (scanType !== "raw" && (!targets || (Array.isArray(targets) && targets.length === 0))) {
     return res.status(400).json({ error: "No targets specified" });
   }
 
   const scanId = providedId || randomUUID();
   scanStore.set(scanId, { status: "running", started_at: new Date().toISOString() });
 
-  // Return immediately
   res.json({ success: true, scanId, status: "running" });
 
-  // Execute in background
   try {
-    const result = await executeScan({ targets, scanType, ports, timingTemplate, enableScripts, customOptions });
+    const result = await executeScan({ targets, scanType, ports, timingTemplate, enableScripts, customOptions, rawCommand }, scanId);
     scanStore.set(scanId, {
       status: "completed",
       started_at: scanStore.get(scanId)?.started_at,
