@@ -57,6 +57,18 @@ const COMMON_DORKS = [
   { label: "Open VNC", query: 'port:5900 "authentication disabled"' },
 ];
 
+function StatCard({ label, value, icon: Icon, accent }: { label: string; value: string | number; icon: any; accent?: string }) {
+  return (
+    <div className="relative overflow-hidden border border-border rounded-xl bg-card p-4 group hover:border-primary/30 transition-all duration-200">
+      <div className="absolute top-0 right-0 w-20 h-20 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+        <Icon className="w-full h-full" />
+      </div>
+      <p className={`text-2xl font-bold tracking-tight ${accent || "text-foreground"}`}>{value}</p>
+      <p className="text-[11px] font-medium text-muted-foreground mt-0.5 uppercase tracking-wider">{label}</p>
+    </div>
+  );
+}
+
 export default function ShodanSearch() {
   const [query, setQuery] = useState("");
   const [queryType, setQueryType] = useState("search");
@@ -80,6 +92,8 @@ export default function ShodanSearch() {
   const [schedFreq, setSchedFreq] = useState("daily");
   const [schedCron, setSchedCron] = useState("");
   const [aiCommandOpen, setAiCommandOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("search");
+  const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
 
   // Load saved queries
   useEffect(() => {
