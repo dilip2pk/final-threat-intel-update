@@ -112,6 +112,7 @@ export function useSettings() {
                 ai: { ...defaultSettings.ai, ...val?.ai },
                 shodan: { ...defaultSettings.shodan!, ...val?.shodan },
                 defender: { ...defaultSettings.defender!, ...val?.defender },
+                nmapBackend: { ...defaultSettings.nmapBackend!, ...val?.nmapBackend },
               });
             } else if (row.key === "general") {
               setGeneral({ ...defaultGeneral, ...(row.value as any) });
