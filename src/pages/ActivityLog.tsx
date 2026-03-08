@@ -1014,7 +1014,7 @@ export default function ActivityLog() {
                   {/* Push to ServiceNow */}
                   {snConfigured && selectedTicket?.ticket_number && (
                     selectedTicket.ticket_number.startsWith("INC") || selectedTicket.ticket_number.startsWith("REQ") || selectedTicket.ticket_number.startsWith("RQ")
-                  ) && (
+                  ) ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1025,7 +1025,7 @@ export default function ActivityLog() {
                       {pushingUpdate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                       Push to ServiceNow
                     </Button>
-                  )}
+                  ) : null}
 
                   <Separator />
 
