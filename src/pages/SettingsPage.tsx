@@ -893,7 +893,7 @@ export default function SettingsPage() {
                     {testingNmap ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
                     Test Connection
                   </Button>
-                  {nmapTestResult && renderTestResult(nmapTestResult)}
+                  {nmapTestResult && <TestResultBadge result={nmapTestResult} />}
                 </div>
               )}
             </div>
