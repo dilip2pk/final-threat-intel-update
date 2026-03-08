@@ -116,7 +116,7 @@ export default function SettingsPage() {
     setTestingNmap(true);
     setNmapTestResult(null);
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const headers: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
       if (nmapApiKey) headers["x-api-key"] = nmapApiKey;
       const resp = await fetch(`${nmapLocalUrl.replace(/\/$/, "")}/api/health`, { headers });
       const data = await resp.json();
