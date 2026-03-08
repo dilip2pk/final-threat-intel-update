@@ -823,6 +823,82 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
 
+          {/* Network Scanner Backend Tab */}
+          <TabsContent value="nmap" className="space-y-6">
+            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Server className="h-4 w-4 text-primary" /> Scan Backend
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Choose between the cloud-based TCP scanner or a local Nmap server for real network scanning with OS detection, service fingerprinting, and NSE scripts.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => updateNmapBackend("mode", "cloud")}
+                  className={`border rounded-lg p-4 text-left transition-colors ${nmapMode === "cloud" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                >
+                  <p className="text-sm font-semibold text-foreground">☁️ Cloud Backend</p>
+                  <p className="text-xs text-muted-foreground mt-1">Simulated TCP-connect scanning via backend functions. No local setup required.</p>
+                </button>
+                <button
+                  onClick={() => updateNmapBackend("mode", "local")}
+                  className={`border rounded-lg p-4 text-left transition-colors ${nmapMode === "local" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                >
+                  <p className="text-sm font-semibold text-foreground">🖥️ Local Nmap Server</p>
+                  <p className="text-xs text-muted-foreground mt-1">Real Nmap execution with OS detection, version scanning, and NSE vulnerability scripts.</p>
+                </button>
+              </div>
+
+              {nmapMode === "local" && (
+                <div className="space-y-4 border-t border-border pt-4">
+                  <div>
+                    <Label>Server URL</Label>
+                    <Input
+                      value={nmapLocalUrl}
+                      onChange={e => updateNmapBackend("localUrl", e.target.value)}
+                      className="mt-1 font-mono"
+                      placeholder="http://localhost:3001"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">URL of your local Nmap backend server</p>
+                  </div>
+                  <div>
+                    <Label>API Key (optional)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type={showNmapKey ? "text" : "password"}
+                        value={nmapApiKey}
+                        onChange={e => updateNmapBackend("apiKey", e.target.value)}
+                        className="font-mono"
+                        placeholder="Leave empty if not configured"
+                      />
+                      <Button variant="ghost" size="icon" onClick={() => setShowNmapKey(!showNmapKey)}>
+                        {showNmapKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border border-dashed border-border rounded-lg p-4 bg-muted/20">
+                    <h3 className="text-xs font-semibold text-foreground mb-2">📋 Setup Instructions</h3>
+                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Install Node.js 18+ and Nmap on your machine</li>
+                      <li>Navigate to <code className="bg-muted px-1 rounded">local-nmap-server/</code> in the project</li>
+                      <li>Run <code className="bg-muted px-1 rounded">npm install</code></li>
+                      <li>Start with <code className="bg-muted px-1 rounded">sudo node server.js</code> (root needed for OS detection)</li>
+                      <li>Optionally set <code className="bg-muted px-1 rounded">NMAP_API_KEY=your-key</code> environment variable</li>
+                    </ol>
+                  </div>
+
+                  <Button onClick={handleTestNmap} disabled={testingNmap} variant="outline" className="gap-2">
+                    {testingNmap ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                    Test Connection
+                  </Button>
+                  {nmapTestResult && renderTestResult(nmapTestResult)}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
           {/* Report Customization Tab */}
           <TabsContent value="reports" className="space-y-6">
             <div className="border border-border rounded-lg bg-card p-6 space-y-5">
