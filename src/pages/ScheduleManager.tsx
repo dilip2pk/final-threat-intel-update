@@ -254,6 +254,7 @@ export default function ScheduleManager() {
                   </div>
                   <div className="flex gap-4 mt-1 text-[11px] text-muted-foreground">
                     {job.last_run_at && <span>Last run: {format(new Date(job.last_run_at), "MMM d, HH:mm")}</span>}
+                    {job.next_run_at && <span>Next run: {format(new Date(job.next_run_at), "MMM d, HH:mm")}</span>}
                     {job.cron_expression && <span className="font-mono">Cron: {job.cron_expression}</span>}
                     {job.last_error && (
                       <span className="text-destructive flex items-center gap-1">
