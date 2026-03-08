@@ -90,6 +90,13 @@ export default function SettingsPage() {
   const defenderClientId = settings.defender?.clientId || "";
   const defenderClientSecret = settings.defender?.clientSecret || "";
   const defenderEnabled = settings.defender?.enabled ?? false;
+  const nmapMode = settings.nmapBackend?.mode || "cloud";
+  const nmapLocalUrl = settings.nmapBackend?.localUrl || "http://localhost:3001";
+  const nmapApiKey = settings.nmapBackend?.apiKey || "";
+
+  const [showNmapKey, setShowNmapKey] = useState(false);
+  const [testingNmap, setTestingNmap] = useState(false);
+  const [nmapTestResult, setNmapTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const updateShodan = (field: string, value: any) => {
     setSettings((s: any) => ({ ...s, shodan: { ...s.shodan, [field]: value } }));
