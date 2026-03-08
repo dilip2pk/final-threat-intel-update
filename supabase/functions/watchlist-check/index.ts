@@ -45,7 +45,7 @@ serve(async (req) => {
     }
 
     // 3. Fetch recent posts from RansomLook API
-    const rlResponse = await fetch("https://www.ransomlook.io/api/recentposts", {
+    const rlResponse = await fetch("https://www.ransomlook.io/api/last/7", {
       headers: { "Accept": "application/json" },
     });
 
