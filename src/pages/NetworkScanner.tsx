@@ -294,7 +294,7 @@ export default function NetworkScanner() {
           </div>
         </div>
 
-        <Tabs defaultValue="scan" className="space-y-5">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
           <TabsList className="bg-muted/40 border border-border p-1 h-auto">
             <TabsTrigger value="scan" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Play className="h-3.5 w-3.5" /> New Scan
