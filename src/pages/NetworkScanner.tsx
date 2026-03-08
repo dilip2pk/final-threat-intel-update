@@ -531,6 +531,9 @@ export default function NetworkScanner() {
                     {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     {scanning ? (scanProgress ? `Scanning ${scanProgress.percent}%...` : "Scanning...") : "Launch Scan"}
                   </Button>
+                  <Button variant="outline" onClick={() => setAiCommandOpen(true)} className="w-full gap-2 h-9 text-xs border-primary/30 text-primary hover:bg-primary/5">
+                    <Sparkles className="h-3.5 w-3.5" /> AI Command Assistant
+                  </Button>
                   <Button variant="outline" onClick={() => { setScheduleDialog(true); setSchedName(`Scan ${target}`); }} disabled={scanType === "raw" || !target.trim()} className="w-full gap-2 h-9 text-xs">
                     <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
                   </Button>
