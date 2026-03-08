@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, Loader2, Globe, Shield, Plus, Star, Trash2, Download, AlertTriangle,
   Server, Lock, Wifi, Eye, Settings2, FileText, FileDown, Calendar, Sparkles,
+  BarChart3, Activity, Monitor, ChevronRight, ChevronDown, ExternalLink,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +57,24 @@ const COMMON_DORKS = [
   { label: "Open VNC", query: 'port:5900 "authentication disabled"' },
 ];
 
+const QUERY_TYPES = [
+  { value: "search", label: "Search", desc: "General keyword search", icon: Search },
+  { value: "host", label: "Host/IP", desc: "Lookup a specific IP", icon: Server },
+  { value: "domain", label: "Domain", desc: "DNS & subdomain info", icon: Globe },
+];
+
+function StatCard({ label, value, icon: Icon, accent }: { label: string; value: string | number; icon: any; accent?: string }) {
+  return (
+    <div className="relative overflow-hidden border border-border rounded-xl bg-card p-4 group hover:border-primary/30 transition-all duration-200">
+      <div className="absolute top-0 right-0 w-20 h-20 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+        <Icon className="w-full h-full" />
+      </div>
+      <p className={`text-2xl font-bold tracking-tight ${accent || "text-foreground"}`}>{value}</p>
+      <p className="text-[11px] font-medium text-muted-foreground mt-0.5 uppercase tracking-wider">{label}</p>
+    </div>
+  );
+}
+
 export default function ShodanSearch() {
   const [query, setQuery] = useState("");
   const [queryType, setQueryType] = useState("search");
@@ -73,14 +92,14 @@ export default function ShodanSearch() {
   const shodanApiKey = settings.shodan?.apiKey || "";
   const shodanEnabled = settings.shodan?.enabled ?? false;
 
-  // Schedule dialog state
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [schedName, setSchedName] = useState("");
   const [schedFreq, setSchedFreq] = useState("daily");
   const [schedCron, setSchedCron] = useState("");
   const [aiCommandOpen, setAiCommandOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("search");
+  const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
 
-  // Load saved queries
   useEffect(() => {
     supabase.from("shodan_queries").select("*").order("created_at", { ascending: false }).then(({ data }) => {
       if (data) setSavedQueries(data);
@@ -101,9 +120,9 @@ export default function ShodanSearch() {
       });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Search failed");
-
       setResults(data.matches || []);
       setTotalResults(data.total || 0);
+      setActiveTab("results");
       toast({ title: "Search Complete", description: `Found ${data.total || 0} results` });
     } catch (e: any) {
       toast({ title: "Search Failed", description: e.message, variant: "destructive" });
@@ -170,7 +189,6 @@ export default function ShodanSearch() {
     if (!results.length) return;
     if (format === "pdf") return exportShodanPDF();
     if (format === "html") return exportShodanHTML();
-
     let content: string, mimeType: string, ext: string;
     if (format === "json") {
       content = JSON.stringify(results, null, 2);
@@ -201,7 +219,6 @@ export default function ShodanSearch() {
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 15;
-
       doc.setFillColor(20, 184, 166);
       doc.rect(0, 0, pageWidth, 30, "F");
       doc.setTextColor(255);
@@ -211,14 +228,12 @@ export default function ShodanSearch() {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text(`Query: ${query} | ${totalResults} results | Generated: ${new Date().toLocaleString()}`, margin, 24);
-
       const tableData = results.map(r => [
         r.ip_str || "", r.port ? `${r.transport || "tcp"}:${r.port}` : "",
         r.org || "", r.product ? `${r.product} ${r.version || ""}`.trim() : "",
         r.os || "", r.location ? `${r.location.city || ""}, ${r.location.country_name || ""}` : "",
         r.hostnames?.join(", ") || "", r.vulns?.join(", ") || "",
       ]);
-
       autoTable(doc, {
         startY: 35,
         head: [["IP", "Port", "Organization", "Product", "OS", "Location", "Hostnames", "Vulnerabilities"]],
@@ -228,7 +243,6 @@ export default function ShodanSearch() {
         margin: { left: margin, right: margin },
         columnStyles: { 7: { cellWidth: 40, textColor: [239, 68, 68] } },
       });
-
       const totalPages = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
@@ -256,70 +270,193 @@ export default function ShodanSearch() {
     toast({ title: "HTML Exported & Saved", description: "Shodan report saved as HTML" });
   };
 
+  const toggleResult = (idx: number) => {
+    setExpandedResults(prev => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  };
+
+  const vulnCount = results.reduce((acc, r) => acc + (r.vulns?.length || 0), 0);
+  const uniqueOrgs = new Set(results.map(r => r.org).filter(Boolean)).size;
+
   return (
     <AppLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Shodan Intelligence</h1>
-          <p className="text-sm text-muted-foreground mt-1">Search for exposed devices, services, and vulnerabilities</p>
-        </div>
-
-        {/* Search Bar */}
-        <div className="border border-border rounded-lg bg-card p-4 space-y-3">
-          <div className="flex flex-col md:flex-row gap-3">
-            <Select value={queryType} onValueChange={setQueryType}>
-              <SelectTrigger className="w-full md:w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="search">Search</SelectItem>
-                <SelectItem value="host">Host/IP</SelectItem>
-                <SelectItem value="domain">Domain</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleSearch()}
-                placeholder={queryType === "host" ? "Enter IP address..." : queryType === "domain" ? "Enter domain..." : "Enter search query or dork..."}
-                className="pl-9"
-              />
+      <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Eye className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Shodan Intelligence</h1>
+                <p className="text-xs text-muted-foreground">Search for exposed devices, services, and vulnerabilities worldwide</p>
+              </div>
             </div>
-            <Button onClick={handleSearch} disabled={searching || !query.trim()} className="gap-2">
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Search
-            </Button>
-            <Button variant="outline" onClick={() => { setSaveName(query); setSaveDialogOpen(true); }} disabled={!query.trim()} className="gap-2">
-              <Star className="h-4 w-4" /> Save
-            </Button>
-            {isAdmin && (
-              <Button variant="outline" onClick={() => { setSchedName(`Shodan: ${query}`); setScheduleOpen(true); }} disabled={!query.trim()} className="gap-2">
-                <Calendar className="h-4 w-4" /> Schedule
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setAiCommandOpen(true)} className="gap-2 border-primary/30 text-primary hover:bg-primary/5">
-              <Sparkles className="h-4 w-4" /> AI Assistant
-            </Button>
           </div>
-
-          {/* Quick Dorks */}
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-xs text-muted-foreground mr-1">Dorks:</span>
-            {COMMON_DORKS.map(d => (
-              <button
-                key={d.label}
-                onClick={() => { setQuery(d.query); setQueryType("search"); }}
-                className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-              >
-                {d.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            {searching && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/20">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-xs font-medium text-primary">Searching...</span>
+              </div>
+            )}
+            <Badge variant="outline" className="text-xs gap-1.5 py-1">
+              <BarChart3 className="h-3 w-3" />
+              {savedQueries.length} saved queries
+            </Badge>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Results */}
-          <div className="flex-1 space-y-3 min-w-0">
+        {/* Stat Cards */}
+        {results.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard label="Total Results" value={totalResults.toLocaleString()} icon={Globe} accent="text-primary" />
+            <StatCard label="Displayed" value={results.length} icon={Monitor} />
+            <StatCard label="Vulnerabilities" value={vulnCount} icon={AlertTriangle} accent={vulnCount > 0 ? "text-destructive" : undefined} />
+            <StatCard label="Organizations" value={uniqueOrgs} icon={Server} />
+          </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+          <TabsList className="bg-muted/40 border border-border p-1 h-auto">
+            <TabsTrigger value="search" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Search className="h-3.5 w-3.5" /> Search
+            </TabsTrigger>
+            <TabsTrigger value="results" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Eye className="h-3.5 w-3.5" /> Results
+              {results.length > 0 && <span className="ml-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{results.length}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Star className="h-3.5 w-3.5" /> Saved Queries
+              {savedQueries.length > 0 && <span className="ml-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{savedQueries.length}</span>}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ─── SEARCH TAB ─── */}
+          <TabsContent value="search" className="space-y-5">
+            <div className="grid lg:grid-cols-3 gap-5">
+              {/* Query Input */}
+              <div className="lg:col-span-2 border border-border rounded-xl bg-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-border bg-muted/20">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-primary" /> Search Query
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Enter a search query, IP address, or domain to investigate</p>
+                </div>
+                <div className="p-5 space-y-5">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-3 block uppercase tracking-wider font-semibold">Query Type</Label>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {QUERY_TYPES.map(qt => {
+                        const Icon = qt.icon;
+                        const selected = queryType === qt.value;
+                        return (
+                          <button key={qt.value} onClick={() => setQueryType(qt.value)}
+                            className={`relative border rounded-xl p-3.5 text-left transition-all duration-200 group ${selected ? "border-primary bg-primary/5 shadow-sm shadow-primary/10" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}>
+                            <div className="flex items-start gap-2.5">
+                              <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground group-hover:text-foreground"}`}>
+                                <Icon className="h-3.5 w-3.5" />
+                              </div>
+                              <div>
+                                <p className={`text-xs font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{qt.label}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{qt.desc}</p>
+                              </div>
+                            </div>
+                            {selected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium mb-1.5 block">Search Query</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleSearch()}
+                        placeholder={queryType === "host" ? "Enter IP address (e.g. 8.8.8.8)" : queryType === "domain" ? "Enter domain (e.g. example.com)" : "Enter search query or dork..."}
+                        className="pl-9 font-mono bg-muted/20"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block uppercase tracking-wider font-semibold">Quick Dorks</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {COMMON_DORKS.map(d => (
+                        <button
+                          key={d.label}
+                          onClick={() => { setQuery(d.query); setQueryType("search"); }}
+                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-muted/40 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-transparent hover:border-primary/20"
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Panel */}
+              <div className="border border-border rounded-xl bg-card overflow-hidden flex flex-col">
+                <div className="px-5 py-4 border-b border-border bg-muted/20">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" /> Actions
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Execute search and manage queries</p>
+                </div>
+                <div className="p-5 space-y-3 flex-1">
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-[10px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider">Query Preview</p>
+                    <p className="text-xs font-mono text-foreground break-all">{query || "Enter a query..."}</p>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Badge variant="outline" className="text-[9px]">{queryType}</Badge>
+                      {query && COMMON_DORKS.some(d => d.query === query) && (
+                        <Badge variant="outline" className="text-[9px] bg-[hsl(var(--severity-medium))]/10 text-[hsl(var(--severity-medium))] border-[hsl(var(--severity-medium))]/30">dork</Badge>
+                      )}
+                    </div>
+                  </div>
+                  {!shodanApiKey && (
+                    <div className="p-3 rounded-lg bg-[hsl(var(--severity-medium))]/5 border border-[hsl(var(--severity-medium))]/20">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--severity-medium))] shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-[hsl(var(--severity-medium))]">Shodan API key not configured. Go to Settings → Shodan to add your key.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="p-5 pt-0 space-y-2.5">
+                  <Button
+                    onClick={handleSearch}
+                    disabled={searching || !query.trim() || !shodanApiKey}
+                    className="w-full gap-2 h-10 font-semibold"
+                  >
+                    {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    {searching ? "Searching..." : "Launch Search"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setAiCommandOpen(true)} className="w-full gap-2 h-9 text-xs border-primary/30 text-primary hover:bg-primary/5">
+                    <Sparkles className="h-3.5 w-3.5" /> AI Query Assistant
+                  </Button>
+                  <Button variant="outline" onClick={() => { setSaveName(query); setSaveDialogOpen(true); }} disabled={!query.trim()} className="w-full gap-2 h-9 text-xs">
+                    <Star className="h-3.5 w-3.5" /> Save Query
+                  </Button>
+                  {isAdmin && (
+                    <Button variant="outline" onClick={() => { setSchedName(`Shodan: ${query}`); setScheduleOpen(true); }} disabled={!query.trim()} className="w-full gap-2 h-9 text-xs">
+                      <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ─── RESULTS TAB ─── */}
+          <TabsContent value="results" className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">
                 Results {totalResults > 0 && <span className="text-muted-foreground font-normal">({totalResults.toLocaleString()} total)</span>}
@@ -327,8 +464,8 @@ export default function ShodanSearch() {
               {results.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1 text-xs h-7">
-                      <FileDown className="h-3 w-3" /> Export
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8">
+                      <FileDown className="h-3.5 w-3.5" /> Export
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -350,122 +487,200 @@ export default function ShodanSearch() {
             </div>
 
             {searching ? (
-              <div className="flex items-center justify-center py-16 gap-3">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-muted-foreground">Searching Shodan...</span>
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground">Searching Shodan...</p>
               </div>
             ) : results.length === 0 ? (
-              <div className="border border-dashed border-border rounded-lg p-12 text-center text-muted-foreground">
-                <Globe className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Enter a query above to search Shodan</p>
+              <div className="border border-dashed border-border rounded-xl p-16 text-center">
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                  <Globe className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">No results yet</p>
+                <p className="text-xs text-muted-foreground">Run a search to see results here</p>
               </div>
             ) : (
-              results.map((r, idx) => (
-                <div key={idx} className="border border-border rounded-lg bg-card p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-semibold text-foreground">{r.ip_str}</span>
-                        {r.port && <Badge variant="outline" className="text-[10px] font-mono">{r.transport || "tcp"}:{r.port}</Badge>}
+              <div className="space-y-2">
+                {results.map((r, idx) => {
+                  const isExpanded = expandedResults.has(idx);
+                  return (
+                    <div key={idx} className="group border border-border rounded-xl bg-card overflow-hidden hover:border-primary/30 hover:shadow-sm transition-all duration-200">
+                      <div className="p-4 cursor-pointer" onClick={() => toggleResult(idx)}>
+                        <div className="flex items-center gap-4">
+                          <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${r.vulns && r.vulns.length > 0 ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
+                            {r.vulns && r.vulns.length > 0 ? <AlertTriangle className="h-5 w-5" /> : <Server className="h-5 w-5" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-sm font-semibold text-foreground">{r.ip_str}</span>
+                              {r.port && <Badge variant="outline" className="text-[10px] font-mono">{r.transport || "tcp"}:{r.port}</Badge>}
+                              {r.org && <span className="text-xs text-muted-foreground hidden md:inline">• {r.org}</span>}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                              {r.hostnames && r.hostnames.length > 0 && (
+                                <span className="text-[11px] text-muted-foreground font-mono">{r.hostnames[0]}</span>
+                              )}
+                              {r.location && (
+                                <span className="text-[11px] text-muted-foreground">{r.location.city}, {r.location.country_name}</span>
+                              )}
+                              {r.product && (
+                                <span className="text-[11px] text-muted-foreground">{r.product} {r.version || ""}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {r.vulns && r.vulns.length > 0 && (
+                              <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20">
+                                {r.vulns.length} CVE{r.vulns.length > 1 ? "s" : ""}
+                              </Badge>
+                            )}
+                            {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </div>
+                        </div>
                       </div>
-                      {r.hostnames && r.hostnames.length > 0 && (
-                        <p className="text-xs text-muted-foreground font-mono mt-0.5">{r.hostnames.join(", ")}</p>
+
+                      {isExpanded && (
+                        <div className="border-t border-border bg-muted/10 p-4 space-y-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {r.org && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Organization</p>
+                                <p className="text-xs text-foreground mt-0.5">{r.org}</p>
+                              </div>
+                            )}
+                            {r.os && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">OS</p>
+                                <p className="text-xs text-foreground mt-0.5">{r.os}</p>
+                              </div>
+                            )}
+                            {r.product && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Product</p>
+                                <p className="text-xs text-foreground mt-0.5">{r.product} {r.version || ""}</p>
+                              </div>
+                            )}
+                            {r.ssl?.cert?.subject?.CN && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">SSL Certificate</p>
+                                <p className="text-xs text-foreground mt-0.5 flex items-center gap-1"><Lock className="h-3 w-3" /> {r.ssl.cert.subject.CN}</p>
+                              </div>
+                            )}
+                            {r.isp && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">ISP</p>
+                                <p className="text-xs text-foreground mt-0.5">{r.isp}</p>
+                              </div>
+                            )}
+                            {r.location && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Location</p>
+                                <p className="text-xs text-foreground mt-0.5">{r.location.city}, {r.location.country_name}</p>
+                              </div>
+                            )}
+                            {r.hostnames && r.hostnames.length > 0 && (
+                              <div className="col-span-2">
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Hostnames</p>
+                                <p className="text-xs text-foreground mt-0.5 font-mono">{r.hostnames.join(", ")}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {r.vulns && r.vulns.length > 0 && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">Vulnerabilities</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {r.vulns.map(v => (
+                                  <Badge key={v} variant="outline" className="text-[10px] font-mono bg-destructive/10 text-destructive border-destructive/20">
+                                    {v}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {r.data && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">Banner Data</p>
+                              <pre className="text-[11px] font-mono bg-muted/30 border border-border rounded-lg p-3 overflow-x-auto max-h-32 text-foreground/80">
+                                {r.data.slice(0, 500)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-                    {r.location && (
-                      <span className="text-xs text-muted-foreground shrink-0">{r.location.city}, {r.location.country_name}</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {r.org && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Server className="h-3 w-3" /> {r.org}
-                      </span>
-                    )}
-                    {r.product && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Wifi className="h-3 w-3" /> {r.product} {r.version}
-                      </span>
-                    )}
-                    {r.os && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Shield className="h-3 w-3" /> {r.os}
-                      </span>
-                    )}
-                    {r.ssl?.cert?.subject?.CN && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Lock className="h-3 w-3" /> SSL: {r.ssl.cert.subject.CN}
-                      </span>
-                    )}
-                  </div>
-
-                  {r.vulns && r.vulns.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {r.vulns.map(v => (
-                        <Badge key={v} variant="outline" className="text-[10px] font-mono bg-destructive/10 text-destructive border-destructive/20">
-                          {v}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Saved Queries Sidebar */}
-          <div className="lg:w-72 shrink-0">
-            <div className="border border-border rounded-lg bg-card">
-              <div className="p-4 border-b border-border">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Star className="h-4 w-4 text-severity-medium" /> Saved Queries
-                </h3>
+                  );
+                })}
               </div>
-              <ScrollArea className="max-h-[400px]">
-                <div className="divide-y divide-border">
-                  {savedQueries.length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-4 text-center">No saved queries yet</p>
-                  ) : (
-                    savedQueries.map(q => (
-                      <div key={q.id} className="p-3 hover:bg-muted/20 transition-colors">
-                        <div className="flex items-start justify-between gap-2">
-                          <button onClick={() => loadSavedQuery(q)} className="text-left flex-1 min-w-0">
-                            <p className="text-xs font-medium text-foreground">{q.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono truncate">{q.query}</p>
-                          </button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteQuery(q.id)} className="h-6 w-6 shrink-0">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="flex gap-1 mt-1">
-                          <Badge variant="outline" className="text-[10px]">{q.query_type}</Badge>
-                          {q.is_dork && <Badge variant="outline" className="text-[10px] bg-severity-medium/10 text-severity-medium border-severity-medium/30">dork</Badge>}
+            )}
+          </TabsContent>
+
+          {/* ─── SAVED QUERIES TAB ─── */}
+          <TabsContent value="saved" className="space-y-3">
+            {savedQueries.length === 0 ? (
+              <div className="border border-dashed border-border rounded-xl p-16 text-center">
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                  <Star className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">No saved queries</p>
+                <p className="text-xs text-muted-foreground">Save a search query to quickly access it later</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {savedQueries.map(q => (
+                  <div key={q.id} className="group border border-border rounded-xl bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all duration-200">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-[hsl(var(--severity-medium))]/10 flex items-center justify-center shrink-0">
+                        <Star className="h-5 w-5 text-[hsl(var(--severity-medium))]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{q.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">{q.query}</p>
+                        <div className="flex gap-1.5 mt-1.5">
+                          <Badge variant="outline" className="text-[9px]">{q.query_type}</Badge>
+                          {q.is_dork && <Badge variant="outline" className="text-[9px] bg-[hsl(var(--severity-medium))]/10 text-[hsl(var(--severity-medium))] border-[hsl(var(--severity-medium))]/30">dork</Badge>}
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          </div>
-        </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { loadSavedQuery(q); setActiveTab("search"); }}>
+                          <Search className="h-3 w-3" /> Use
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteQuery(q.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Save Query Dialog */}
         <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>Save Query</DialogTitle></DialogHeader>
-            <div className="space-y-3 py-2">
-              <div><Label>Name</Label><Input value={saveName} onChange={e => setSaveName(e.target.value)} className="mt-1" placeholder="My saved query" /></div>
-              <div><Label>Query</Label><Input value={query} readOnly className="mt-1 font-mono text-muted-foreground" /></div>
+          <DialogContent className="bg-card border-border max-w-md">
+            <DialogHeader><DialogTitle className="text-base">Save Query</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label className="text-xs font-medium">Name</Label>
+                <Input value={saveName} onChange={e => setSaveName(e.target.value)} className="mt-1.5 bg-muted/20" placeholder="My saved query" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">Query</Label>
+                <Input value={query} readOnly className="mt-1.5 font-mono text-muted-foreground bg-muted/20" />
+              </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={isDork} onChange={e => setIsDork(e.target.checked)} id="isDork" className="rounded" />
-                <Label htmlFor="isDork">Mark as dork</Label>
+                <Label htmlFor="isDork" className="text-xs">Mark as dork</Label>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSaveQuery}>Save</Button>
+              <Button onClick={handleSaveQuery} className="gap-1.5">
+                <Star className="h-3.5 w-3.5" /> Save
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -473,20 +688,20 @@ export default function ShodanSearch() {
         {/* Schedule Query Dialog */}
         <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
           <DialogContent className="bg-card border-border max-w-md">
-            <DialogHeader><DialogTitle>Schedule Shodan Scan</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="text-base">Schedule Shodan Scan</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
               <div>
-                <Label>Schedule Name</Label>
-                <Input value={schedName} onChange={e => setSchedName(e.target.value)} className="mt-1" placeholder="My scheduled scan" />
+                <Label className="text-xs font-medium">Schedule Name</Label>
+                <Input value={schedName} onChange={e => setSchedName(e.target.value)} className="mt-1.5 bg-muted/20" placeholder="My scheduled scan" />
               </div>
               <div>
-                <Label>Query</Label>
-                <Input value={query} readOnly className="mt-1 font-mono text-muted-foreground" />
+                <Label className="text-xs font-medium">Query</Label>
+                <Input value={query} readOnly className="mt-1.5 font-mono text-muted-foreground bg-muted/20" />
               </div>
               <div>
-                <Label>Frequency</Label>
+                <Label className="text-xs font-medium">Frequency</Label>
                 <Select value={schedFreq} onValueChange={setSchedFreq}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="once">One-time</SelectItem>
                     <SelectItem value="daily">Daily</SelectItem>
@@ -498,16 +713,16 @@ export default function ShodanSearch() {
               </div>
               {schedFreq === "custom" && (
                 <div>
-                  <Label>Cron Expression</Label>
-                  <Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1 font-mono" placeholder="0 2 * * *" />
-                  <p className="text-xs text-muted-foreground mt-1">e.g. "0 2 * * *" = daily at 2am</p>
+                  <Label className="text-xs font-medium">Cron Expression</Label>
+                  <Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1.5 font-mono bg-muted/20" placeholder="0 2 * * *" />
+                  <p className="text-[10px] text-muted-foreground mt-1">e.g. "0 2 * * *" = daily at 2am</p>
                 </div>
               )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setScheduleOpen(false)}>Cancel</Button>
-              <Button onClick={handleScheduleQuery} disabled={!schedName.trim()}>
-                <Calendar className="h-4 w-4 mr-2" /> Create Schedule
+              <Button onClick={handleScheduleQuery} disabled={!schedName.trim()} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Create Schedule
               </Button>
             </DialogFooter>
           </DialogContent>
