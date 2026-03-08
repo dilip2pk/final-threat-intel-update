@@ -55,6 +55,26 @@ export interface ScanSchedule {
   created_at: string;
 }
 
+/** Load nmap backend config from app_settings */
+async function getNmapBackendConfig(): Promise<{ mode: string; localUrl: string; apiKey: string }> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "integrations")
+      .single();
+    if (data?.value) {
+      const val = data.value as any;
+      return {
+        mode: val?.nmapBackend?.mode || "cloud",
+        localUrl: val?.nmapBackend?.localUrl || "http://localhost:3001",
+        apiKey: val?.nmapBackend?.apiKey || "",
+      };
+    }
+  } catch {}
+  return { mode: "cloud", localUrl: "http://localhost:3001", apiKey: "" };
+}
+
 export function useScans() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +93,6 @@ export function useScans() {
 
   useEffect(() => {
     fetchScans();
-    // Subscribe to realtime updates
     const channel = supabase
       .channel("scans-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "scans" }, () => {
@@ -92,11 +111,10 @@ export function useScans() {
     enable_scripts?: boolean;
     custom_options?: string;
   }) => {
-    // Parse multiple targets
     const targets = params.target.split(/[\n,;]+/).map(t => t.trim()).filter(Boolean);
     if (targets.length === 0) throw new Error("No targets specified");
 
-    // Insert scan record
+    // Insert scan record in DB
     const { data: scan, error } = await supabase.from("scans").insert({
       target: params.target,
       target_type: params.target_type,
@@ -112,25 +130,39 @@ export function useScans() {
     if (error) throw error;
     if (!scan) throw new Error("Failed to create scan");
 
-    // Trigger the scan (don't await - let it run in background)
-    supabase.functions.invoke("port-scan", {
-      body: {
-        scanId: (scan as any).id,
-        targets,
-        scanType: params.scan_type,
-        ports: params.ports,
-        timingTemplate: params.timing_template,
-      },
-    }).then(({ error: fnError }) => {
-      if (fnError) {
-        console.error("Scan function error:", fnError);
-        supabase.from("scans").update({ status: "failed", error_message: fnError.message } as any).eq("id", (scan as any).id);
-        toast({ title: "Scan Failed", description: fnError.message, variant: "destructive" });
-      }
-    }).catch(err => {
-      console.error("Scan invocation error:", err);
-      supabase.from("scans").update({ status: "failed", error_message: err.message } as any).eq("id", (scan as any).id);
-    });
+    const scanId = (scan as any).id;
+
+    // Determine backend
+    const config = await getNmapBackendConfig();
+
+    if (config.mode === "local") {
+      // Use local Nmap server
+      startLocalScan(scanId, targets, params, config).catch(err => {
+        console.error("Local scan error:", err);
+        supabase.from("scans").update({ status: "failed", error_message: err.message } as any).eq("id", scanId);
+        toast({ title: "Scan Failed", description: err.message, variant: "destructive" });
+      });
+    } else {
+      // Use cloud edge function
+      supabase.functions.invoke("port-scan", {
+        body: {
+          scanId,
+          targets,
+          scanType: params.scan_type,
+          ports: params.ports,
+          timingTemplate: params.timing_template,
+        },
+      }).then(({ error: fnError }) => {
+        if (fnError) {
+          console.error("Scan function error:", fnError);
+          supabase.from("scans").update({ status: "failed", error_message: fnError.message } as any).eq("id", scanId);
+          toast({ title: "Scan Failed", description: fnError.message, variant: "destructive" });
+        }
+      }).catch(err => {
+        console.error("Scan invocation error:", err);
+        supabase.from("scans").update({ status: "failed", error_message: err.message } as any).eq("id", scanId);
+      });
+    }
 
     return scan;
   };
@@ -160,6 +192,65 @@ export function useScans() {
   };
 
   return { scans, loading, startScan, analyzeScan, getScanResults, deleteScan, refetch: fetchScans };
+}
+
+/** Execute scan via local Nmap server and save results to DB */
+async function startLocalScan(
+  scanId: string,
+  targets: string[],
+  params: { scan_type: string; ports?: string; timing_template?: string; enable_scripts?: boolean; custom_options?: string },
+  config: { localUrl: string; apiKey: string }
+) {
+  const baseUrl = config.localUrl.replace(/\/$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (config.apiKey) headers["x-api-key"] = config.apiKey;
+
+  // Mark as running
+  await supabase.from("scans").update({ status: "running", started_at: new Date().toISOString() } as any).eq("id", scanId);
+
+  // Call local server (synchronous endpoint)
+  const resp = await fetch(`${baseUrl}/api/scan`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      targets,
+      scanType: params.scan_type,
+      ports: params.ports,
+      timingTemplate: params.timing_template,
+      enableScripts: params.enable_scripts,
+      customOptions: params.custom_options,
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: "Server error" }));
+    throw new Error(err.error || `Local server returned ${resp.status}`);
+  }
+
+  const data = await resp.json();
+
+  if (!data.success) {
+    throw new Error(data.error || "Scan failed");
+  }
+
+  // Save results to DB
+  for (const result of data.results || []) {
+    await supabase.from("scan_results").insert({
+      scan_id: scanId,
+      host: result.host,
+      host_status: result.host_status,
+      os_detection: result.os_detection,
+      ports: result.ports,
+      vulnerabilities: result.vulnerabilities,
+    } as any);
+  }
+
+  // Update scan as completed
+  await supabase.from("scans").update({
+    status: "completed",
+    completed_at: new Date().toISOString(),
+    result_summary: data.summary,
+  } as any).eq("id", scanId);
 }
 
 export function useScanSchedules() {
