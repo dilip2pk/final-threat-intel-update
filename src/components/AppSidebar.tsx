@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut, LogIn, Calendar, FileText, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut, LogIn, Calendar, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
@@ -17,7 +17,6 @@ const navItems = [
   { to: "/software-inventory", icon: Monitor, label: "Software Inv.", adminOnly: false },
   { to: "/scanner", icon: Crosshair, label: "Network Scan", adminOnly: false },
   { to: "/reports", icon: FileText, label: "Reports", adminOnly: false },
-  { to: "/executive-report", icon: BarChart3, label: "Exec Report", adminOnly: false },
   { to: "/schedules", icon: Calendar, label: "Schedules", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings", adminOnly: true },
 ];
