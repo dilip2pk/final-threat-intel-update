@@ -679,130 +679,263 @@ export default function ActivityLog() {
           </TabsContent>
         </Tabs>
 
-        {/* Ticket Detail Dialog */}
+        {/* Ticket Detail Dialog — Aptean-style with sidebar */}
         <Dialog open={!!selectedTicket} onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}>
-          <DialogContent className="max-w-2xl max-h-[85vh]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-lg">
-                <Ticket className="h-5 w-5 text-primary" />
-                <span className="font-mono text-primary">{selectedTicket?.ticket_number}</span>
-                <Separator orientation="vertical" className="h-5" />
-                <span className="truncate">{selectedTicket?.title}</span>
-              </DialogTitle>
-            </DialogHeader>
-            <ScrollArea className="max-h-[65vh]">
-              <div className="space-y-5 py-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <div>
-                      <Badge variant="outline" className={`gap-1 ${statusColors[selectedTicket?.status || ""]}`}>
-                        <StatusIcon status={selectedTicket?.status || ""} /> {selectedTicket?.status}
-                      </Badge>
-                    </div>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0">
+            {/* Top header bar */}
+            <div className="bg-primary/5 border-b border-border px-6 py-4">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-primary" />
+                    <span className="font-mono text-sm font-bold text-primary">{selectedTicket?.ticket_number}</span>
+                    <span className="text-muted-foreground">—</span>
+                    <span className="font-semibold text-foreground truncate">{selectedTicket?.title}</span>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Priority</Label>
-                    <div>
-                      <Badge variant="outline" className={priorityColors[selectedTicket?.priority || ""]}>
-                        {selectedTicket?.priority}
-                      </Badge>
-                    </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><User className="h-3 w-3" /> by {selectedTicket?.assigned_to || "Unassigned"}</span>
+                    <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {selectedTicket?.created_at ? formatDate(selectedTicket.created_at) : "—"}</span>
+                    <span>DueBy: —</span>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Assigned To</Label>
-                    <p className="text-sm font-medium flex items-center gap-1.5">
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+              {/* Main content — left side */}
+              <div className="flex-1 overflow-hidden border-r border-border">
+                {/* Sub-tabs like Aptean */}
+                <Tabs defaultValue="details" className="h-full flex flex-col">
+                  <div className="border-b border-border bg-muted/20 px-4">
+                    <TabsList className="bg-transparent h-auto p-0 gap-0">
+                      {["details", "resolution", "notes", "history"].map(tab => (
+                        <TabsTrigger
+                          key={tab}
+                          value={tab}
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5 text-xs font-medium capitalize"
+                        >
+                          {tab === "details" && <Eye className="h-3 w-3 mr-1.5" />}
+                          {tab === "resolution" && <CheckCircle2 className="h-3 w-3 mr-1.5" />}
+                          {tab === "notes" && <MessageSquare className="h-3 w-3 mr-1.5" />}
+                          {tab === "history" && <Clock className="h-3 w-3 mr-1.5" />}
+                          {tab}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+
+                  <ScrollArea className="flex-1 max-h-[55vh]">
+                    {/* Details tab */}
+                    <TabsContent value="details" className="m-0 p-5 space-y-5">
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Description</Label>
+                        <div className="bg-muted/30 border border-border rounded-lg p-4 text-sm text-foreground whitespace-pre-wrap min-h-[80px]">
+                          {selectedTicket?.description || <span className="text-muted-foreground italic">No description provided</span>}
+                        </div>
+                      </div>
+
+                      {selectedTicket?.related_feed_title && (
+                        <div>
+                          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Related Feed</Label>
+                          <div className="flex items-center gap-2 text-sm">
+                            <Layers className="h-4 w-4 text-primary" />
+                            <span className="text-foreground">{selectedTicket.related_feed_title}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Update Status inline */}
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Update Status</Label>
+                        <div className="flex gap-2">
+                          <Select value={newStatus} onValueChange={setNewStatus}>
+                            <SelectTrigger className="w-48 h-8 text-sm"><SelectValue placeholder="Select new status" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Open">Open</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Resolved">Resolved</SelectItem>
+                              <SelectItem value="Closed">Closed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" className="h-8" onClick={handleStatusChange} disabled={!newStatus}>
+                            <Pencil className="h-3 w-3 mr-1.5" /> Update
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Resolution tab */}
+                    <TabsContent value="resolution" className="m-0 p-5 space-y-4">
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Resolution Notes</Label>
+                        {selectedTicket?.resolution_notes ? (
+                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4">
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTicket.resolution_notes}</p>
+                          </div>
+                        ) : (
+                          <div className="bg-muted/30 border border-border rounded-lg p-6 text-center">
+                            <CheckCircle2 className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">No resolution notes yet</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* Notes tab */}
+                    <TabsContent value="notes" className="m-0 p-5 space-y-4">
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Add Note</Label>
+                        <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add investigation notes, resolution details..." rows={3} className="text-sm" />
+                        <div className="mt-2">
+                          <Button size="sm" className="h-8 gap-1.5" onClick={handleAddNote} disabled={!newNote.trim()}>
+                            <MessageSquare className="h-3 w-3" /> Add Note
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Display notes from history */}
+                      <div className="space-y-3">
+                        {history.filter(h => h.action === "comment").length === 0 ? (
+                          <div className="bg-muted/30 border border-border rounded-lg p-6 text-center">
+                            <MessageSquare className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">No notes yet</p>
+                          </div>
+                        ) : (
+                          history.filter(h => h.action === "comment").map(note => (
+                            <div key={note.id} className="bg-muted/20 border border-border rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                                  <User className="h-3 w-3" /> {note.actor || "System"}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-mono">{formatDate(note.created_at)}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{note.new_value}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* History tab */}
+                    <TabsContent value="history" className="m-0 p-5">
+                      {history.length === 0 ? (
+                        <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+                          <Clock className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">No timeline entries yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-0">
+                          {history.map((entry, idx) => (
+                            <div key={entry.id} className="flex gap-3 text-sm">
+                              <div className="flex flex-col items-center">
+                                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${entry.action === "status_change" ? "bg-primary" : "bg-muted-foreground/40"}`} />
+                                {idx < history.length - 1 && <div className="w-px flex-1 bg-border" />}
+                              </div>
+                              <div className="pb-4 flex-1">
+                                {entry.action === "status_change" ? (
+                                  <p className="text-xs">
+                                    <span className="font-medium text-foreground">{entry.actor || "System"}</span>{" "}
+                                    changed status{" "}
+                                    <Badge variant="outline" className="text-[10px] mx-0.5">{entry.old_value}</Badge>
+                                    <ArrowRight className="inline h-3 w-3 mx-0.5" />
+                                    <Badge variant="outline" className="text-[10px] mx-0.5">{entry.new_value}</Badge>
+                                  </p>
+                                ) : (
+                                  <div>
+                                    <p className="text-xs font-medium text-foreground">{entry.actor || "System"}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{entry.new_value}</p>
+                                  </div>
+                                )}
+                                <p className="text-[10px] text-muted-foreground font-mono mt-1">{formatDate(entry.created_at)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </ScrollArea>
+                </Tabs>
+              </div>
+
+              {/* Right sidebar — metadata panel */}
+              <div className="w-64 shrink-0 bg-muted/10 overflow-y-auto max-h-[65vh]">
+                <div className="p-4 space-y-4">
+                  {/* Status */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</Label>
+                    <Badge variant="outline" className={`gap-1 text-xs ${statusColors[selectedTicket?.status || ""]}`}>
+                      <StatusIcon status={selectedTicket?.status || ""} /> {selectedTicket?.status}
+                    </Badge>
+                  </div>
+
+                  <Separator />
+
+                  {/* Priority */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Priority</Label>
+                    <Badge variant="outline" className={`text-xs ${priorityColors[selectedTicket?.priority || ""]}`}>
+                      <Shield className="h-3 w-3 mr-1" /> {selectedTicket?.priority}
+                    </Badge>
+                  </div>
+
+                  <Separator />
+
+                  {/* Technician */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Technician</Label>
+                    <p className="text-sm text-foreground flex items-center gap-1.5">
                       <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      {selectedTicket?.assigned_to || "Unassigned"}
+                      {selectedTicket?.assigned_to || "Not Specified"}
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Last Updated</Label>
-                    <p className="text-sm font-mono flex items-center gap-1.5">
+
+                  <Separator />
+
+                  {/* Category */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
+                    <p className="text-sm text-foreground flex items-center gap-1.5">
+                      <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                      {selectedTicket?.category || "Not Specified"}
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Created */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Created</Label>
+                    <p className="text-xs text-foreground font-mono flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                      {selectedTicket?.created_at ? formatDate(selectedTicket.created_at) : "—"}
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Last Updated */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Last Updated</Label>
+                    <p className="text-xs text-foreground font-mono flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                       {selectedTicket?.updated_at ? formatDate(selectedTicket.updated_at) : "—"}
                     </p>
                   </div>
-                  {selectedTicket?.description && (
-                    <div className="col-span-2 space-y-1">
-                      <Label className="text-xs text-muted-foreground">Description</Label>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTicket.description}</p>
-                    </div>
-                  )}
-                  {selectedTicket?.resolution_notes && (
-                    <div className="col-span-2 space-y-1">
-                      <Label className="text-xs text-muted-foreground">Resolution Notes</Label>
-                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-md p-3">
-                        <p className="text-sm">{selectedTicket.resolution_notes}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
 
-                <Separator />
+                  <Separator />
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Update Status</Label>
-                  <div className="flex gap-2">
-                    <Select value={newStatus} onValueChange={setNewStatus}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select new status" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Open">Open</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Resolved">Resolved</SelectItem>
-                        <SelectItem value="Closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" onClick={handleStatusChange} disabled={!newStatus}>Update</Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add Note</Label>
-                  <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add investigation notes, resolution details..." rows={2} />
-                  <Button size="sm" onClick={handleAddNote} disabled={!newNote.trim()} className="gap-1.5">
-                    <MessageSquare className="h-3.5 w-3.5" /> Add Note
+                  {/* Delete action */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+                    onClick={() => { if (selectedTicket) { setDeleteId(selectedTicket.id); } }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete Ticket
                   </Button>
                 </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeline</Label>
-                  {history.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-6 text-center">No timeline entries yet</p>
-                  ) : (
-                    <div className="space-y-0">
-                      {history.map((entry, idx) => (
-                        <div key={entry.id} className="flex gap-3 text-sm">
-                          <div className="flex flex-col items-center">
-                            <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${entry.action === "status_change" ? "bg-primary" : "bg-muted-foreground/40"}`} />
-                            {idx < history.length - 1 && <div className="w-px flex-1 bg-border" />}
-                          </div>
-                          <div className="pb-4 flex-1">
-                            {entry.action === "status_change" ? (
-                              <p className="text-xs">
-                                <span className="font-medium text-foreground">{entry.actor || "System"}</span>{" "}
-                                changed status{" "}
-                                <Badge variant="outline" className="text-[10px] mx-0.5">{entry.old_value}</Badge>
-                                <ArrowRight className="inline h-3 w-3 mx-0.5" />
-                                <Badge variant="outline" className="text-[10px] mx-0.5">{entry.new_value}</Badge>
-                              </p>
-                            ) : (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">{entry.actor || "System"}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{entry.new_value}</p>
-                              </div>
-                            )}
-                            <p className="text-[10px] text-muted-foreground font-mono mt-1">{formatDate(entry.created_at)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
-            </ScrollArea>
+            </div>
           </DialogContent>
         </Dialog>
 
