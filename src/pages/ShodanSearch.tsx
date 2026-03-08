@@ -467,11 +467,9 @@ export default function ShodanSearch() {
                   <Button variant="outline" onClick={() => { setSaveName(query); setSaveDialogOpen(true); }} disabled={!query.trim()} className="w-full gap-2 h-9 text-xs">
                     <Star className="h-3.5 w-3.5" /> Save Query
                   </Button>
-                  {isAdmin && (
-                    <Button variant="outline" onClick={() => { setSchedName(`Shodan: ${query}`); setScheduleOpen(true); }} disabled={!query.trim()} className="w-full gap-2 h-9 text-xs">
-                      <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
-                    </Button>
-                  )}
+                  <Button variant="outline" onClick={() => { setSchedName(`Shodan: ${query}`); setScheduleOpen(true); }} disabled={!query.trim()} className="w-full gap-2 h-9 text-xs">
+                    <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
+                  </Button>
                 </div>
               </div>
             </div>
