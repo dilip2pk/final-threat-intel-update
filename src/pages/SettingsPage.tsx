@@ -696,6 +696,49 @@ export default function SettingsPage() {
                   </Select>
                 </FieldGroup>
               </div>
+
+              {watchlistNotify.method === "email" && (
+                <SectionCard title="Watchlist Alert Email Template" icon={FileText} description="Customize the HTML email sent when watchlist matches are found. Use variables: {{match_count}}, {{matches_html}}, {{app_name}}, {{date}}.">
+                  <FieldGroup label="Email Template (HTML)" description="Variables: {{match_count}}, {{matches_html}}, {{app_name}}, {{date}}">
+                    <Textarea
+                      value={watchlistNotify.emailTemplate}
+                      onChange={e => setWatchlistNotify(c => ({ ...c, emailTemplate: e.target.value }))}
+                      className="font-mono text-xs min-h-[250px] leading-relaxed"
+                    />
+                  </FieldGroup>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setWatchlistNotify(c => ({ ...c, emailTemplate: defaultWatchlistTemplate }))} className="gap-2 text-xs">
+                      Reset to Default
+                    </Button>
+                  </div>
+                  <div className="border border-border rounded-xl overflow-hidden">
+                    <div className="px-4 py-2 bg-muted/30 border-b border-border">
+                      <p className="text-xs font-semibold text-muted-foreground">Preview</p>
+                    </div>
+                    <div className="p-4 bg-background">
+                      <div dangerouslySetInnerHTML={{
+                        __html: watchlistNotify.emailTemplate
+                          .replace(/\{\{match_count\}\}/g, "2")
+                          .replace(/\{\{app_name\}\}/g, general.appName || "ThreatIntel")
+                          .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+                          .replace(/\{\{matches_html\}\}/g, `
+                            <div style="margin-bottom: 16px; border: 1px solid #fecaca; border-radius: 8px; overflow: hidden;">
+                              <div style="background: #fef2f2; padding: 12px 16px; border-bottom: 1px solid #fecaca;">
+                                <span style="color: #dc2626; font-weight: 700;">🔴 Acme Corp</span>
+                                <span style="color: #6b7280; font-size: 13px;"> — 3 post(s)</span>
+                              </div>
+                              <ul style="padding: 12px 16px 12px 32px; margin: 0; color: #374151; font-size: 13px; line-height: 1.8;">
+                                <li><strong>LockBit</strong>: acme-corp.com — Jan 15, 2026</li>
+                                <li><strong>BlackCat</strong>: acme data dump — Jan 14, 2026</li>
+                              </ul>
+                            </div>
+                          `)
+                      }} />
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+
               <div className="flex items-center gap-3 pt-1">
                 <Button onClick={handleSaveWatchlistNotify} disabled={savingWatchlistNotify} size="sm" className="gap-2">
                   {savingWatchlistNotify ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
