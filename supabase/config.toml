@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.watchlist-check]
 verify_jwt = false
+
+[functions.executive-report]
+verify_jwt = false
