@@ -253,6 +253,19 @@ export default function ActivityLog() {
   // Sample data loading
   const [sampleLoading, setSampleLoading] = useState(false);
 
+  // ServiceNow sync state
+  const [fetchingRemote, setFetchingRemote] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [pushingUpdate, setPushingUpdate] = useState(false);
+  const [snConfigured, setSnConfigured] = useState(false);
+
+  // Check if ServiceNow is configured on mount
+  useState(() => {
+    loadSettingsFromDB().then(settings => {
+      setSnConfigured(isServiceNowConfigured(settings.serviceNow));
+    });
+  });
+
   const isWithinDate = (dateStr: string) => {
     if (dateFilter === "all") return true;
     const d = new Date(dateStr);
