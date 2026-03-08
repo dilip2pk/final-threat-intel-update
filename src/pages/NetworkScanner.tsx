@@ -127,6 +127,7 @@ export default function NetworkScanner() {
 
   const [exporting, setExporting] = useState(false);
   const [activeTab, setActiveTab] = useState("scan");
+  const [aiCommandOpen, setAiCommandOpen] = useState(false);
 
   const handleStartScan = async () => {
     if (scanType === "raw") {
