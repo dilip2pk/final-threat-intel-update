@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut, LogIn, Calendar, FileText } from "lucide-react";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut, LogIn, Calendar, FileText, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
