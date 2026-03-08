@@ -122,6 +122,7 @@ export default function NetworkScanner() {
   const [schedAutoAI, setSchedAutoAI] = useState(true);
 
   const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState("scan");
 
   const handleStartScan = async () => {
     if (!target.trim()) return;
