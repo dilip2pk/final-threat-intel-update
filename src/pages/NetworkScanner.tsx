@@ -128,16 +128,67 @@ export default function NetworkScanner() {
   const [activeTab, setActiveTab] = useState("scan");
 
   const handleStartScan = async () => {
-    if (!target.trim()) return;
+    if (scanType === "raw") {
+      if (!rawCommand.trim()) return;
+    } else {
+      if (!target.trim()) return;
+    }
     setScanning(true);
+    setScanProgress(null);
     try {
-      await startScan({ target, target_type: targetType, scan_type: scanType, ports, timing_template: timing, enable_scripts: enableScripts, custom_options: customOptions });
+      const scan = await startScan({
+        target: scanType === "raw" ? rawCommand.trim() : target,
+        target_type: scanType === "raw" ? "raw_command" : targetType,
+        scan_type: scanType,
+        ports,
+        timing_template: timing,
+        enable_scripts: enableScripts,
+        custom_options: scanType === "raw" ? rawCommand.trim() : customOptions,
+      });
       toast({ title: "Scan Started", description: "Port scan is now running" });
+
+      // Start polling progress for local scans
+      if (scan) {
+        const scanId = (scan as any).id;
+        pollProgress(scanId);
+      }
     } catch (e: any) {
       toast({ title: "Scan Failed", description: e.message, variant: "destructive" });
     } finally {
       setScanning(false);
     }
+  };
+
+  const pollProgress = (scanId: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await supabase.from("scans").select("status").eq("id", scanId).single();
+        if (data && (data as any).status === "completed" || (data as any).status === "failed") {
+          setScanProgress(null);
+          clearInterval(interval);
+          return;
+        }
+        // Try to get progress from local server
+        try {
+          const settings = await supabase.from("app_settings").select("value").eq("key", "integrations").single();
+          const val = settings.data?.value as any;
+          if (val?.nmapBackend?.mode === "local") {
+            const baseUrl = (val.nmapBackend.localUrl || "http://localhost:3001").replace(/\/$/, "");
+            const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
+            if (val.nmapBackend.apiKey) headers["x-api-key"] = val.nmapBackend.apiKey;
+            const resp = await fetch(`${baseUrl}/api/scan/${scanId}/progress`, { headers });
+            if (resp.ok) {
+              const progress = await resp.json();
+              setScanProgress({ percent: progress.percent || 0, phase: progress.phase || "Scanning..." });
+            }
+          }
+        } catch {}
+      } catch {
+        clearInterval(interval);
+      }
+    }, 2000);
+    // Auto-stop after 10 minutes
+    setTimeout(() => { clearInterval(interval); setScanProgress(null); }, 600000);
   };
 
   const handleViewResults = async (scan: Scan) => {
