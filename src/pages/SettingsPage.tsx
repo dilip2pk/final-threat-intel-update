@@ -23,6 +23,51 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
+// --- Reusable components (defined outside to prevent re-creation on re-render) ---
+const TestResultBadge = ({ result }: { result: { success: boolean; message: string } | null }) => {
+  if (!result) return null;
+  return (
+    <div className={cn("flex items-center gap-2.5 p-3 rounded-lg border text-xs font-medium", result.success ? "bg-severity-low/10 border-severity-low/20 text-severity-low" : "bg-destructive/10 border-destructive/20 text-destructive")}>
+      {result.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
+      <span>{result.message}</span>
+    </div>
+  );
+};
+
+const SectionCard = ({ title, icon: Icon, description, children, iconColor = "text-primary" }: { title: string; icon: any; description?: string; children: React.ReactNode; iconColor?: string }) => (
+  <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <div className="px-6 py-4 border-b border-border bg-muted/20">
+      <div className="flex items-center gap-3">
+        <div className={cn("p-2 rounded-lg bg-primary/10", iconColor === "text-severity-high" && "bg-severity-high/10")}>
+          <Icon className={cn("h-4 w-4", iconColor)} />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+        </div>
+      </div>
+    </div>
+    <div className="p-6 space-y-5">{children}</div>
+  </div>
+);
+
+const FieldGroup = ({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <Label className="text-sm font-medium">{label}</Label>
+    {children}
+    {description && <p className="text-xs text-muted-foreground">{description}</p>}
+  </div>
+);
+
+const PasswordField = ({ value, onChange, show, onToggle, placeholder }: { value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void; placeholder?: string }) => (
+  <div className="relative">
+    <Input type={show ? "text" : "password"} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="font-mono pr-10" />
+    <button type="button" onClick={onToggle} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+      {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  </div>
+);
+
 // --- Sidebar nav items ---
 const navItems = [
   { id: "general", label: "General", icon: Clock, description: "Fetch & alert configuration" },
