@@ -17,6 +17,7 @@ import {
   CheckCircle2, AlertCircle, Circle, ArrowRight, MessageSquare,
   Download, FileText, FileSpreadsheet, Code, Filter,
   TrendingUp, BarChart3, XCircle, Plus, Trash2, Database,
+  Tag, CalendarDays, Hash, Layers, Shield, Eye, Pencil,
 } from "lucide-react";
 import { useEmailLog, useTicketLog, useTicketHistory, type TicketLogEntry } from "@/hooks/useActivityLog";
 import { useToast } from "@/hooks/use-toast";
