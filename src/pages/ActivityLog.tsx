@@ -260,11 +260,11 @@ export default function ActivityLog() {
   const [snConfigured, setSnConfigured] = useState(false);
 
   // Check if ServiceNow is configured on mount
-  useState(() => {
+  useEffect(() => {
     loadSettingsFromDB().then(settings => {
       setSnConfigured(isServiceNowConfigured(settings.serviceNow));
     });
-  });
+  }, []);
 
   const isWithinDate = (dateStr: string) => {
     if (dateFilter === "all") return true;
