@@ -76,6 +76,29 @@ const SAMPLE_TICKETS = [
   { ticket_number: "TKT-008", title: "Microsoft Patch Tuesday — Feb 2026, 12 Critical", description: "78 vulnerabilities across Windows, Office, Azure. 12 rated Critical.", status: "Resolved", priority: "High", assigned_to: "Carol Singh", category: "Patch Management" },
 ];
 
+// ── Ticket Templates ──
+
+interface TicketTemplate {
+  name: string;
+  ticket_number_prefix: string;
+  status: string;
+  priority: string;
+  category: string;
+  subcategory: string;
+  service_category: string;
+  group: string;
+  description: string;
+}
+
+const TICKET_TEMPLATES: TicketTemplate[] = [
+  { name: "Default Request", ticket_number_prefix: "TKT", status: "Open", priority: "Medium", category: "General", subcategory: "", service_category: "Technology Services (IT/ABS)", group: "Technology Services - Dispatch", description: "" },
+  { name: "Security Incident", ticket_number_prefix: "SEC", status: "Open", priority: "Critical", category: "Security Incident", subcategory: "Malware/Ransomware", service_category: "Security Operations", group: "Cybersecurity Team", description: "Security incident requiring immediate investigation and containment." },
+  { name: "Vulnerability Report", ticket_number_prefix: "VUL", status: "Open", priority: "High", category: "Vulnerability", subcategory: "CVE Assessment", service_category: "Security Operations", group: "Vulnerability Management", description: "New vulnerability identified requiring assessment and remediation planning." },
+  { name: "Patch Request", ticket_number_prefix: "PAT", status: "Open", priority: "Medium", category: "Patch Management", subcategory: "OS/Application Update", service_category: "Technology Services (IT/ABS)", group: "Infrastructure Team", description: "Patch deployment request for identified vulnerabilities." },
+  { name: "Threat Intelligence", ticket_number_prefix: "TI", status: "Open", priority: "High", category: "Threat Intel", subcategory: "IOC Investigation", service_category: "Security Operations", group: "Threat Intel Team", description: "Threat intelligence item requiring analysis and action." },
+  { name: "Compliance Finding", ticket_number_prefix: "CMP", status: "Open", priority: "Medium", category: "Compliance", subcategory: "Audit Finding", service_category: "Governance & Compliance", group: "GRC Team", description: "Compliance finding or audit observation requiring remediation." },
+];
+
 // ── Export Functions ──
 
 function exportCSV(tickets: any[], emails: any[], tab: string) {
