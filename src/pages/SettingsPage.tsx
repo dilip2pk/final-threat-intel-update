@@ -131,8 +131,6 @@ export default function SettingsPage() {
       setTestingNmap(false);
     }
   };
-    setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
-  };
 
   const updateSmtp = (field: string, value: string) => {
     setSettings((s) => ({ ...s, smtp: { ...s.smtp, [field]: value } }));
