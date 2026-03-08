@@ -453,45 +453,83 @@ export default function NetworkScanner() {
               <div className="border border-border rounded-xl bg-card overflow-hidden flex flex-col">
                 <div className="px-5 py-4 border-b border-border bg-muted/20">
                   <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" /> Scan Options
+                    <Shield className="h-4 w-4 text-primary" /> {scanType === "raw" ? "Raw Command Mode" : "Scan Options"}
                   </h2>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Fine-tune scanning parameters</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {scanType === "raw" ? "Command will be sent directly to the Nmap server" : "Fine-tune scanning parameters"}
+                  </p>
                 </div>
                 <div className="p-5 space-y-4 flex-1">
-                  <div>
-                    <Label className="text-xs font-medium">Port Range</Label>
-                    <Input value={ports} onChange={e => setPorts(e.target.value)} placeholder="80,443,8080 or 1-1024" className="mt-1.5 font-mono text-sm bg-muted/20" />
-                    <p className="text-[10px] text-muted-foreground mt-1">Leave empty for default ports</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium">Timing Template</Label>
-                    <Select value={timing} onValueChange={setTiming}>
-                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {TIMING_TEMPLATES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
-                    <div className="flex items-center gap-2">
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Label className="text-xs cursor-pointer">NSE Script Checks</Label>
+                  {scanType === "raw" ? (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-muted/20 border border-border">
+                        <p className="text-[10px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider">Command Preview</p>
+                        <p className="text-xs font-mono text-foreground break-all">{rawCommand || "nmap ..."}</p>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground space-y-1">
+                        <p className="font-semibold">Tips:</p>
+                        <p>• Include target IP/domain in the command</p>
+                        <p>• <code className="bg-muted px-1 rounded">-oX -</code> is auto-appended for parsing</p>
+                        <p>• Use <code className="bg-muted px-1 rounded">sudo</code> flags like <code className="bg-muted px-1 rounded">-sS</code> require root on the server</p>
+                      </div>
                     </div>
-                    <Switch checked={enableScripts} onCheckedChange={setEnableScripts} />
-                  </div>
-                  {scanType === "custom" && (
-                    <div>
-                      <Label className="text-xs font-medium">Custom Flags</Label>
-                      <Input value={customOptions} onChange={e => setCustomOptions(e.target.value)} className="mt-1.5 font-mono text-sm bg-muted/20" placeholder="--script=vuln -Pn" />
-                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <Label className="text-xs font-medium">Port Range</Label>
+                        <Input value={ports} onChange={e => setPorts(e.target.value)} placeholder="80,443,8080 or 1-1024" className="mt-1.5 font-mono text-sm bg-muted/20" />
+                        <p className="text-[10px] text-muted-foreground mt-1">Leave empty for default ports</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium">Timing Template</Label>
+                        <Select value={timing} onValueChange={setTiming}>
+                          <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {TIMING_TEMPLATES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
+                        <div className="flex items-center gap-2">
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Label className="text-xs cursor-pointer">NSE Script Checks</Label>
+                        </div>
+                        <Switch checked={enableScripts} onCheckedChange={setEnableScripts} />
+                      </div>
+                      {scanType === "custom" && (
+                        <div>
+                          <Label className="text-xs font-medium">Custom Flags</Label>
+                          <Input value={customOptions} onChange={e => setCustomOptions(e.target.value)} className="mt-1.5 font-mono text-sm bg-muted/20" placeholder="--script=vuln -Pn" />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="p-5 pt-0 space-y-2.5">
-                  <Button onClick={handleStartScan} disabled={scanning || !target.trim()} className="w-full gap-2 h-10 font-semibold">
+                  {/* Progress Bar */}
+                  {scanProgress && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground font-medium">{scanProgress.phase}</span>
+                        <span className="text-primary font-bold">{scanProgress.percent}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                          style={{ width: `${scanProgress.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleStartScan}
+                    disabled={scanning || (scanType === "raw" ? !rawCommand.trim() : !target.trim())}
+                    className="w-full gap-2 h-10 font-semibold"
+                  >
                     {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                    {scanning ? "Scanning..." : "Launch Scan"}
+                    {scanning ? (scanProgress ? `Scanning ${scanProgress.percent}%...` : "Scanning...") : "Launch Scan"}
                   </Button>
-                  <Button variant="outline" onClick={() => { setScheduleDialog(true); setSchedName(`Scan ${target}`); }} disabled={!target.trim()} className="w-full gap-2 h-9 text-xs">
+                  <Button variant="outline" onClick={() => { setScheduleDialog(true); setSchedName(`Scan ${target}`); }} disabled={scanType === "raw" || !target.trim()} className="w-full gap-2 h-9 text-xs">
                     <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
                   </Button>
                 </div>
