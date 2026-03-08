@@ -64,10 +64,24 @@ export default function SettingsPage() {
   });
   const [savingReport, setSavingReport] = useState(false);
 
-  // Load report customization from DB
+  // Watchlist notification settings
+  const [watchlistNotify, setWatchlistNotify] = useState({
+    enabled: false,
+    recipients: "",
+    frequency: "daily",
+    method: "email",
+  });
+  const [savingWatchlistNotify, setSavingWatchlistNotify] = useState(false);
+  const [testingWatchlist, setTestingWatchlist] = useState(false);
+  const [watchlistTestResult, setWatchlistTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Load report customization & watchlist notification settings from DB
   useEffect(() => {
     supabase.from("app_settings").select("value").eq("key", "report_customization").single().then(({ data }) => {
       if (data?.value) setReportConfig(prev => ({ ...prev, ...(data.value as any), includeSections: { ...prev.includeSections, ...(data.value as any)?.includeSections } }));
+    });
+    supabase.from("app_settings").select("value").eq("key", "watchlist_notifications").single().then(({ data }) => {
+      if (data?.value) setWatchlistNotify(prev => ({ ...prev, ...(data.value as any) }));
     });
   }, []);
 
