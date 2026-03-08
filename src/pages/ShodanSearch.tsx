@@ -19,11 +19,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useScheduledJobs } from "@/hooks/useScheduledJobs";
 import { supabase } from "@/integrations/supabase/client";
 import { AICommandGenerator } from "@/components/AICommandGenerator";
-import { useToast } from "@/hooks/use-toast";
-import { useSettings } from "@/hooks/useSettings";
-import { useAuth } from "@/hooks/useAuth";
-import { useScheduledJobs } from "@/hooks/useScheduledJobs";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ShodanResult {
   ip_str?: string;
