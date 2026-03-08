@@ -19,6 +19,7 @@ import NetworkScanner from "./pages/NetworkScanner";
 import AuthPage from "./pages/AuthPage";
 import ScheduleManager from "./pages/ScheduleManager";
 import Reports from "./pages/Reports";
+import ExecutiveReport from "./pages/ExecutiveReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
