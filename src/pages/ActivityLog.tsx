@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,12 @@ import {
   Download, FileText, FileSpreadsheet, Code, Filter,
   TrendingUp, BarChart3, XCircle, Plus, Trash2, Database,
   Tag, CalendarDays, Hash, Layers, Shield, Eye, Pencil,
+  CloudDownload, ArrowUpDown, Upload,
 } from "lucide-react";
 import { useEmailLog, useTicketLog, useTicketHistory, type TicketLogEntry } from "@/hooks/useActivityLog";
 import { useToast } from "@/hooks/use-toast";
+import { fetchRemoteTickets, syncTicketStatuses, pushTicketUpdate } from "@/lib/api";
+import { loadSettingsFromDB, isServiceNowConfigured } from "@/lib/loadSettingsFromDB";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -251,6 +254,19 @@ export default function ActivityLog() {
   // Sample data loading
   const [sampleLoading, setSampleLoading] = useState(false);
 
+  // ServiceNow sync state
+  const [fetchingRemote, setFetchingRemote] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [pushingUpdate, setPushingUpdate] = useState(false);
+  const [snConfigured, setSnConfigured] = useState(false);
+
+  // Check if ServiceNow is configured on mount
+  useEffect(() => {
+    loadSettingsFromDB().then(settings => {
+      setSnConfigured(isServiceNowConfigured(settings.serviceNow));
+    });
+  }, []);
+
   const isWithinDate = (dateStr: string) => {
     if (dateFilter === "all") return true;
     const d = new Date(dateStr);
@@ -411,6 +427,65 @@ export default function ActivityLog() {
 
   const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
 
+  // ── ServiceNow Sync Handlers ──
+
+  const handleFetchRemote = async () => {
+    setFetchingRemote(true);
+    try {
+      const result = await fetchRemoteTickets({ limit: 100 });
+      reloadTickets();
+      toast({
+        title: "Remote Tickets Fetched",
+        description: `${result.imported} imported, ${result.updated} updated from ServiceNow.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Fetch Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setFetchingRemote(false);
+    }
+  };
+
+  const handleSyncStatuses = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncTicketStatuses();
+      reloadTickets();
+      toast({
+        title: "Sync Complete",
+        description: `${result.synced} tickets updated out of ${result.total} checked.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handlePushToServiceNow = async () => {
+    if (!selectedTicket) return;
+    // Only push if it looks like a ServiceNow ticket
+    const tn = selectedTicket.ticket_number;
+    if (!tn?.startsWith("INC") && !tn?.startsWith("REQ") && !tn?.startsWith("RQ")) {
+      toast({ title: "Not a ServiceNow ticket", description: "Only tickets with INC/REQ/RQ numbers can be pushed to ServiceNow.", variant: "destructive" });
+      return;
+    }
+    setPushingUpdate(true);
+    try {
+      await pushTicketUpdate({
+        ticketNumber: tn,
+        updates: {
+          status: selectedTicket.status,
+          resolution_notes: selectedTicket.resolution_notes || undefined,
+        },
+      });
+      toast({ title: "Pushed to ServiceNow", description: `${tn} status synced to remote.` });
+    } catch (e: any) {
+      toast({ title: "Push Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setPushingUpdate(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -523,10 +598,22 @@ export default function ActivityLog() {
               </TabsTrigger>
             </TabsList>
             {activeTab === "tickets" && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {snConfigured && (
+                  <>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleFetchRemote} disabled={fetchingRemote}>
+                      {fetchingRemote ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudDownload className="h-4 w-4" />}
+                      Fetch Remote
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleSyncStatuses} disabled={syncing}>
+                      {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpDown className="h-4 w-4" />}
+                      Sync Statuses
+                    </Button>
+                  </>
+                )}
                 <Button variant="outline" size="sm" className="gap-2" onClick={handleLoadSampleData} disabled={sampleLoading}>
                   {sampleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                  Load Sample Data
+                  Sample Data
                 </Button>
                 <Button size="sm" className="gap-2" onClick={() => setShowAddDialog(true)}>
                   <Plus className="h-4 w-4" /> Add Ticket
@@ -921,6 +1008,24 @@ export default function ActivityLog() {
                       {selectedTicket?.updated_at ? formatDate(selectedTicket.updated_at) : "—"}
                     </p>
                   </div>
+
+                  <Separator />
+
+                  {/* Push to ServiceNow */}
+                  {snConfigured && selectedTicket?.ticket_number && (
+                    selectedTicket.ticket_number.startsWith("INC") || selectedTicket.ticket_number.startsWith("REQ") || selectedTicket.ticket_number.startsWith("RQ")
+                  ) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={handlePushToServiceNow}
+                      disabled={pushingUpdate}
+                    >
+                      {pushingUpdate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      Push to ServiceNow
+                    </Button>
+                  ) : null}
 
                   <Separator />
 
