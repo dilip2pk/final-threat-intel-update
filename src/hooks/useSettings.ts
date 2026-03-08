@@ -14,9 +14,16 @@ export interface DefenderConfig {
   enabled: boolean;
 }
 
+export interface NmapBackendConfig {
+  mode: "cloud" | "local";
+  localUrl: string;
+  apiKey: string;
+}
+
 export interface ExtendedSettings extends AppSettings {
   shodan?: ShodanConfig;
   defender?: DefenderConfig;
+  nmapBackend?: NmapBackendConfig;
   [key: string]: any;
 }
 
