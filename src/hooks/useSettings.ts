@@ -55,6 +55,7 @@ const defaultSettings: ExtendedSettings = {
   },
   shodan: { apiKey: "", enabled: false },
   defender: { tenantId: "", clientId: "", clientSecret: "", enabled: false },
+  nmapBackend: { mode: "cloud", localUrl: "http://localhost:3001", apiKey: "" },
 };
 
 interface GeneralSettings {
