@@ -1011,6 +1011,24 @@ export default function ActivityLog() {
 
                   <Separator />
 
+                  {/* Push to ServiceNow */}
+                  {snConfigured && selectedTicket?.ticket_number && (
+                    selectedTicket.ticket_number.startsWith("INC") || selectedTicket.ticket_number.startsWith("REQ") || selectedTicket.ticket_number.startsWith("RQ")
+                  ) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={handlePushToServiceNow}
+                      disabled={pushingUpdate}
+                    >
+                      {pushingUpdate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      Push to ServiceNow
+                    </Button>
+                  )}
+
+                  <Separator />
+
                   {/* Delete action */}
                   <Button
                     variant="outline"
