@@ -528,11 +528,46 @@ export default function ActivityLog() {
 
         {/* Stats */}
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-          <StatCard label="Total Tickets" value={ticketStats.total} icon={Ticket} color="bg-primary/10 text-primary" />
-          <StatCard label="Open" value={ticketStats.open} icon={Circle} color="bg-orange-500/10 text-orange-500" />
-          <StatCard label="In Progress" value={ticketStats.inProgress} icon={TrendingUp} color="bg-blue-500/10 text-blue-500" />
-          <StatCard label="Emails Sent" value={emailStats.sent} icon={Mail} color="bg-emerald-500/10 text-emerald-500" />
-          <StatCard label="Failed" value={emailStats.failed} icon={AlertCircle} color="bg-destructive/10 text-destructive" />
+          <StatCard
+            label="Total Tickets"
+            value={ticketStats.total}
+            icon={Ticket}
+            color="bg-primary/10 text-primary"
+            active={activeTab === "tickets" && statusFilter === "all"}
+            onClick={() => { setActiveTab("tickets"); setStatusFilter("all"); setPriorityFilter("all"); }}
+          />
+          <StatCard
+            label="Open"
+            value={ticketStats.open}
+            icon={Circle}
+            color="bg-orange-500/10 text-orange-500"
+            active={activeTab === "tickets" && statusFilter === "Open"}
+            onClick={() => { setActiveTab("tickets"); setStatusFilter("Open"); }}
+          />
+          <StatCard
+            label="In Progress"
+            value={ticketStats.inProgress}
+            icon={TrendingUp}
+            color="bg-blue-500/10 text-blue-500"
+            active={activeTab === "tickets" && statusFilter === "In Progress"}
+            onClick={() => { setActiveTab("tickets"); setStatusFilter("In Progress"); }}
+          />
+          <StatCard
+            label="Emails Sent"
+            value={emailStats.sent}
+            icon={Mail}
+            color="bg-emerald-500/10 text-emerald-500"
+            active={activeTab === "emails" && statusFilter === "sent"}
+            onClick={() => { setActiveTab("emails"); setStatusFilter("sent"); }}
+          />
+          <StatCard
+            label="Failed"
+            value={emailStats.failed}
+            icon={AlertCircle}
+            color="bg-destructive/10 text-destructive"
+            active={activeTab === "emails" && statusFilter === "failed"}
+            onClick={() => { setActiveTab("emails"); setStatusFilter("failed"); }}
+          />
         </div>
 
         {/* Filters */}
