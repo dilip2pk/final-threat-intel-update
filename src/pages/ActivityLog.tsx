@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useEmailLog, useTicketLog, useTicketHistory, type TicketLogEntry } from "@/hooks/useActivityLog";
 import { useToast } from "@/hooks/use-toast";
+import { fetchRemoteTickets, syncTicketStatuses, pushTicketUpdate } from "@/lib/api";
+import { loadSettingsFromDB, isServiceNowConfigured } from "@/lib/loadSettingsFromDB";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
