@@ -335,16 +335,51 @@ export default function ActivityLog() {
   };
 
   const handleAddTicket = async () => {
-    if (!addForm.ticket_number || !addForm.title) return;
+    const ticketNum = addForm.ticket_number || addForm.subject;
+    const ticketTitle = addForm.subject || addForm.title;
+    if (!ticketNum || !ticketTitle) return;
     setAddLoading(true);
-    const { error } = await logTicket(addForm);
+    const { error } = await logTicket({
+      ticket_number: ticketNum,
+      title: ticketTitle,
+      description: addForm.description,
+      status: addForm.status,
+      priority: addForm.priority,
+      assigned_to: addForm.assigned_to,
+      category: addForm.category,
+    });
     setAddLoading(false);
     if (!error) {
       setShowAddDialog(false);
-      setAddForm({ ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "" });
-      toast({ title: "Ticket Created", description: `${addForm.ticket_number} added successfully.` });
+      setAddForm(emptyForm);
+      setSelectedTemplate("Default Request");
+      toast({ title: "Ticket Created", description: `${ticketNum} added successfully.` });
     } else {
       toast({ title: "Error", description: "Failed to create ticket.", variant: "destructive" });
+    }
+  };
+
+  const handleResetForm = () => {
+    setAddForm(emptyForm);
+    setSelectedTemplate("Default Request");
+  };
+
+  const handleTemplateChange = (templateName: string) => {
+    setSelectedTemplate(templateName);
+    const template = TICKET_TEMPLATES.find(t => t.name === templateName);
+    if (template) {
+      const num = `${template.ticket_number_prefix}-${String(Math.floor(Math.random() * 9000) + 1000).padStart(4, "0")}`;
+      setAddForm(f => ({
+        ...f,
+        ticket_number: num,
+        status: template.status,
+        priority: template.priority,
+        category: template.category,
+        subcategory: template.subcategory,
+        service_category: template.service_category,
+        group: template.group,
+        description: template.description,
+      }));
     }
   };
 
