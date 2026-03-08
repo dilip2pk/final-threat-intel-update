@@ -598,10 +598,22 @@ export default function ActivityLog() {
               </TabsTrigger>
             </TabsList>
             {activeTab === "tickets" && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {snConfigured && (
+                  <>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleFetchRemote} disabled={fetchingRemote}>
+                      {fetchingRemote ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudDownload className="h-4 w-4" />}
+                      Fetch Remote
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleSyncStatuses} disabled={syncing}>
+                      {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpDown className="h-4 w-4" />}
+                      Sync Statuses
+                    </Button>
+                  </>
+                )}
                 <Button variant="outline" size="sm" className="gap-2" onClick={handleLoadSampleData} disabled={sampleLoading}>
                   {sampleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                  Load Sample Data
+                  Sample Data
                 </Button>
                 <Button size="sm" className="gap-2" onClick={() => setShowAddDialog(true)}>
                   <Plus className="h-4 w-4" /> Add Ticket
