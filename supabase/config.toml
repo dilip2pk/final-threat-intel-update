@@ -23,6 +23,3 @@ verify_jwt = false
 
 [functions.analyze-feed]
 verify_jwt = false
-
-[functions.analyze-scan]
-verify_jwt = false
