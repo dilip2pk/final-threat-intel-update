@@ -740,6 +740,14 @@ export default function ShodanSearch() {
                   <p className="text-[10px] text-muted-foreground mt-1">e.g. "0 2 * * *" = daily at 2am</p>
                 </div>
               )}
+              {schedFreq !== "once" && schedFreq !== "custom" && (
+                <div className="text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
+                  <span className="font-medium text-foreground">Auto-scheduled:</span>{" "}
+                  {schedFreq === "daily" && "Runs daily at 2:00 AM (cron: 0 2 * * *)"}
+                  {schedFreq === "weekly" && "Runs every Monday at 2:00 AM (cron: 0 2 * * 1)"}
+                  {schedFreq === "monthly" && "Runs 1st of each month at 2:00 AM (cron: 0 2 1 * *)"}
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setScheduleOpen(false)}>Cancel</Button>
