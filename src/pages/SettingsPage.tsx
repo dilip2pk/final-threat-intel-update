@@ -310,6 +310,7 @@ export default function SettingsPage() {
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
             <TabsTrigger value="ai">AI Integration</TabsTrigger>
+            <TabsTrigger value="nmap">Network Scanner</TabsTrigger>
             <TabsTrigger value="email">Email (SMTP)</TabsTrigger>
             <TabsTrigger value="servicenow">ServiceDesk</TabsTrigger>
             <TabsTrigger value="shodan">Shodan</TabsTrigger>
