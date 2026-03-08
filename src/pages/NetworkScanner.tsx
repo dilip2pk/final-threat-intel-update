@@ -282,6 +282,27 @@ export default function NetworkScanner() {
     }
   };
 
+  const getCronForFrequency = (freq: string, customCron: string): string => {
+    switch (freq) {
+      case "daily": return "0 2 * * *";
+      case "weekly": return "0 2 * * 1";
+      case "monthly": return "0 2 1 * *";
+      case "custom": return customCron;
+      default: return "";
+    }
+  };
+
+  const getNextRunAt = (freq: string): string | null => {
+    if (freq === "once") return null;
+    const now = new Date();
+    switch (freq) {
+      case "daily": { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "weekly": { const d = new Date(now); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "monthly": { const d = new Date(now.getFullYear(), now.getMonth() + 1, 1, 2, 0, 0); return d.toISOString(); }
+      default: return null;
+    }
+  };
+
   const handleAddSchedule = async () => {
     if (!schedName || !target.trim()) return;
     try {
@@ -295,12 +316,13 @@ export default function NetworkScanner() {
         enable_scripts: enableScripts,
         custom_options: customOptions,
         frequency: schedFreq,
-        cron_expression: schedCron,
+        cron_expression: getCronForFrequency(schedFreq, schedCron),
         notify_email: schedNotify,
         auto_ticket: schedAutoTicket,
         auto_ai_analysis: schedAutoAI,
         active: true,
-      });
+        next_run_at: getNextRunAt(schedFreq),
+      } as any);
       setScheduleDialog(false);
       setSchedName("");
       toast({ title: "Schedule Created" });
