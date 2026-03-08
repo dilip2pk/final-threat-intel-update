@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.analyze-feed]
 verify_jwt = false
+
+[functions.watchlist-check]
+verify_jwt = false
