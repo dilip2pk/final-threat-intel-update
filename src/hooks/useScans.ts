@@ -111,8 +111,10 @@ export function useScans() {
     enable_scripts?: boolean;
     custom_options?: string;
   }) => {
-    const targets = params.target.split(/[\n,;]+/).map(t => t.trim()).filter(Boolean);
-    if (targets.length === 0) throw new Error("No targets specified");
+    const isRaw = params.scan_type === "raw";
+    const targets = isRaw ? [params.target] : params.target.split(/[\n,;]+/).map(t => t.trim()).filter(Boolean);
+    if (!isRaw && targets.length === 0) throw new Error("No targets specified");
+    if (isRaw && !params.custom_options?.trim()) throw new Error("No command specified");
 
     // Insert scan record in DB
     const { data: scan, error } = await supabase.from("scans").insert({
