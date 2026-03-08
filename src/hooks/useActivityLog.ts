@@ -140,7 +140,15 @@ export function useTicketLog() {
     return { error };
   }, []);
 
-  return { tickets, loading, logTicket, updateTicket, reload: load };
+  const deleteTicket = useCallback(async (id: string) => {
+    // Delete history first due to FK constraint
+    await supabase.from("ticket_history").delete().eq("ticket_id", id);
+    const { error } = await supabase.from("ticket_log").delete().eq("id", id);
+    if (!error) setTickets(prev => prev.filter(t => t.id !== id));
+    return { error };
+  }, []);
+
+  return { tickets, loading, logTicket, updateTicket, deleteTicket, reload: load };
 }
 
 export function useTicketHistory(ticketId: string | null) {

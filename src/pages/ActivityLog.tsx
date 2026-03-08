@@ -3,10 +3,10 @@ import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,15 +15,15 @@ import { Separator } from "@/components/ui/separator";
 import {
   Mail, Ticket, Search, Loader2, RefreshCw, Clock, User,
   CheckCircle2, AlertCircle, Circle, ArrowRight, MessageSquare,
-  Download, FileText, FileSpreadsheet, Code, Calendar, Filter,
-  TrendingUp, BarChart3, XCircle,
+  Download, FileText, FileSpreadsheet, Code, Filter,
+  TrendingUp, BarChart3, XCircle, Plus, Trash2, Database,
 } from "lucide-react";
 import { useEmailLog, useTicketLog, useTicketHistory, type TicketLogEntry } from "@/hooks/useActivityLog";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// ── Helpers (outside component) ──
+// ── Helpers ──
 
 const statusColors: Record<string, string> = {
   Open: "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400",
@@ -62,6 +62,19 @@ function formatDate(dateStr: string) {
 function formatShortDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+// ── Sample Data ──
+
+const SAMPLE_TICKETS = [
+  { ticket_number: "TKT-001", title: "Critical RCE in Apache Struts — CVE-2026-1234", description: "A critical remote code execution vulnerability was identified in Apache Struts 2.0–6.3.0. Immediate patching required.", status: "Open", priority: "Critical", assigned_to: "Alice Chen", category: "Vulnerability" },
+  { ticket_number: "TKT-002", title: "Ransomware campaign targeting healthcare — MedLock", description: "Spear-phishing emails with malicious PDF attachments targeting hospital EHR systems.", status: "In Progress", priority: "High", assigned_to: "Bob Martinez", category: "Threat Intel" },
+  { ticket_number: "TKT-003", title: "NPM supply-chain compromise — credential stealer", description: "Multiple NPM packages compromised: @fake-scope/utils, helper-lib. Audit CI/CD pipelines.", status: "Open", priority: "High", assigned_to: "Carol Singh", category: "Supply Chain" },
+  { ticket_number: "TKT-004", title: "Linux Kernel 6.x privilege escalation — CVE-2026-2001", description: "8 new CVEs affecting Linux Kernel 6.0–6.7 including local privilege escalation.", status: "Resolved", priority: "Medium", assigned_to: "Dave Wilson", category: "Vulnerability" },
+  { ticket_number: "TKT-005", title: "VPN zero-day authentication bypass — CVE-2026-0001", description: "Actively exploited zero-day in enterprise VPN gateway v8.x. Disable SSL VPN portal.", status: "In Progress", priority: "Critical", assigned_to: "Alice Chen", category: "Zero-Day" },
+  { ticket_number: "TKT-006", title: "CISA KEV additions — Adobe, Citrix, Fortinet", description: "3 new entries added to CISA KEV catalog. Federal patch deadline: March 5, 2026.", status: "Open", priority: "Medium", assigned_to: "Eve Nakamura", category: "Compliance" },
+  { ticket_number: "TKT-007", title: "AI-generated phishing kit detection", description: "New phishing kit using generative AI for emails and landing pages. Update email filters.", status: "Closed", priority: "Low", assigned_to: "Bob Martinez", category: "Phishing" },
+  { ticket_number: "TKT-008", title: "Microsoft Patch Tuesday — Feb 2026, 12 Critical", description: "78 vulnerabilities across Windows, Office, Azure. 12 rated Critical.", status: "Resolved", priority: "High", assigned_to: "Carol Singh", category: "Patch Management" },
+];
 
 // ── Export Functions ──
 
@@ -121,7 +134,6 @@ function exportPDF(tickets: any[], emails: any[], tab: string) {
   const pw = doc.internal.pageSize.getWidth();
   const m = 15;
 
-  // Header
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, pw, 28, "F");
   doc.setTextColor(255);
@@ -156,7 +168,6 @@ function exportPDF(tickets: any[], emails: any[], tab: string) {
     });
   }
 
-  // Footer
   const total = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
@@ -189,7 +200,7 @@ const StatCard = ({ label, value, icon: Icon, color }: { label: string; value: n
 
 export default function ActivityLog() {
   const { entries: emails, loading: emailsLoading, reload: reloadEmails } = useEmailLog();
-  const { tickets, loading: ticketsLoading, updateTicket, reload: reloadTickets } = useTicketLog();
+  const { tickets, loading: ticketsLoading, updateTicket, deleteTicket, logTicket, reload: reloadTickets } = useTicketLog();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -202,7 +213,18 @@ export default function ActivityLog() {
   const [newStatus, setNewStatus] = useState("");
   const [newNote, setNewNote] = useState("");
 
-  // Date filter helper
+  // Add ticket dialog state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addForm, setAddForm] = useState({ ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "" });
+  const [addLoading, setAddLoading] = useState(false);
+
+  // Delete confirm state
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Sample data loading
+  const [sampleLoading, setSampleLoading] = useState(false);
+
   const isWithinDate = (dateStr: string) => {
     if (dateFilter === "all") return true;
     const d = new Date(dateStr);
@@ -235,7 +257,6 @@ export default function ActivityLog() {
     return true;
   }), [tickets, search, statusFilter, priorityFilter, dateFilter]);
 
-  // Stats
   const ticketStats = useMemo(() => ({
     total: tickets.length,
     open: tickets.filter(t => t.status === "Open").length,
@@ -286,6 +307,45 @@ export default function ActivityLog() {
     setStatusFilter("all");
     setPriorityFilter("all");
     setDateFilter("all");
+  };
+
+  const handleAddTicket = async () => {
+    if (!addForm.ticket_number || !addForm.title) return;
+    setAddLoading(true);
+    const { error } = await logTicket(addForm);
+    setAddLoading(false);
+    if (!error) {
+      setShowAddDialog(false);
+      setAddForm({ ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "" });
+      toast({ title: "Ticket Created", description: `${addForm.ticket_number} added successfully.` });
+    } else {
+      toast({ title: "Error", description: "Failed to create ticket.", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleteLoading(true);
+    const { error } = await deleteTicket(deleteId);
+    setDeleteLoading(false);
+    setDeleteId(null);
+    if (!error) {
+      if (selectedTicket?.id === deleteId) setSelectedTicket(null);
+      toast({ title: "Ticket Deleted" });
+    } else {
+      toast({ title: "Error", description: "Failed to delete ticket.", variant: "destructive" });
+    }
+  };
+
+  const handleLoadSampleData = async () => {
+    setSampleLoading(true);
+    let count = 0;
+    for (const sample of SAMPLE_TICKETS) {
+      const { error } = await logTicket(sample);
+      if (!error) count++;
+    }
+    setSampleLoading(false);
+    toast({ title: "Sample Data Loaded", description: `${count} sample tickets created.` });
   };
 
   const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
@@ -390,16 +450,29 @@ export default function ActivityLog() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-background">
-              <Ticket className="h-3.5 w-3.5" /> Tickets
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{filteredTickets.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="emails" className="gap-2 data-[state=active]:bg-background">
-              <Mail className="h-3.5 w-3.5" /> Emails
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{filteredEmails.length}</Badge>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-background">
+                <Ticket className="h-3.5 w-3.5" /> Tickets
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{filteredTickets.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="emails" className="gap-2 data-[state=active]:bg-background">
+                <Mail className="h-3.5 w-3.5" /> Emails
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{filteredEmails.length}</Badge>
+              </TabsTrigger>
+            </TabsList>
+            {activeTab === "tickets" && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleLoadSampleData} disabled={sampleLoading}>
+                  {sampleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                  Load Sample Data
+                </Button>
+                <Button size="sm" className="gap-2" onClick={() => setShowAddDialog(true)}>
+                  <Plus className="h-4 w-4" /> Add Ticket
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* Tickets Tab */}
           <TabsContent value="tickets" className="space-y-0">
@@ -412,7 +485,7 @@ export default function ActivityLog() {
               <Card className="border-dashed"><CardContent className="flex flex-col items-center py-16 text-center">
                 <Ticket className="h-12 w-12 text-muted-foreground/20 mb-3" />
                 <p className="font-medium text-foreground">No tickets found</p>
-                <p className="text-sm text-muted-foreground mt-1">Tickets are created from the feed analysis view.</p>
+                <p className="text-sm text-muted-foreground mt-1">Click "Add Ticket" or "Load Sample Data" to get started.</p>
               </CardContent></Card>
             ) : (
               <Card>
@@ -426,6 +499,7 @@ export default function ActivityLog() {
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Updated</th>
+                        <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -463,6 +537,16 @@ export default function ActivityLog() {
                           </td>
                           <td className="py-3 px-4">
                             <span className="text-xs text-muted-foreground font-mono">{formatShortDate(ticket.updated_at)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); setDeleteId(ticket.id); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -547,7 +631,6 @@ export default function ActivityLog() {
             </DialogHeader>
             <ScrollArea className="max-h-[65vh]">
               <div className="space-y-5 py-2">
-                {/* Ticket Meta */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Status</Label>
@@ -597,7 +680,6 @@ export default function ActivityLog() {
 
                 <Separator />
 
-                {/* Update Status */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Update Status</Label>
                   <div className="flex gap-2">
@@ -614,7 +696,6 @@ export default function ActivityLog() {
                   </div>
                 </div>
 
-                {/* Add Note */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add Note</Label>
                   <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add investigation notes, resolution details..." rows={2} />
@@ -625,7 +706,6 @@ export default function ActivityLog() {
 
                 <Separator />
 
-                {/* Timeline */}
                 <div className="space-y-3">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeline</Label>
                   {history.length === 0 ? (
@@ -662,6 +742,93 @@ export default function ActivityLog() {
                 </div>
               </div>
             </ScrollArea>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Ticket Dialog */}
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-primary" /> Create New Ticket
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Ticket Number *</Label>
+                  <Input placeholder="TKT-009" value={addForm.ticket_number} onChange={e => setAddForm(f => ({ ...f, ticket_number: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Category</Label>
+                  <Input placeholder="e.g. Vulnerability" value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Title *</Label>
+                <Input placeholder="Brief ticket title..." value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Description</Label>
+                <Textarea placeholder="Describe the issue..." rows={3} value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={addForm.status} onValueChange={v => setAddForm(f => ({ ...f, status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Open">Open</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Resolved">Resolved</SelectItem>
+                      <SelectItem value="Closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Priority</Label>
+                  <Select value={addForm.priority} onValueChange={v => setAddForm(f => ({ ...f, priority: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Critical">Critical</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                  <Input placeholder="Name" value={addForm.assigned_to} onChange={e => setAddForm(f => ({ ...f, assigned_to: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+              <Button onClick={handleAddTicket} disabled={addLoading || !addForm.ticket_number || !addForm.title} className="gap-2">
+                {addLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Create Ticket
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" /> Delete Ticket
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">Are you sure you want to delete this ticket? This action cannot be undone.</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading} className="gap-2">
+                {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
