@@ -805,71 +805,146 @@ export default function ActivityLog() {
           </DialogContent>
         </Dialog>
 
-        {/* Add Ticket Dialog */}
+        {/* Add Ticket Dialog — Aptean-style */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" /> Create New Ticket
+          <DialogContent className="max-w-3xl max-h-[90vh] p-0">
+            {/* Header bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+              <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Plus className="h-5 w-5 text-primary" /> Add Request
               </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Ticket Number *</Label>
-                  <Input placeholder="TKT-009" value={addForm.ticket_number} onChange={e => setAddForm(f => ({ ...f, ticket_number: e.target.value }))} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Category</Label>
-                  <Input placeholder="e.g. Vulnerability" value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Title *</Label>
-                <Input placeholder="Brief ticket title..." value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Description</Label>
-                <Textarea placeholder="Describe the issue..." rows={3} value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))} />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Select value={addForm.status} onValueChange={v => setAddForm(f => ({ ...f, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Open">Open</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Resolved">Resolved</SelectItem>
-                      <SelectItem value="Closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Priority</Label>
-                  <Select value={addForm.priority} onValueChange={v => setAddForm(f => ({ ...f, priority: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Assigned To</Label>
-                  <Input placeholder="Name" value={addForm.assigned_to} onChange={e => setAddForm(f => ({ ...f, assigned_to: e.target.value }))} />
-                </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Template</Label>
+                <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                  <SelectTrigger className="w-48 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TICKET_TEMPLATES.map(t => (
+                      <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-              <Button onClick={handleAddTicket} disabled={addLoading || !addForm.ticket_number || !addForm.title} className="gap-2">
+
+            <ScrollArea className="max-h-[70vh]">
+              <div className="px-6 py-5 space-y-6">
+                {/* Requester / Ticket Info bar */}
+                <div className="bg-muted/40 border border-border rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Ticket Number *</Label>
+                      <Input placeholder="Auto-generated or manual" value={addForm.ticket_number} onChange={e => setAddForm(f => ({ ...f, ticket_number: e.target.value }))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Assigned To</Label>
+                      <Input placeholder="Technician name" value={addForm.assigned_to} onChange={e => setAddForm(f => ({ ...f, assigned_to: e.target.value }))} className="h-8 text-sm" />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Two-column field grid */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                  {/* Left column */}
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Status</Label>
+                    <Select value={addForm.status} onValueChange={v => setAddForm(f => ({ ...f, status: v }))}>
+                      <SelectTrigger className="flex-1 h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Open">Open</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Resolved">Resolved</SelectItem>
+                        <SelectItem value="Closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Right column */}
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Service Category</Label>
+                    <Select value={addForm.service_category} onValueChange={v => setAddForm(f => ({ ...f, service_category: v }))}>
+                      <SelectTrigger className="flex-1 h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Technology Services (IT/ABS)">Technology Services (IT/ABS)</SelectItem>
+                        <SelectItem value="Security Operations">Security Operations</SelectItem>
+                        <SelectItem value="Governance & Compliance">Governance & Compliance</SelectItem>
+                        <SelectItem value="Network Operations">Network Operations</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Priority</Label>
+                    <Select value={addForm.priority} onValueChange={v => setAddForm(f => ({ ...f, priority: v }))}>
+                      <SelectTrigger className="flex-1 h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Critical">Critical</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Category</Label>
+                    <Input placeholder="Not Specified" value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))} className="h-8 text-sm" />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Group</Label>
+                    <Select value={addForm.group} onValueChange={v => setAddForm(f => ({ ...f, group: v }))}>
+                      <SelectTrigger className="flex-1 h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Technology Services - Dispatch">Technology Services - Dispatch</SelectItem>
+                        <SelectItem value="Cybersecurity Team">Cybersecurity Team</SelectItem>
+                        <SelectItem value="Vulnerability Management">Vulnerability Management</SelectItem>
+                        <SelectItem value="Infrastructure Team">Infrastructure Team</SelectItem>
+                        <SelectItem value="Threat Intel Team">Threat Intel Team</SelectItem>
+                        <SelectItem value="GRC Team">GRC Team</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">Subcategory</Label>
+                    <Input placeholder="Not Specified" value={addForm.subcategory} onChange={e => setAddForm(f => ({ ...f, subcategory: e.target.value }))} className="h-8 text-sm" />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Notify Emails */}
+                <div className="flex items-start gap-3">
+                  <Label className="text-xs text-muted-foreground w-28 text-right shrink-0 pt-2">Email(s) To Notify</Label>
+                  <Textarea placeholder="Select or enter email IDs, comma separated..." rows={2} value={addForm.notify_emails} onChange={e => setAddForm(f => ({ ...f, notify_emails: e.target.value }))} className="text-sm" />
+                </div>
+
+                <Separator />
+
+                {/* Subject */}
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs text-muted-foreground w-28 text-right shrink-0">
+                    <span className="text-destructive">*</span> Subject
+                  </Label>
+                  <Input placeholder="Enter ticket subject..." value={addForm.subject} onChange={e => setAddForm(f => ({ ...f, subject: e.target.value }))} className="text-sm" />
+                </div>
+
+                {/* Description */}
+                <div className="flex items-start gap-3">
+                  <Label className="text-xs text-muted-foreground w-28 text-right shrink-0 pt-2">Description</Label>
+                  <Textarea placeholder="Provide detailed description of the request or issue..." rows={6} value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))} className="text-sm" />
+                </div>
+              </div>
+            </ScrollArea>
+
+            {/* Footer buttons */}
+            <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-border bg-muted/20">
+              <Button onClick={handleAddTicket} disabled={addLoading || (!addForm.ticket_number && !addForm.subject)} className="gap-2 px-6">
                 {addLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Create Ticket
+                Add Request
               </Button>
-            </DialogFooter>
+              <Button variant="outline" onClick={handleResetForm}>Reset</Button>
+              <Button variant="ghost" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            </div>
           </DialogContent>
         </Dialog>
 
