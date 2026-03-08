@@ -238,8 +238,10 @@ export default function ActivityLog() {
 
   // Add ticket dialog state
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [addForm, setAddForm] = useState({ ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "" });
+  const emptyForm = { ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "", subcategory: "", service_category: "Technology Services (IT/ABS)", group: "Technology Services - Dispatch", notify_emails: "", subject: "" };
+  const [addForm, setAddForm] = useState(emptyForm);
   const [addLoading, setAddLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("Default Request");
 
   // Delete confirm state
   const [deleteId, setDeleteId] = useState<string | null>(null);
