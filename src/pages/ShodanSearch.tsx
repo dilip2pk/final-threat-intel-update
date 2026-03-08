@@ -297,6 +297,9 @@ export default function ShodanSearch() {
                 <Calendar className="h-4 w-4" /> Schedule
               </Button>
             )}
+            <Button variant="outline" onClick={() => setAiCommandOpen(true)} className="gap-2 border-primary/30 text-primary hover:bg-primary/5">
+              <Sparkles className="h-4 w-4" /> AI Assistant
+            </Button>
           </div>
 
           {/* Quick Dorks */}
