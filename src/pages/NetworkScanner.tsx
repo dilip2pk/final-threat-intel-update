@@ -15,7 +15,7 @@ import {
   Loader2, Play, Brain, Download, Trash2, Clock, Shield, Server,
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, FileText,
   Calendar, Plus, ToggleLeft, Globe, Wifi, Activity, Radar,
-  Monitor, Lock, Unlock, Eye, Zap, BarChart3,
+  Monitor, Lock, Unlock, Eye, Zap, BarChart3, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useScans, useScanSchedules, type Scan, type ScanResult } from "@/hooks/useScans";
