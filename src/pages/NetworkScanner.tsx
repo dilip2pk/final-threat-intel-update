@@ -106,7 +106,9 @@ export default function NetworkScanner() {
   const [timing, setTiming] = useState("T3");
   const [enableScripts, setEnableScripts] = useState(false);
   const [customOptions, setCustomOptions] = useState("");
+  const [rawCommand, setRawCommand] = useState("nmap -sV -O ");
   const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{ percent: number; phase: string } | null>(null);
 
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
