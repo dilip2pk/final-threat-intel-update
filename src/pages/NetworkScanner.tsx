@@ -23,6 +23,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { generatePDFReport, type ReportBranding } from "@/lib/pdfReportGenerator";
+import { AICommandGenerator } from "@/components/AICommandGenerator";
 
 const SCAN_TYPES = [
   { value: "quick", label: "Quick Scan", desc: "Top 20 common ports", icon: Zap },
