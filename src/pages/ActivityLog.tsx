@@ -426,6 +426,65 @@ export default function ActivityLog() {
 
   const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
 
+  // ── ServiceNow Sync Handlers ──
+
+  const handleFetchRemote = async () => {
+    setFetchingRemote(true);
+    try {
+      const result = await fetchRemoteTickets({ limit: 100 });
+      reloadTickets();
+      toast({
+        title: "Remote Tickets Fetched",
+        description: `${result.imported} imported, ${result.updated} updated from ServiceNow.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Fetch Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setFetchingRemote(false);
+    }
+  };
+
+  const handleSyncStatuses = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncTicketStatuses();
+      reloadTickets();
+      toast({
+        title: "Sync Complete",
+        description: `${result.synced} tickets updated out of ${result.total} checked.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handlePushToServiceNow = async () => {
+    if (!selectedTicket) return;
+    // Only push if it looks like a ServiceNow ticket
+    const tn = selectedTicket.ticket_number;
+    if (!tn?.startsWith("INC") && !tn?.startsWith("REQ") && !tn?.startsWith("RQ")) {
+      toast({ title: "Not a ServiceNow ticket", description: "Only tickets with INC/REQ/RQ numbers can be pushed to ServiceNow.", variant: "destructive" });
+      return;
+    }
+    setPushingUpdate(true);
+    try {
+      await pushTicketUpdate({
+        ticketNumber: tn,
+        updates: {
+          status: selectedTicket.status,
+          resolution_notes: selectedTicket.resolution_notes || undefined,
+        },
+      });
+      toast({ title: "Pushed to ServiceNow", description: `${tn} status synced to remote.` });
+    } catch (e: any) {
+      toast({ title: "Push Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setPushingUpdate(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
