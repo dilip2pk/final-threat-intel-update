@@ -10,10 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Loader2, Play, Brain, Download, Trash2, Clock, Shield, Server,
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, FileText,
-  Calendar, Plus, ToggleLeft,
+  Calendar, Plus, ToggleLeft, Globe, Wifi, Activity, Radar,
+  Monitor, Lock, Unlock, Eye, Zap, BarChart3,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useScans, useScanSchedules, type Scan, type ScanResult } from "@/hooks/useScans";
@@ -23,11 +25,11 @@ import { format } from "date-fns";
 import { generatePDFReport, type ReportBranding } from "@/lib/pdfReportGenerator";
 
 const SCAN_TYPES = [
-  { value: "quick", label: "Quick Scan", desc: "Top 20 common ports" },
-  { value: "full", label: "Full Port Scan", desc: "Extended port range (~40 ports)" },
-  { value: "service", label: "Service Detection", desc: "Identify running services" },
-  { value: "vuln", label: "Vulnerability Scan", desc: "NSE-style checks" },
-  { value: "custom", label: "Custom Scan", desc: "Advanced options" },
+  { value: "quick", label: "Quick Scan", desc: "Top 20 common ports", icon: Zap },
+  { value: "full", label: "Full Port Scan", desc: "Extended port range (~40 ports)", icon: Radar },
+  { value: "service", label: "Service Detection", desc: "Identify running services", icon: Monitor },
+  { value: "vuln", label: "Vulnerability Scan", desc: "NSE-style checks", icon: Shield },
+  { value: "custom", label: "Custom Scan", desc: "Advanced options", icon: Activity },
 ];
 
 const TIMING_TEMPLATES = [
@@ -50,12 +52,44 @@ function severityColor(s: string) {
 
 function statusBadge(status: string) {
   switch (status) {
-    case "running": return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 animate-pulse">Running</Badge>;
-    case "completed": return <Badge variant="outline" className="bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/30">Completed</Badge>;
-    case "failed": return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">Failed</Badge>;
+    case "running": return (
+      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+        Running
+      </Badge>
+    );
+    case "completed": return (
+      <Badge variant="outline" className="bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/30 gap-1">
+        <CheckCircle2 className="h-3 w-3" />
+        Completed
+      </Badge>
+    );
+    case "failed": return (
+      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        Failed
+      </Badge>
+    );
     case "cancelled": return <Badge variant="outline" className="bg-muted text-muted-foreground">Cancelled</Badge>;
-    default: return <Badge variant="outline" className="bg-muted text-muted-foreground">Pending</Badge>;
+    default: return (
+      <Badge variant="outline" className="bg-muted text-muted-foreground gap-1">
+        <Clock className="h-3 w-3" />
+        Pending
+      </Badge>
+    );
   }
+}
+
+function StatCard({ label, value, icon: Icon, accent }: { label: string; value: string | number; icon: any; accent?: string }) {
+  return (
+    <div className="relative overflow-hidden border border-border rounded-xl bg-card p-4 group hover:border-primary/30 transition-all duration-200">
+      <div className="absolute top-0 right-0 w-20 h-20 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+        <Icon className="w-full h-full" />
+      </div>
+      <p className={`text-2xl font-bold tracking-tight ${accent || "text-foreground"}`}>{value}</p>
+      <p className="text-[11px] font-medium text-muted-foreground mt-0.5 uppercase tracking-wider">{label}</p>
+    </div>
+  );
 }
 
 export default function NetworkScanner() {
@@ -64,7 +98,6 @@ export default function NetworkScanner() {
   const { general } = useSettings();
   const { toast } = useToast();
 
-  // Scan form
   const [target, setTarget] = useState("");
   const [targetType, setTargetType] = useState("ip");
   const [scanType, setScanType] = useState("quick");
@@ -74,14 +107,12 @@ export default function NetworkScanner() {
   const [customOptions, setCustomOptions] = useState("");
   const [scanning, setScanning] = useState(false);
 
-  // Results view
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [loadingResults, setLoadingResults] = useState(false);
   const [expandedHosts, setExpandedHosts] = useState<Set<string>>(new Set());
   const [analyzing, setAnalyzing] = useState(false);
 
-  // Schedule dialog
   const [scheduleDialog, setScheduleDialog] = useState(false);
   const [schedName, setSchedName] = useState("");
   const [schedFreq, setSchedFreq] = useState("once");
@@ -90,7 +121,6 @@ export default function NetworkScanner() {
   const [schedAutoTicket, setSchedAutoTicket] = useState(false);
   const [schedAutoAI, setSchedAutoAI] = useState(true);
 
-  // Export
   const [exporting, setExporting] = useState(false);
 
   const handleStartScan = async () => {
@@ -120,7 +150,6 @@ export default function NetworkScanner() {
     setAnalyzing(true);
     try {
       await analyzeScan(selectedScan.id);
-      // Refresh scan data
       const { data } = await supabase.from("scans").select("*").eq("id", selectedScan.id).single();
       if (data) setSelectedScan(data as unknown as Scan);
       toast({ title: "Analysis Complete", description: "AI security analysis is ready" });
@@ -144,12 +173,9 @@ export default function NetworkScanner() {
     setExporting(true);
     try {
       if (fmt === "pdf") {
-        // Client-side PDF generation
         const results = scanResults.length > 0 ? scanResults : await getScanResults(selectedScan.id);
         const branding = await loadReportBranding();
         await generatePDFReport(selectedScan, results, branding);
-        
-        // Save record to generated_reports (no HTML for PDF, just metadata)
         await supabase.from("generated_reports").insert({
           scan_id: selectedScan.id,
           name: `Scan Report — ${selectedScan.target}`,
@@ -157,7 +183,6 @@ export default function NetworkScanner() {
           scan_target: selectedScan.target,
           scan_type: selectedScan.scan_type,
         } as any);
-        
         toast({ title: "PDF Report Downloaded" });
       } else {
         const branding = await loadReportBranding();
@@ -173,10 +198,7 @@ export default function NetworkScanner() {
             },
           },
         });
-
         if (error) throw new Error(error.message);
-
-        // Save to generated_reports
         const reportContent = typeof data === "string" ? data : JSON.stringify(data);
         await supabase.from("generated_reports").insert({
           scan_id: selectedScan.id,
@@ -186,7 +208,6 @@ export default function NetworkScanner() {
           scan_target: selectedScan.target,
           scan_type: selectedScan.scan_type,
         } as any);
-
         const blob = new Blob([data], { type: fmt === "csv" ? "text/csv" : "text/html" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -238,229 +259,348 @@ export default function NetworkScanner() {
     });
   };
 
+  const runningScans = scans.filter(s => s.status === "running").length;
+  const completedScans = scans.filter(s => s.status === "completed").length;
+
   return (
     <AppLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Network Scanner</h1>
-          <p className="text-sm text-muted-foreground mt-1">TCP port scanning with AI-powered analysis and branded reporting</p>
+      <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Radar className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Network Scanner</h1>
+                <p className="text-xs text-muted-foreground">Real-time port scanning with AI-powered security analysis</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {runningScans > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/20">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-xs font-medium text-primary">{runningScans} scan{runningScans > 1 ? "s" : ""} active</span>
+              </div>
+            )}
+            <Badge variant="outline" className="text-xs gap-1.5 py-1">
+              <BarChart3 className="h-3 w-3" />
+              {scans.length} total scans
+            </Badge>
+          </div>
         </div>
 
-        <Tabs defaultValue="scan" className="space-y-4">
-          <TabsList className="bg-muted/30 border border-border">
-            <TabsTrigger value="scan">New Scan</TabsTrigger>
-            <TabsTrigger value="history">Scan History ({scans.length})</TabsTrigger>
-            <TabsTrigger value="schedules">Schedules ({schedules.length})</TabsTrigger>
-            {selectedScan && <TabsTrigger value="results">Results</TabsTrigger>}
+        <Tabs defaultValue="scan" className="space-y-5">
+          <TabsList className="bg-muted/40 border border-border p-1 h-auto">
+            <TabsTrigger value="scan" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Play className="h-3.5 w-3.5" /> New Scan
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Clock className="h-3.5 w-3.5" /> History
+              {scans.length > 0 && <span className="ml-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{scans.length}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="schedules" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Calendar className="h-3.5 w-3.5" /> Schedules
+              {schedules.length > 0 && <span className="ml-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-full">{schedules.length}</span>}
+            </TabsTrigger>
+            {selectedScan && (
+              <TabsTrigger value="results" className="gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Eye className="h-3.5 w-3.5" /> Results
+              </TabsTrigger>
+            )}
           </TabsList>
 
-          {/* New Scan Tab */}
-          <TabsContent value="scan" className="space-y-4">
-            <div className="grid lg:grid-cols-3 gap-4">
-              {/* Target Input */}
-              <div className="lg:col-span-2 border border-border rounded-lg bg-card p-5 space-y-4">
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Server className="h-4 w-4 text-primary" /> Scan Target
-                </h2>
-                <div className="flex gap-3">
-                  <Select value={targetType} onValueChange={setTargetType}>
-                    <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ip">Single IP</SelectItem>
-                      <SelectItem value="multiple">Multiple IPs</SelectItem>
-                      <SelectItem value="domain">Domain</SelectItem>
-                      <SelectItem value="cidr">CIDR Range</SelectItem>
-                    </SelectContent>
-                  </Select>
+          {/* ─── NEW SCAN ─── */}
+          <TabsContent value="scan" className="space-y-5">
+            <div className="grid lg:grid-cols-3 gap-5">
+              {/* Target & Scan Type */}
+              <div className="lg:col-span-2 border border-border rounded-xl bg-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-border bg-muted/20">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-primary" /> Scan Target
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Define the hosts, domains, or IP ranges to scan</p>
                 </div>
-                {targetType === "multiple" ? (
-                  <Textarea value={target} onChange={e => setTarget(e.target.value)} placeholder="Enter IPs/domains, one per line&#10;192.168.1.1&#10;example.com&#10;10.0.0.0/24" rows={5} className="font-mono text-sm" />
-                ) : (
-                  <Input value={target} onChange={e => setTarget(e.target.value)}
-                    placeholder={targetType === "domain" ? "example.com" : targetType === "cidr" ? "192.168.1.0/24" : "192.168.1.1"}
-                    className="font-mono" />
-                )}
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">Scan Type</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {SCAN_TYPES.map(st => (
-                      <button key={st.value} onClick={() => setScanType(st.value)}
-                        className={`border rounded-md p-3 text-left transition-colors ${scanType === st.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
-                        <p className="text-xs font-medium text-foreground">{st.label}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{st.desc}</p>
-                      </button>
-                    ))}
+                <div className="p-5 space-y-5">
+                  <div className="flex gap-3">
+                    <Select value={targetType} onValueChange={setTargetType}>
+                      <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ip">Single IP</SelectItem>
+                        <SelectItem value="multiple">Multiple IPs</SelectItem>
+                        <SelectItem value="domain">Domain</SelectItem>
+                        <SelectItem value="cidr">CIDR Range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {targetType === "multiple" ? (
+                    <Textarea value={target} onChange={e => setTarget(e.target.value)} placeholder="Enter IPs/domains, one per line&#10;192.168.1.1&#10;example.com&#10;10.0.0.0/24" rows={4} className="font-mono text-sm bg-muted/20" />
+                  ) : (
+                    <Input value={target} onChange={e => setTarget(e.target.value)}
+                      placeholder={targetType === "domain" ? "example.com" : targetType === "cidr" ? "192.168.1.0/24" : "192.168.1.1"}
+                      className="font-mono bg-muted/20" />
+                  )}
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-3 block uppercase tracking-wider font-semibold">Scan Profile</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {SCAN_TYPES.map(st => {
+                        const Icon = st.icon;
+                        const selected = scanType === st.value;
+                        return (
+                          <button key={st.value} onClick={() => setScanType(st.value)}
+                            className={`relative border rounded-xl p-3.5 text-left transition-all duration-200 group ${selected ? "border-primary bg-primary/5 shadow-sm shadow-primary/10" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}>
+                            <div className="flex items-start gap-2.5">
+                              <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground group-hover:text-foreground"}`}>
+                                <Icon className="h-3.5 w-3.5" />
+                              </div>
+                              <div>
+                                <p className={`text-xs font-semibold ${selected ? "text-primary" : "text-foreground"}`}>{st.label}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{st.desc}</p>
+                              </div>
+                            </div>
+                            {selected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Options */}
-              <div className="border border-border rounded-lg bg-card p-5 space-y-4">
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" /> Options
-                </h2>
-                <div>
-                  <Label className="text-xs">Ports (leave empty for default)</Label>
-                  <Input value={ports} onChange={e => setPorts(e.target.value)} placeholder="80,443,8080 or 1-1024" className="mt-1 font-mono text-sm" />
+              {/* Options Panel */}
+              <div className="border border-border rounded-xl bg-card overflow-hidden flex flex-col">
+                <div className="px-5 py-4 border-b border-border bg-muted/20">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" /> Scan Options
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Fine-tune scanning parameters</p>
                 </div>
-                <div>
-                  <Label className="text-xs">Timing Template</Label>
-                  <Select value={timing} onValueChange={setTiming}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TIMING_TEMPLATES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Enable script checks</Label>
-                  <Switch checked={enableScripts} onCheckedChange={setEnableScripts} />
-                </div>
-                {scanType === "custom" && (
+                <div className="p-5 space-y-4 flex-1">
                   <div>
-                    <Label className="text-xs">Custom Options</Label>
-                    <Input value={customOptions} onChange={e => setCustomOptions(e.target.value)} className="mt-1 font-mono text-sm" placeholder="Additional flags" />
+                    <Label className="text-xs font-medium">Port Range</Label>
+                    <Input value={ports} onChange={e => setPorts(e.target.value)} placeholder="80,443,8080 or 1-1024" className="mt-1.5 font-mono text-sm bg-muted/20" />
+                    <p className="text-[10px] text-muted-foreground mt-1">Leave empty for default ports</p>
                   </div>
-                )}
-                <div className="pt-2 space-y-2">
-                  <Button onClick={handleStartScan} disabled={scanning || !target.trim()} className="w-full gap-2">
+                  <div>
+                    <Label className="text-xs font-medium">Timing Template</Label>
+                    <Select value={timing} onValueChange={setTiming}>
+                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TIMING_TEMPLATES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Label className="text-xs cursor-pointer">NSE Script Checks</Label>
+                    </div>
+                    <Switch checked={enableScripts} onCheckedChange={setEnableScripts} />
+                  </div>
+                  {scanType === "custom" && (
+                    <div>
+                      <Label className="text-xs font-medium">Custom Flags</Label>
+                      <Input value={customOptions} onChange={e => setCustomOptions(e.target.value)} className="mt-1.5 font-mono text-sm bg-muted/20" placeholder="--script=vuln -Pn" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-5 pt-0 space-y-2.5">
+                  <Button onClick={handleStartScan} disabled={scanning || !target.trim()} className="w-full gap-2 h-10 font-semibold">
                     {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                    {scanning ? "Scanning..." : "Start Scan"}
+                    {scanning ? "Scanning..." : "Launch Scan"}
                   </Button>
-                  <Button variant="outline" onClick={() => { setScheduleDialog(true); setSchedName(`Scan ${target}`); }} disabled={!target.trim()} className="w-full gap-2">
-                    <Calendar className="h-4 w-4" /> Schedule Scan
+                  <Button variant="outline" onClick={() => { setScheduleDialog(true); setSchedName(`Scan ${target}`); }} disabled={!target.trim()} className="w-full gap-2 h-9 text-xs">
+                    <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
                   </Button>
                 </div>
               </div>
             </div>
           </TabsContent>
 
-          {/* Scan History */}
+          {/* ─── SCAN HISTORY ─── */}
           <TabsContent value="history" className="space-y-3">
             {loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground">Loading scan history...</p>
+              </div>
             ) : scans.length === 0 ? (
-              <div className="border border-dashed border-border rounded-lg p-12 text-center text-muted-foreground">
-                <Shield className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No scans yet. Run your first scan above.</p>
+              <div className="border border-dashed border-border rounded-xl p-16 text-center">
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                  <Radar className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">No scans yet</p>
+                <p className="text-xs text-muted-foreground">Start your first network scan to see results here</p>
               </div>
             ) : (
-              scans.map(scan => (
-                <div key={scan.id} className="border border-border rounded-lg bg-card p-4 flex items-center gap-4 hover:border-primary/30 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-semibold text-foreground truncate">{scan.target}</span>
-                      {statusBadge(scan.status)}
-                      <Badge variant="outline" className="text-[10px]">{scan.scan_type}</Badge>
-                    </div>
-                    <div className="flex gap-4 mt-1 text-[11px] text-muted-foreground">
-                      <span>{format(new Date(scan.created_at), "MMM d, yyyy HH:mm")}</span>
-                      {scan.result_summary && (
-                        <>
-                          <span>{scan.result_summary.total_hosts} hosts</span>
-                          <span>{scan.result_summary.total_open_ports} open ports</span>
-                        </>
-                      )}
-                      {scan.ai_analysis && <span className="text-primary flex items-center gap-1"><Brain className="h-3 w-3" /> AI analyzed</span>}
+              <div className="space-y-2">
+                {scans.map(scan => (
+                  <div key={scan.id} className="group border border-border rounded-xl bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all duration-200 cursor-pointer" onClick={() => handleViewResults(scan)}>
+                    <div className="flex items-center gap-4">
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
+                        scan.status === "running" ? "bg-primary/10 text-primary" :
+                        scan.status === "completed" ? "bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))]" :
+                        scan.status === "failed" ? "bg-destructive/10 text-destructive" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        {scan.status === "running" ? <Loader2 className="h-5 w-5 animate-spin" /> :
+                         scan.status === "completed" ? <CheckCircle2 className="h-5 w-5" /> :
+                         scan.status === "failed" ? <AlertTriangle className="h-5 w-5" /> :
+                         <Clock className="h-5 w-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-sm font-semibold text-foreground">{scan.target}</span>
+                          {statusBadge(scan.status)}
+                          <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{scan.scan_type}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(scan.created_at), "MMM d, yyyy HH:mm")}
+                          </span>
+                          {scan.result_summary && (
+                            <>
+                              <span className="flex items-center gap-1"><Server className="h-3 w-3" />{scan.result_summary.total_hosts} hosts</span>
+                              <span className="flex items-center gap-1">
+                                {scan.result_summary.total_open_ports > 0 ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                                {scan.result_summary.total_open_ports} open ports
+                              </span>
+                            </>
+                          )}
+                          {scan.ai_analysis && <span className="text-primary flex items-center gap-1 font-medium"><Brain className="h-3 w-3" /> AI analyzed</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); handleViewResults(scan); }}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View Results</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/60 hover:text-destructive" onClick={e => { e.stopPropagation(); deleteScan(scan.id); }}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete Scan</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" onClick={() => handleViewResults(scan)} className="gap-1 text-xs h-7">
-                      <FileText className="h-3 w-3" /> View
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteScan(scan.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </TabsContent>
 
-          {/* Schedules */}
+          {/* ─── SCHEDULES ─── */}
           <TabsContent value="schedules" className="space-y-3">
             <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setScheduleDialog(true)} className="gap-1">
-                <Plus className="h-3 w-3" /> New Schedule
+              <Button variant="outline" size="sm" onClick={() => setScheduleDialog(true)} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> New Schedule
               </Button>
             </div>
             {schedules.length === 0 ? (
-              <div className="border border-dashed border-border rounded-lg p-12 text-center text-muted-foreground">
-                <Clock className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No scheduled scans yet.</p>
+              <div className="border border-dashed border-border rounded-xl p-16 text-center">
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                  <Calendar className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">No schedules</p>
+                <p className="text-xs text-muted-foreground">Set up recurring scans to automate security monitoring</p>
               </div>
             ) : (
               schedules.map(s => (
-                <div key={s.id} className="border border-border rounded-lg bg-card p-4 flex items-center gap-4">
+                <div key={s.id} className="border border-border rounded-xl bg-card p-4 flex items-center gap-4 hover:border-primary/20 transition-colors">
+                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${s.active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    <Calendar className="h-5 w-5" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{s.name}</p>
-                    <p className="text-xs font-mono text-muted-foreground">{s.target}</p>
-                    <div className="flex gap-2 mt-1">
-                      <Badge variant="outline" className="text-[10px]">{s.frequency}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{s.scan_type}</Badge>
-                      {s.auto_ai_analysis && <Badge variant="outline" className="text-[10px] text-primary border-primary/30">Auto AI</Badge>}
+                    <p className="text-sm font-semibold text-foreground">{s.name}</p>
+                    <p className="text-xs font-mono text-muted-foreground mt-0.5">{s.target}</p>
+                    <div className="flex gap-2 mt-1.5">
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{s.frequency}</Badge>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{s.scan_type}</Badge>
+                      {s.auto_ai_analysis && <Badge variant="outline" className="text-[10px] text-primary border-primary/30 bg-primary/5">Auto AI</Badge>}
                     </div>
                   </div>
                   <Switch checked={s.active} onCheckedChange={v => toggleSchedule(s.id, v)} />
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSchedule(s.id)}>
-                    <Trash2 className="h-3 w-3" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/60 hover:text-destructive" onClick={() => deleteSchedule(s.id)}>
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               ))
             )}
           </TabsContent>
 
-          {/* Results */}
+          {/* ─── RESULTS ─── */}
           {selectedScan && (
-            <TabsContent value="results" className="space-y-4">
-              {/* Summary */}
-              <div className="border border-border rounded-lg bg-card p-5">
-                <div className="flex items-center justify-between mb-4">
+            <TabsContent value="results" className="space-y-5">
+              {/* Summary Header */}
+              <div className="border border-border rounded-xl bg-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-border bg-muted/20 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
-                    <h2 className="text-sm font-semibold text-foreground">Scan: <span className="font-mono">{selectedScan.target}</span></h2>
-                    <p className="text-xs text-muted-foreground">{format(new Date(selectedScan.created_at), "MMM d, yyyy HH:mm:ss")}</p>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-foreground">Scan Results</h2>
+                      {statusBadge(selectedScan.status)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-mono text-primary">{selectedScan.target}</span>
+                      <span className="text-[10px] text-muted-foreground">·</span>
+                      <span className="text-[11px] text-muted-foreground">{format(new Date(selectedScan.created_at), "MMM d, yyyy HH:mm:ss")}</span>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleAnalyze} disabled={analyzing || selectedScan.status !== "completed"} className="gap-1">
-                      {analyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
-                      Analyze with AI
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={handleAnalyze} disabled={analyzing || selectedScan.status !== "completed"} className="gap-1.5 h-8 text-xs">
+                      {analyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
+                      AI Analysis
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1">
-                      {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} PDF
+                    <div className="h-5 w-px bg-border" />
+                    <Button variant="ghost" size="sm" onClick={() => handleExport("pdf")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1 h-8 text-xs">
+                      <Download className="h-3 w-3" /> PDF
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExport("html")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleExport("html")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1 h-8 text-xs">
                       <Download className="h-3 w-3" /> HTML
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExport("csv")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleExport("csv")} disabled={exporting || selectedScan.status !== "completed"} className="gap-1 h-8 text-xs">
                       <Download className="h-3 w-3" /> CSV
                     </Button>
                   </div>
                 </div>
                 {selectedScan.result_summary && (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {[
-                      { label: "Total Hosts", value: selectedScan.result_summary.total_hosts },
-                      { label: "Hosts Up", value: selectedScan.result_summary.hosts_up },
-                      { label: "Hosts Down", value: selectedScan.result_summary.hosts_down },
-                      { label: "Open Ports", value: selectedScan.result_summary.total_open_ports },
-                      { label: "Ports Scanned", value: selectedScan.result_summary.ports_scanned },
-                    ].map(m => (
-                      <div key={m.label} className="border border-border rounded-md bg-muted/20 p-3 text-center">
-                        <p className="text-xl font-bold text-foreground">{m.value}</p>
-                        <p className="text-[10px] text-muted-foreground">{m.label}</p>
-                      </div>
-                    ))}
+                  <div className="p-5 grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <StatCard label="Total Hosts" value={selectedScan.result_summary.total_hosts} icon={Server} />
+                    <StatCard label="Hosts Up" value={selectedScan.result_summary.hosts_up} icon={Wifi} accent="text-[hsl(var(--severity-low))]" />
+                    <StatCard label="Hosts Down" value={selectedScan.result_summary.hosts_down} icon={AlertTriangle} accent="text-muted-foreground" />
+                    <StatCard label="Open Ports" value={selectedScan.result_summary.total_open_ports} icon={Unlock} accent="text-[hsl(var(--severity-high))]" />
+                    <StatCard label="Ports Scanned" value={selectedScan.result_summary.ports_scanned} icon={Activity} />
                   </div>
                 )}
               </div>
 
               {/* Host Results */}
-              <div className="border border-border rounded-lg bg-card">
-                <div className="p-4 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground">Host Details</h3>
+              <div className="border border-border rounded-xl bg-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-border bg-muted/20 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Server className="h-4 w-4 text-primary" /> Host Details
+                  </h3>
+                  <Badge variant="outline" className="text-[10px]">{scanResults.length} host{scanResults.length !== 1 ? "s" : ""}</Badge>
                 </div>
                 {loadingResults ? (
-                  <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">Loading results...</p>
+                  </div>
+                ) : scanResults.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    <p className="text-xs">No host results found for this scan</p>
+                  </div>
                 ) : (
                   <div className="divide-y divide-border">
                     {scanResults.map(result => {
@@ -469,36 +609,44 @@ export default function NetworkScanner() {
                       return (
                         <div key={result.id}>
                           <button onClick={() => toggleHost(result.host)}
-                            className="w-full flex items-center gap-3 p-4 hover:bg-muted/20 transition-colors text-left">
-                            {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-muted/20 transition-colors text-left group">
+                            <div className={`h-5 w-5 rounded flex items-center justify-center transition-colors ${isExpanded ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </div>
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${result.host_status === "up" ? "bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))]" : "bg-muted text-muted-foreground"}`}>
+                              <Monitor className="h-4 w-4" />
+                            </div>
                             <span className="font-mono text-sm font-semibold text-foreground">{result.host}</span>
-                            <Badge variant="outline" className={`text-[10px] ${result.host_status === "up" ? "bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))]" : "bg-muted text-muted-foreground"}`}>
+                            <Badge variant="outline" className={`text-[10px] ${result.host_status === "up" ? "bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/30" : "bg-muted text-muted-foreground"}`}>
                               {result.host_status}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">{openPorts.length} open ports</span>
+                            {result.os_detection && (
+                              <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{result.os_detection}</span>
+                            )}
+                            <span className="ml-auto text-xs text-muted-foreground font-medium">{openPorts.length} open port{openPorts.length !== 1 ? "s" : ""}</span>
                           </button>
                           {isExpanded && (
-                            <div className="px-4 pb-4">
+                            <div className="px-5 pb-4">
                               {openPorts.length === 0 ? (
-                                <p className="text-xs text-muted-foreground pl-7">No open ports detected</p>
+                                <p className="text-xs text-muted-foreground pl-14">No open ports detected</p>
                               ) : (
-                                <div className="ml-7 border border-border rounded overflow-hidden">
+                                <div className="ml-14 border border-border rounded-lg overflow-hidden">
                                   <table className="w-full text-xs">
                                     <thead>
-                                      <tr className="bg-muted/30">
-                                        <th className="text-left p-2 font-medium text-muted-foreground">Port</th>
-                                        <th className="text-left p-2 font-medium text-muted-foreground">Protocol</th>
-                                        <th className="text-left p-2 font-medium text-muted-foreground">Service</th>
-                                        <th className="text-left p-2 font-medium text-muted-foreground">Version/Banner</th>
+                                      <tr className="bg-muted/30 border-b border-border">
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Port</th>
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Protocol</th>
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Service</th>
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Version / Banner</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border">
                                       {openPorts.map((p: any, i: number) => (
-                                        <tr key={i} className="hover:bg-muted/10">
-                                          <td className="p-2 font-mono font-semibold">{p.port}</td>
-                                          <td className="p-2 text-muted-foreground">{p.protocol}</td>
-                                          <td className="p-2">{p.service}</td>
-                                          <td className="p-2 font-mono text-muted-foreground truncate max-w-xs">{p.version || "—"}</td>
+                                        <tr key={i} className="hover:bg-muted/10 transition-colors">
+                                          <td className="px-4 py-2.5 font-mono font-bold text-foreground">{p.port}</td>
+                                          <td className="px-4 py-2.5 text-muted-foreground uppercase">{p.protocol}</td>
+                                          <td className="px-4 py-2.5 font-medium">{p.service}</td>
+                                          <td className="px-4 py-2.5 font-mono text-muted-foreground truncate max-w-xs">{p.version || "—"}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -516,79 +664,96 @@ export default function NetworkScanner() {
 
               {/* AI Analysis */}
               {selectedScan.ai_analysis && (
-                <div className="border border-border rounded-lg bg-card p-5 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">AI Security Analysis</h3>
-                    <Badge variant="outline" className={`text-[10px] ${severityColor(selectedScan.ai_analysis.overall_risk_score)}`}>
+                <div className="border border-border rounded-xl bg-card overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/20 flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Brain className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">AI Security Analysis</h3>
+                      <p className="text-[10px] text-muted-foreground">Powered by AI threat intelligence</p>
+                    </div>
+                    <Badge variant="outline" className={`ml-auto text-[10px] ${severityColor(selectedScan.ai_analysis.overall_risk_score)}`}>
                       {selectedScan.ai_analysis.overall_risk_score?.toUpperCase()} RISK
                     </Badge>
                   </div>
 
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Executive Summary</h4>
-                      <p className="text-sm text-foreground">{selectedScan.ai_analysis.executive_summary}</p>
+                  <div className="p-5 space-y-5">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="rounded-lg border border-border bg-muted/10 p-4">
+                        <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Executive Summary</h4>
+                        <p className="text-sm text-foreground leading-relaxed">{selectedScan.ai_analysis.executive_summary}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/10 p-4">
+                        <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Risk Assessment</h4>
+                        <p className="text-sm text-foreground leading-relaxed">{selectedScan.ai_analysis.risk_assessment}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Risk Assessment</h4>
-                      <p className="text-sm text-foreground">{selectedScan.ai_analysis.risk_assessment}</p>
-                    </div>
+
+                    {selectedScan.ai_analysis.technical_findings?.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Technical Findings</h4>
+                        <div className="space-y-2">
+                          {selectedScan.ai_analysis.technical_findings.map((f: any, i: number) => (
+                            <div key={i} className={`border rounded-lg p-3.5 ${severityColor(f.severity)}`}>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <Badge variant="outline" className={`text-[10px] ${severityColor(f.severity)}`}>{f.severity?.toUpperCase()}</Badge>
+                                <span className="text-xs font-semibold">{f.finding}</span>
+                              </div>
+                              <p className="text-xs opacity-80 leading-relaxed">{f.details}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedScan.ai_analysis.remediation_recommendations?.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Remediation Recommendations</h4>
+                        <div className="space-y-2">
+                          {selectedScan.ai_analysis.remediation_recommendations.map((r: any, i: number) => (
+                            <div key={i} className="border border-border rounded-lg p-3.5 bg-muted/10 hover:bg-muted/20 transition-colors">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <Badge variant="outline" className={`text-[10px] ${r.priority === "immediate" ? "bg-destructive/10 text-destructive border-destructive/30" : r.priority === "short-term" ? "bg-[hsl(var(--severity-high))]/10 text-[hsl(var(--severity-high))]" : "bg-primary/10 text-primary"}`}>
+                                  {r.priority}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px]">{r.category}</Badge>
+                              </div>
+                              <p className="text-xs text-foreground leading-relaxed">{r.recommendation}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedScan.ai_analysis.firewall_rules?.length > 0 && (
+                      <div className="rounded-lg border border-border bg-muted/10 p-4">
+                        <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Firewall Hardening Rules</h4>
+                        <ul className="text-xs space-y-1.5 text-foreground">
+                          {selectedScan.ai_analysis.firewall_rules.map((r: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <Shield className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+                              <span>{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedScan.ai_analysis.patch_recommendations?.length > 0 && (
+                      <div className="rounded-lg border border-border bg-muted/10 p-4">
+                        <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Patch Recommendations</h4>
+                        <ul className="text-xs space-y-1.5 text-foreground">
+                          {selectedScan.ai_analysis.patch_recommendations.map((r: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="h-3 w-3 text-[hsl(var(--severity-low))] shrink-0 mt-0.5" />
+                              <span>{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-
-                  {selectedScan.ai_analysis.technical_findings?.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Technical Findings</h4>
-                      <div className="space-y-2">
-                        {selectedScan.ai_analysis.technical_findings.map((f: any, i: number) => (
-                          <div key={i} className={`border rounded-md p-3 ${severityColor(f.severity)}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className={`text-[10px] ${severityColor(f.severity)}`}>{f.severity}</Badge>
-                              <span className="text-xs font-medium">{f.finding}</span>
-                            </div>
-                            <p className="text-xs opacity-80">{f.details}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedScan.ai_analysis.remediation_recommendations?.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Remediation Recommendations</h4>
-                      <div className="space-y-2">
-                        {selectedScan.ai_analysis.remediation_recommendations.map((r: any, i: number) => (
-                          <div key={i} className="border border-border rounded-md p-3 bg-muted/10">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className={`text-[10px] ${r.priority === "immediate" ? "bg-destructive/10 text-destructive border-destructive/30" : r.priority === "short-term" ? "bg-[hsl(var(--severity-high))]/10 text-[hsl(var(--severity-high))]" : "bg-primary/10 text-primary"}`}>
-                                {r.priority}
-                              </Badge>
-                              <Badge variant="outline" className="text-[10px]">{r.category}</Badge>
-                            </div>
-                            <p className="text-xs text-foreground">{r.recommendation}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedScan.ai_analysis.firewall_rules?.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Firewall Hardening</h4>
-                      <ul className="text-xs space-y-1 text-foreground list-disc pl-4">
-                        {selectedScan.ai_analysis.firewall_rules.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                      </ul>
-                    </div>
-                  )}
-
-                  {selectedScan.ai_analysis.patch_recommendations?.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Patch Recommendations</h4>
-                      <ul className="text-xs space-y-1 text-foreground list-disc pl-4">
-                        {selectedScan.ai_analysis.patch_recommendations.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                      </ul>
-                    </div>
-                  )}
                 </div>
               )}
             </TabsContent>
@@ -597,14 +762,22 @@ export default function NetworkScanner() {
 
         {/* Schedule Dialog */}
         <Dialog open={scheduleDialog} onOpenChange={setScheduleDialog}>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader><DialogTitle>Schedule Recurring Scan</DialogTitle></DialogHeader>
+          <DialogContent className="bg-card border-border max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Schedule Recurring Scan
+              </DialogTitle>
+            </DialogHeader>
             <div className="space-y-4 py-2">
-              <div><Label>Schedule Name</Label><Input value={schedName} onChange={e => setSchedName(e.target.value)} className="mt-1" /></div>
               <div>
-                <Label>Frequency</Label>
+                <Label className="text-xs font-medium">Schedule Name</Label>
+                <Input value={schedName} onChange={e => setSchedName(e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">Frequency</Label>
                 <Select value={schedFreq} onValueChange={setSchedFreq}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="once">One-time</SelectItem>
                     <SelectItem value="daily">Daily</SelectItem>
@@ -615,26 +788,31 @@ export default function NetworkScanner() {
                 </Select>
               </div>
               {schedFreq === "custom" && (
-                <div><Label>Cron Expression</Label><Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1 font-mono" placeholder="0 2 * * *" /></div>
+                <div>
+                  <Label className="text-xs font-medium">Cron Expression</Label>
+                  <Input value={schedCron} onChange={e => setSchedCron(e.target.value)} className="mt-1.5 font-mono" placeholder="0 2 * * *" />
+                </div>
               )}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Email notification on completion</Label>
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
+                  <Label className="text-xs cursor-pointer">Email on completion</Label>
                   <Switch checked={schedNotify} onCheckedChange={setSchedNotify} />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Auto-create ticket if critical vuln found</Label>
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
+                  <Label className="text-xs cursor-pointer">Auto-create ticket for critical vulns</Label>
                   <Switch checked={schedAutoTicket} onCheckedChange={setSchedAutoTicket} />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Auto-run AI analysis</Label>
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 border border-border">
+                  <Label className="text-xs cursor-pointer">Auto-run AI analysis</Label>
                   <Switch checked={schedAutoAI} onCheckedChange={setSchedAutoAI} />
                 </div>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setScheduleDialog(false)}>Cancel</Button>
-              <Button onClick={handleAddSchedule}>Create Schedule</Button>
+              <Button onClick={handleAddSchedule} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Create Schedule
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
