@@ -30,6 +30,7 @@ const SCAN_TYPES = [
   { value: "service", label: "Service Detection", desc: "Identify running services", icon: Monitor },
   { value: "vuln", label: "Vulnerability Scan", desc: "NSE-style checks", icon: Shield },
   { value: "custom", label: "Custom Scan", desc: "Advanced options", icon: Activity },
+  { value: "raw", label: "Raw Command", desc: "Enter full nmap command", icon: FileText },
 ];
 
 const TIMING_TEMPLATES = [
