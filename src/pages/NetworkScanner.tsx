@@ -144,6 +144,7 @@ export default function NetworkScanner() {
     const results = await getScanResults(scan.id);
     setScanResults(results);
     setLoadingResults(false);
+    setActiveTab("results");
   };
 
   const handleAnalyze = async () => {
