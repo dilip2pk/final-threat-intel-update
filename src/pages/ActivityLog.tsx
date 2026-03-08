@@ -1,36 +1,54 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import {
   Mail, Ticket, Search, Loader2, RefreshCw, Clock, User,
   CheckCircle2, AlertCircle, Circle, ArrowRight, MessageSquare,
+  Download, FileText, FileSpreadsheet, Code, Calendar, Filter,
+  TrendingUp, BarChart3, XCircle,
 } from "lucide-react";
 import { useEmailLog, useTicketLog, useTicketHistory, type TicketLogEntry } from "@/hooks/useActivityLog";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// ── Helpers (outside component) ──
 
 const statusColors: Record<string, string> = {
-  Open: "bg-severity-medium/15 text-severity-medium border-severity-medium/30",
-  "In Progress": "bg-severity-info/15 text-severity-info border-severity-info/30",
-  Resolved: "bg-severity-low/15 text-severity-low border-severity-low/30",
+  Open: "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400",
+  "In Progress": "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400",
+  Resolved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
   Closed: "bg-muted text-muted-foreground border-border",
-  sent: "bg-severity-low/15 text-severity-low border-severity-low/30",
-  failed: "bg-destructive/15 text-destructive border-destructive/30",
+  sent: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
+  failed: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const statusIcon = (status: string) => {
+const priorityColors: Record<string, string> = {
+  Critical: "bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400",
+  High: "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400",
+  Medium: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:text-yellow-400",
+  Low: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
+};
+
+const StatusIcon = ({ status }: { status: string }) => {
   switch (status) {
-    case "Open": return <Circle className="h-3 w-3" />;
-    case "In Progress": return <Loader2 className="h-3 w-3" />;
-    case "Resolved": return <CheckCircle2 className="h-3 w-3" />;
-    case "Closed": return <CheckCircle2 className="h-3 w-3" />;
+    case "Open": return <Circle className="h-3 w-3 text-orange-500" />;
+    case "In Progress": return <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />;
+    case "Resolved": return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+    case "Closed": return <CheckCircle2 className="h-3 w-3 text-muted-foreground" />;
+    case "sent": return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+    case "failed": return <XCircle className="h-3 w-3 text-destructive" />;
     default: return <Circle className="h-3 w-3" />;
   }
 };
@@ -41,50 +59,201 @@ function formatDate(dateStr: string) {
   });
 }
 
+function formatShortDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// ── Export Functions ──
+
+function exportCSV(tickets: any[], emails: any[], tab: string) {
+  let csv = "";
+  if (tab === "tickets") {
+    csv = "Ticket #,Title,Status,Priority,Assigned To,Category,Created,Updated\n";
+    for (const t of tickets) {
+      csv += `"${t.ticket_number}","${t.title}","${t.status}","${t.priority}","${t.assigned_to || ""}","${t.category || ""}","${formatDate(t.created_at)}","${formatDate(t.updated_at)}"\n`;
+    }
+  } else {
+    csv = "Subject,Recipients,Status,Feed,Error,Date\n";
+    for (const e of emails) {
+      csv += `"${e.subject}","${e.recipients.join("; ")}","${e.status}","${e.related_feed_title || ""}","${e.error_message || ""}","${formatDate(e.created_at)}"\n`;
+    }
+  }
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `activity-${tab}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportHTML(tickets: any[], emails: any[], tab: string) {
+  const rows = tab === "tickets"
+    ? tickets.map(t => `<tr><td>${t.ticket_number}</td><td>${t.title}</td><td>${t.status}</td><td>${t.priority}</td><td>${t.assigned_to || "—"}</td><td>${formatDate(t.updated_at)}</td></tr>`).join("")
+    : emails.map(e => `<tr><td>${e.subject}</td><td>${e.recipients.join(", ")}</td><td>${e.status}</td><td>${e.related_feed_title || "—"}</td><td>${formatDate(e.created_at)}</td></tr>`).join("");
+
+  const headers = tab === "tickets"
+    ? "<th>Ticket #</th><th>Title</th><th>Status</th><th>Priority</th><th>Assigned</th><th>Updated</th>"
+    : "<th>Subject</th><th>Recipients</th><th>Status</th><th>Feed</th><th>Date</th>";
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Activity Log - ${tab}</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:40px;color:#1a1a1a}
+h1{font-size:24px;margin-bottom:4px}p.sub{color:#666;font-size:13px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f1f5f9;text-align:left;padding:10px 12px;border-bottom:2px solid #e2e8f0;font-weight:600}
+td{padding:10px 12px;border-bottom:1px solid #e2e8f0}
+tr:hover{background:#f8fafc}</style></head>
+<body><h1>Activity Log — ${tab === "tickets" ? "Tickets" : "Emails"}</h1>
+<p class="sub">Exported on ${new Date().toLocaleString()}</p>
+<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `activity-${tab}-${new Date().toISOString().slice(0, 10)}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF(tickets: any[], emails: any[], tab: string) {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+  const m = 15;
+
+  // Header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pw, 28, "F");
+  doc.setTextColor(255);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Activity Log — ${tab === "tickets" ? "Tickets" : "Emails"}`, m, 16);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Exported: ${new Date().toLocaleString()}`, m, 23);
+
+  if (tab === "tickets") {
+    autoTable(doc, {
+      startY: 34,
+      head: [["Ticket #", "Title", "Status", "Priority", "Assigned To", "Category", "Updated"]],
+      body: tickets.map(t => [t.ticket_number, t.title, t.status, t.priority, t.assigned_to || "—", t.category || "—", formatDate(t.updated_at)]),
+      theme: "grid",
+      headStyles: { fillColor: [15, 23, 42], fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 7 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: m, right: m },
+    });
+  } else {
+    autoTable(doc, {
+      startY: 34,
+      head: [["Subject", "Recipients", "Status", "Feed", "Error", "Date"]],
+      body: emails.map(e => [e.subject, e.recipients.join(", "), e.status, e.related_feed_title || "—", e.error_message || "—", formatDate(e.created_at)]),
+      theme: "grid",
+      headStyles: { fillColor: [15, 23, 42], fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 7 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: m, right: m },
+    });
+  }
+
+  // Footer
+  const total = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.text("Confidential — Activity Log Export", m, doc.internal.pageSize.getHeight() - 8);
+    doc.text(`Page ${i} of ${total}`, pw - m, doc.internal.pageSize.getHeight() - 8, { align: "right" });
+  }
+
+  doc.save(`activity-${tab}-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ── Stat Card ──
+
+const StatCard = ({ label, value, icon: Icon, color }: { label: string; value: number; icon: any; color: string }) => (
+  <Card>
+    <CardContent className="flex items-center gap-3 py-4">
+      <div className={`rounded-lg p-2.5 ${color}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// ── Main Component ──
+
 export default function ActivityLog() {
   const { entries: emails, loading: emailsLoading, reload: reloadEmails } = useEmailLog();
   const { tickets, loading: ticketsLoading, updateTicket, reload: reloadTickets } = useTicketLog();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("tickets");
   const [selectedTicket, setSelectedTicket] = useState<TicketLogEntry | null>(null);
   const { toast } = useToast();
 
-  // Ticket timeline
   const { history, addHistoryEntry } = useTicketHistory(selectedTicket?.id ?? null);
   const [newStatus, setNewStatus] = useState("");
   const [newNote, setNewNote] = useState("");
 
-  const filteredEmails = emails.filter(e => {
+  // Date filter helper
+  const isWithinDate = (dateStr: string) => {
+    if (dateFilter === "all") return true;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (dateFilter === "today") return d.toDateString() === now.toDateString();
+    if (dateFilter === "7d") return d >= new Date(now.getTime() - 7 * 86400000);
+    if (dateFilter === "30d") return d >= new Date(now.getTime() - 30 * 86400000);
+    if (dateFilter === "90d") return d >= new Date(now.getTime() - 90 * 86400000);
+    return true;
+  };
+
+  const filteredEmails = useMemo(() => emails.filter(e => {
     if (search) {
       const q = search.toLowerCase();
       if (!e.subject.toLowerCase().includes(q) && !e.recipients.join(",").toLowerCase().includes(q)) return false;
     }
     if (statusFilter !== "all" && e.status !== statusFilter) return false;
+    if (!isWithinDate(e.created_at)) return false;
     return true;
-  });
+  }), [emails, search, statusFilter, dateFilter]);
 
-  const filteredTickets = tickets.filter(t => {
+  const filteredTickets = useMemo(() => tickets.filter(t => {
     if (search) {
       const q = search.toLowerCase();
       if (!t.title.toLowerCase().includes(q) && !t.ticket_number.toLowerCase().includes(q)) return false;
     }
     if (statusFilter !== "all" && t.status !== statusFilter) return false;
     if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
+    if (!isWithinDate(t.created_at)) return false;
     return true;
-  });
+  }), [tickets, search, statusFilter, priorityFilter, dateFilter]);
+
+  // Stats
+  const ticketStats = useMemo(() => ({
+    total: tickets.length,
+    open: tickets.filter(t => t.status === "Open").length,
+    inProgress: tickets.filter(t => t.status === "In Progress").length,
+    resolved: tickets.filter(t => t.status === "Resolved" || t.status === "Closed").length,
+  }), [tickets]);
+
+  const emailStats = useMemo(() => ({
+    total: emails.length,
+    sent: emails.filter(e => e.status === "sent").length,
+    failed: emails.filter(e => e.status === "failed").length,
+  }), [emails]);
 
   const handleStatusChange = async () => {
     if (!selectedTicket || !newStatus) return;
     const oldStatus = selectedTicket.status;
     await updateTicket(selectedTicket.id, { status: newStatus });
-    await addHistoryEntry({
-      ticket_id: selectedTicket.id,
-      action: "status_change",
-      old_value: oldStatus,
-      new_value: newStatus,
-      actor: "System",
-    });
+    await addHistoryEntry({ ticket_id: selectedTicket.id, action: "status_change", old_value: oldStatus, new_value: newStatus, actor: "System" });
     setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
     setNewStatus("");
     toast({ title: "Status Updated", description: `Ticket updated to ${newStatus}` });
@@ -92,12 +261,7 @@ export default function ActivityLog() {
 
   const handleAddNote = async () => {
     if (!selectedTicket || !newNote.trim()) return;
-    await addHistoryEntry({
-      ticket_id: selectedTicket.id,
-      action: "comment",
-      new_value: newNote,
-      actor: "Analyst",
-    });
+    await addHistoryEntry({ ticket_id: selectedTicket.id, action: "comment", new_value: newNote, actor: "Analyst" });
     if (newNote.toLowerCase().includes("resolution") || newNote.toLowerCase().includes("resolved")) {
       await updateTicket(selectedTicket.id, { resolution_notes: newNote });
     }
@@ -105,191 +269,340 @@ export default function ActivityLog() {
     toast({ title: "Note Added" });
   };
 
+  const handleExport = (format: "pdf" | "csv" | "html") => {
+    const data = activeTab === "tickets" ? filteredTickets : filteredEmails;
+    if (data.length === 0) {
+      toast({ title: "Nothing to export", description: "No records match your current filters.", variant: "destructive" });
+      return;
+    }
+    if (format === "csv") exportCSV(filteredTickets, filteredEmails, activeTab);
+    else if (format === "html") exportHTML(filteredTickets, filteredEmails, activeTab);
+    else exportPDF(filteredTickets, filteredEmails, activeTab);
+    toast({ title: "Export Complete", description: `${activeTab} exported as ${format.toUpperCase()}` });
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setDateFilter("all");
+  };
+
+  const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
+
   return (
     <AppLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Activity Log</h1>
-            <p className="text-sm text-muted-foreground mt-1">Track sent emails and ServiceDesk tickets</p>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-primary" />
+              Activity Log
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">Track tickets, emails, and operational activity</p>
           </div>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => { reloadEmails(); reloadTickets(); }}>
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="h-4 w-4" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("pdf")} className="gap-2">
+                  <FileText className="h-4 w-4 text-red-500" /> Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv")} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-green-500" /> Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("html")} className="gap-2">
+                  <Code className="h-4 w-4 text-blue-500" /> Export as HTML
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => { reloadEmails(); reloadTickets(); }}>
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
+          <StatCard label="Total Tickets" value={ticketStats.total} icon={Ticket} color="bg-primary/10 text-primary" />
+          <StatCard label="Open" value={ticketStats.open} icon={Circle} color="bg-orange-500/10 text-orange-500" />
+          <StatCard label="In Progress" value={ticketStats.inProgress} icon={TrendingUp} color="bg-blue-500/10 text-blue-500" />
+          <StatCard label="Emails Sent" value={emailStats.sent} icon={Mail} color="bg-emerald-500/10 text-emerald-500" />
+          <StatCard label="Failed" value={emailStats.failed} icon={AlertCircle} color="bg-destructive/10 text-destructive" />
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by subject, ticket number..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-40 bg-card"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Open">Open</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Resolved">Resolved</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-full md:w-40 bg-card"><SelectValue placeholder="Priority" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Priority</SelectItem>
-              <SelectItem value="Critical">Critical</SelectItem>
-              <SelectItem value="High">High</SelectItem>
-              <SelectItem value="Medium">Medium</SelectItem>
-              <SelectItem value="Low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                <Filter className="h-4 w-4" /> Filters
+              </div>
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search subject, ticket number, recipient..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Priority" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Date Range" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="7d">Last 7 Days</SelectItem>
+                  <SelectItem value="30d">Last 30 Days</SelectItem>
+                  <SelectItem value="90d">Last 90 Days</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground shrink-0">
+                  Clear
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-        <Tabs defaultValue="tickets" className="space-y-4">
-          <TabsList className="bg-muted/30 border border-border">
-            <TabsTrigger value="tickets" className="gap-2"><Ticket className="h-3.5 w-3.5" /> Tickets ({tickets.length})</TabsTrigger>
-            <TabsTrigger value="emails" className="gap-2"><Mail className="h-3.5 w-3.5" /> Emails ({emails.length})</TabsTrigger>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-background">
+              <Ticket className="h-3.5 w-3.5" /> Tickets
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{filteredTickets.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="emails" className="gap-2 data-[state=active]:bg-background">
+              <Mail className="h-3.5 w-3.5" /> Emails
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{filteredEmails.length}</Badge>
+            </TabsTrigger>
           </TabsList>
 
           {/* Tickets Tab */}
-          <TabsContent value="tickets" className="space-y-2">
+          <TabsContent value="tickets" className="space-y-0">
             {ticketsLoading ? (
-              <div className="flex items-center justify-center py-12 gap-3">
+              <Card><CardContent className="flex items-center justify-center py-16 gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 <span className="text-muted-foreground text-sm">Loading tickets...</span>
-              </div>
+              </CardContent></Card>
             ) : filteredTickets.length === 0 ? (
-              <div className="border border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
-                <Ticket className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No tickets found. Tickets are created from the feed analysis view.</p>
-              </div>
+              <Card className="border-dashed"><CardContent className="flex flex-col items-center py-16 text-center">
+                <Ticket className="h-12 w-12 text-muted-foreground/20 mb-3" />
+                <p className="font-medium text-foreground">No tickets found</p>
+                <p className="text-sm text-muted-foreground mt-1">Tickets are created from the feed analysis view.</p>
+              </CardContent></Card>
             ) : (
-              filteredTickets.map(ticket => (
-                <div
-                  key={ticket.id}
-                  onClick={() => setSelectedTicket(ticket)}
-                  className="border border-border rounded-lg bg-card p-4 hover:border-primary/40 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-xs text-primary">{ticket.ticket_number}</span>
-                        <Badge variant="outline" className={`text-[10px] ${statusColors[ticket.status] || ""}`}>
-                          {statusIcon(ticket.status)} {ticket.status}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">{ticket.priority}</Badge>
-                      </div>
-                      <p className="text-sm font-medium text-foreground truncate">{ticket.title}</p>
-                      {ticket.related_feed_title && (
-                        <p className="text-xs text-muted-foreground mt-1 truncate">Feed: {ticket.related_feed_title}</p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      {ticket.assigned_to && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" /> {ticket.assigned_to}</p>
-                      )}
-                      <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3" /> {formatDate(ticket.updated_at)}
-                      </p>
-                    </div>
-                  </div>
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ticket</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Title</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTickets.map(ticket => (
+                        <tr
+                          key={ticket.id}
+                          onClick={() => setSelectedTicket(ticket)}
+                          className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                        >
+                          <td className="py-3 px-4">
+                            <span className="font-mono text-xs text-primary font-medium">{ticket.ticket_number}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="max-w-[300px]">
+                              <p className="font-medium text-foreground truncate">{ticket.title}</p>
+                              {ticket.related_feed_title && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{ticket.related_feed_title}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={`text-[11px] gap-1 ${statusColors[ticket.status] || ""}`}>
+                              <StatusIcon status={ticket.status} /> {ticket.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={`text-[11px] ${priorityColors[ticket.priority] || ""}`}>
+                              {ticket.priority}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <User className="h-3 w-3" /> {ticket.assigned_to || "—"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs text-muted-foreground font-mono">{formatShortDate(ticket.updated_at)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))
+              </Card>
             )}
           </TabsContent>
 
           {/* Emails Tab */}
-          <TabsContent value="emails" className="space-y-2">
+          <TabsContent value="emails" className="space-y-0">
             {emailsLoading ? (
-              <div className="flex items-center justify-center py-12 gap-3">
+              <Card><CardContent className="flex items-center justify-center py-16 gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 <span className="text-muted-foreground text-sm">Loading email log...</span>
-              </div>
+              </CardContent></Card>
             ) : filteredEmails.length === 0 ? (
-              <div className="border border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
-                <Mail className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No emails sent yet. Send analysis reports from the feed detail view.</p>
-              </div>
+              <Card className="border-dashed"><CardContent className="flex flex-col items-center py-16 text-center">
+                <Mail className="h-12 w-12 text-muted-foreground/20 mb-3" />
+                <p className="font-medium text-foreground">No emails found</p>
+                <p className="text-sm text-muted-foreground mt-1">Emails are sent from the feed analysis view.</p>
+              </CardContent></Card>
             ) : (
-              filteredEmails.map(email => (
-                <div key={email.id} className="border border-border rounded-lg bg-card p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Mail className="h-3.5 w-3.5 text-primary" />
-                        <Badge variant="outline" className={`text-[10px] ${statusColors[email.status] || ""}`}>
-                          {email.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm font-medium text-foreground truncate">{email.subject}</p>
-                      <p className="text-xs text-muted-foreground mt-1">To: {email.recipients.join(", ")}</p>
-                      {email.related_feed_title && (
-                        <p className="text-xs text-muted-foreground">Feed: {email.related_feed_title}</p>
-                      )}
-                      {email.error_message && (
-                        <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> {email.error_message}
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-mono shrink-0">{formatDate(email.created_at)}</p>
-                  </div>
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recipients</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feed</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredEmails.map(email => (
+                        <tr key={email.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={`text-[11px] gap-1 ${statusColors[email.status] || ""}`}>
+                              <StatusIcon status={email.status} /> {email.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <p className="font-medium text-foreground truncate max-w-[250px]">{email.subject}</p>
+                            {email.error_message && (
+                              <p className="text-xs text-destructive flex items-center gap-1 mt-0.5">
+                                <AlertCircle className="h-3 w-3" /> {email.error_message}
+                              </p>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs text-muted-foreground">{email.recipients.join(", ")}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs text-muted-foreground truncate max-w-[150px] block">{email.related_feed_title || "—"}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs text-muted-foreground font-mono">{formatShortDate(email.created_at)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))
+              </Card>
             )}
           </TabsContent>
         </Tabs>
 
-        {/* Ticket Detail / Timeline Dialog */}
+        {/* Ticket Detail Dialog */}
         <Dialog open={!!selectedTicket} onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}>
-          <DialogContent className="bg-card border-border max-w-2xl max-h-[80vh]">
+          <DialogContent className="max-w-2xl max-h-[85vh]">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-primary" />
-                {selectedTicket?.ticket_number} — {selectedTicket?.title}
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Ticket className="h-5 w-5 text-primary" />
+                <span className="font-mono text-primary">{selectedTicket?.ticket_number}</span>
+                <Separator orientation="vertical" className="h-5" />
+                <span className="truncate">{selectedTicket?.title}</span>
               </DialogTitle>
             </DialogHeader>
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-4 py-2">
-                {/* Ticket Info */}
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Status</span>
-                    <div className="mt-1">
-                      <Badge variant="outline" className={statusColors[selectedTicket?.status || ""]}>
-                        {selectedTicket?.status}
+            <ScrollArea className="max-h-[65vh]">
+              <div className="space-y-5 py-2">
+                {/* Ticket Meta */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <div>
+                      <Badge variant="outline" className={`gap-1 ${statusColors[selectedTicket?.status || ""]}`}>
+                        <StatusIcon status={selectedTicket?.status || ""} /> {selectedTicket?.status}
                       </Badge>
                     </div>
                   </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Priority</span>
-                    <p className="font-medium">{selectedTicket?.priority}</p>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Priority</Label>
+                    <div>
+                      <Badge variant="outline" className={priorityColors[selectedTicket?.priority || ""]}>
+                        {selectedTicket?.priority}
+                      </Badge>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Assigned To</span>
-                    <p className="font-medium">{selectedTicket?.assigned_to || "Unassigned"}</p>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                    <p className="text-sm font-medium flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      {selectedTicket?.assigned_to || "Unassigned"}
+                    </p>
                   </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Last Updated</span>
-                    <p className="font-mono text-xs">{selectedTicket?.updated_at ? formatDate(selectedTicket.updated_at) : "—"}</p>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Last Updated</Label>
+                    <p className="text-sm font-mono flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      {selectedTicket?.updated_at ? formatDate(selectedTicket.updated_at) : "—"}
+                    </p>
                   </div>
+                  {selectedTicket?.description && (
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Description</Label>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{selectedTicket.description}</p>
+                    </div>
+                  )}
                   {selectedTicket?.resolution_notes && (
-                    <div className="col-span-2">
-                      <span className="text-xs text-muted-foreground">Resolution Notes</span>
-                      <p className="text-sm mt-1">{selectedTicket.resolution_notes}</p>
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Resolution Notes</Label>
+                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-md p-3">
+                        <p className="text-sm">{selectedTicket.resolution_notes}</p>
+                      </div>
                     </div>
                   )}
                 </div>
 
+                <Separator />
+
                 {/* Update Status */}
-                <div className="border border-border rounded-md p-3 space-y-2">
-                  <Label className="text-xs">Update Status</Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Update Status</Label>
                   <div className="flex gap-2">
                     <Select value={newStatus} onValueChange={setNewStatus}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select status" /></SelectTrigger>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select new status" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Open">Open</SelectItem>
                         <SelectItem value="In Progress">In Progress</SelectItem>
@@ -302,42 +615,45 @@ export default function ActivityLog() {
                 </div>
 
                 {/* Add Note */}
-                <div className="border border-border rounded-md p-3 space-y-2">
-                  <Label className="text-xs">Add Comment / Note</Label>
-                  <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add a comment or resolution note..." rows={2} />
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add Note</Label>
+                  <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add investigation notes, resolution details..." rows={2} />
                   <Button size="sm" onClick={handleAddNote} disabled={!newNote.trim()} className="gap-1.5">
                     <MessageSquare className="h-3.5 w-3.5" /> Add Note
                   </Button>
                 </div>
 
+                <Separator />
+
                 {/* Timeline */}
-                <div className="space-y-1">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</h3>
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeline</Label>
                   {history.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-4 text-center">No timeline entries yet</p>
+                    <p className="text-xs text-muted-foreground py-6 text-center">No timeline entries yet</p>
                   ) : (
-                    <div className="space-y-2">
-                      {history.map(entry => (
+                    <div className="space-y-0">
+                      {history.map((entry, idx) => (
                         <div key={entry.id} className="flex gap-3 text-sm">
                           <div className="flex flex-col items-center">
-                            <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                            <div className="w-px flex-1 bg-border" />
+                            <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${entry.action === "status_change" ? "bg-primary" : "bg-muted-foreground/40"}`} />
+                            {idx < history.length - 1 && <div className="w-px flex-1 bg-border" />}
                           </div>
-                          <div className="pb-3 flex-1">
+                          <div className="pb-4 flex-1">
                             {entry.action === "status_change" ? (
                               <p className="text-xs">
-                                <span className="font-medium text-foreground">{entry.actor || "System"}</span> changed status{" "}
-                                <Badge variant="outline" className="text-[10px]">{entry.old_value}</Badge>
-                                <ArrowRight className="inline h-3 w-3 mx-1" />
-                                <Badge variant="outline" className="text-[10px]">{entry.new_value}</Badge>
+                                <span className="font-medium text-foreground">{entry.actor || "System"}</span>{" "}
+                                changed status{" "}
+                                <Badge variant="outline" className="text-[10px] mx-0.5">{entry.old_value}</Badge>
+                                <ArrowRight className="inline h-3 w-3 mx-0.5" />
+                                <Badge variant="outline" className="text-[10px] mx-0.5">{entry.new_value}</Badge>
                               </p>
                             ) : (
                               <div>
                                 <p className="text-xs font-medium text-foreground">{entry.actor || "System"}</p>
-                                <p className="text-xs text-muted-foreground">{entry.new_value}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{entry.new_value}</p>
                               </div>
                             )}
-                            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{formatDate(entry.created_at)}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono mt-1">{formatDate(entry.created_at)}</p>
                           </div>
                         </div>
                       ))}
