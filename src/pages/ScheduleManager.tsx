@@ -330,6 +330,15 @@ export default function ScheduleManager() {
                 </div>
               )}
 
+              {frequency !== "once" && frequency !== "custom" && (
+                <div className="text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
+                  <span className="font-medium text-foreground">Auto-scheduled:</span>{" "}
+                  {frequency === "daily" && "Runs daily at 2:00 AM (cron: 0 2 * * *)"}
+                  {frequency === "weekly" && "Runs every Monday at 2:00 AM (cron: 0 2 * * 1)"}
+                  {frequency === "monthly" && "Runs 1st of each month at 2:00 AM (cron: 0 2 1 * *)"}
+                </div>
+              )}
+
               {/* Shodan Config */}
               {jobType === "shodan_scan" && (
                 <div className="border border-border rounded-md p-4 space-y-3">
