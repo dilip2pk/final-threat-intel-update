@@ -512,6 +512,16 @@ export default function ShodanSearch() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AICommandGenerator
+          open={aiCommandOpen}
+          onOpenChange={setAiCommandOpen}
+          type="shodan"
+          onSelectCommand={(cmd) => {
+            setQuery(cmd);
+            setQueryType("search");
+          }}
+        />
       </div>
     </AppLayout>
   );
