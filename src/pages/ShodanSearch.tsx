@@ -154,6 +154,27 @@ export default function ShodanSearch() {
     setIsDork(q.is_dork);
   };
 
+  const getCronForFrequency = (freq: string, customCron: string): string => {
+    switch (freq) {
+      case "daily": return "0 2 * * *";
+      case "weekly": return "0 2 * * 1";
+      case "monthly": return "0 2 1 * *";
+      case "custom": return customCron;
+      default: return "";
+    }
+  };
+
+  const getNextRunAt = (freq: string): string | null => {
+    if (freq === "once") return null;
+    const now = new Date();
+    switch (freq) {
+      case "daily": { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "weekly": { const d = new Date(now); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(2, 0, 0, 0); return d.toISOString(); }
+      case "monthly": { const d = new Date(now.getFullYear(), now.getMonth() + 1, 1, 2, 0, 0); return d.toISOString(); }
+      default: return null;
+    }
+  };
+
   const handleScheduleQuery = async () => {
     if (!schedName || !query.trim()) return;
     try {
@@ -161,10 +182,11 @@ export default function ShodanSearch() {
         name: schedName,
         job_type: "shodan_scan",
         frequency: schedFreq,
-        cron_expression: schedFreq === "custom" ? schedCron : "",
+        cron_expression: getCronForFrequency(schedFreq, schedCron),
         configuration: { query: query.trim(), queryType },
         active: true,
-      });
+        next_run_at: getNextRunAt(schedFreq),
+      } as any);
       toast({ title: "Scan Scheduled", description: `"${schedName}" has been scheduled` });
       setScheduleOpen(false);
       setSchedName("");
