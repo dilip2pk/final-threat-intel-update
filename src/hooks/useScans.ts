@@ -209,16 +209,19 @@ async function startLocalScan(
   await supabase.from("scans").update({ status: "running", started_at: new Date().toISOString() } as any).eq("id", scanId);
 
   // Call local server (synchronous endpoint)
+  const isRaw = params.scan_type === "raw";
   const resp = await fetch(`${baseUrl}/api/scan`, {
     method: "POST",
     headers,
     body: JSON.stringify({
-      targets,
+      scanId,
+      targets: isRaw ? [] : targets,
       scanType: params.scan_type,
       ports: params.ports,
       timingTemplate: params.timing_template,
       enableScripts: params.enable_scripts,
-      customOptions: params.custom_options,
+      customOptions: isRaw ? undefined : params.custom_options,
+      rawCommand: isRaw ? params.custom_options : undefined,
     }),
   });
 
