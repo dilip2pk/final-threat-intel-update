@@ -54,6 +54,7 @@ function AppRoutes() {
       <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/schedules" element={<AdminRoute><ScheduleManager /></AdminRoute>} />
       <Route path="/reports" element={<Reports />} />
+      <Route path="/executive-report" element={<ExecutiveReport />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
