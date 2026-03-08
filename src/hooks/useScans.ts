@@ -202,7 +202,7 @@ async function startLocalScan(
   config: { localUrl: string; apiKey: string }
 ) {
   const baseUrl = config.localUrl.replace(/\/$/, "");
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
   if (config.apiKey) headers["x-api-key"] = config.apiKey;
 
   // Mark as running
