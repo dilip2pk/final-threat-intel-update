@@ -83,6 +83,7 @@ export default function ShodanSearch() {
   const [schedName, setSchedName] = useState("");
   const [schedFreq, setSchedFreq] = useState("daily");
   const [schedCron, setSchedCron] = useState("");
+  const [aiCommandOpen, setAiCommandOpen] = useState(false);
 
   // Load saved queries
   useEffect(() => {

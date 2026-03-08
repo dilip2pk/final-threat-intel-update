@@ -939,6 +939,16 @@ export default function NetworkScanner() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AICommandGenerator
+          open={aiCommandOpen}
+          onOpenChange={setAiCommandOpen}
+          type="nmap"
+          onSelectCommand={(cmd) => {
+            setScanType("raw");
+            setRawCommand(cmd);
+          }}
+        />
       </div>
     </AppLayout>
   );
