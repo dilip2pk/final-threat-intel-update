@@ -104,6 +104,35 @@ export default function SettingsPage() {
   const updateDefender = (field: string, value: any) => {
     setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
   };
+  const updateNmapBackend = (field: string, value: any) => {
+    setSettings((s: any) => ({ ...s, nmapBackend: { ...s.nmapBackend, [field]: value } }));
+  };
+
+  const handleTestNmap = async () => {
+    if (nmapMode !== "local") {
+      setNmapTestResult({ success: true, message: "Cloud backend is active — no local server needed." });
+      return;
+    }
+    setTestingNmap(true);
+    setNmapTestResult(null);
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (nmapApiKey) headers["x-api-key"] = nmapApiKey;
+      const resp = await fetch(`${nmapLocalUrl.replace(/\/$/, "")}/api/health`, { headers });
+      const data = await resp.json();
+      if (data.status === "ok" && data.nmap) {
+        setNmapTestResult({ success: true, message: `Connected! ${data.version}` });
+      } else {
+        setNmapTestResult({ success: false, message: data.message || "Server reachable but Nmap not found" });
+      }
+    } catch (e: any) {
+      setNmapTestResult({ success: false, message: `Cannot reach server: ${e.message}` });
+    } finally {
+      setTestingNmap(false);
+    }
+  };
+    setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
+  };
 
   const updateSmtp = (field: string, value: string) => {
     setSettings((s) => ({ ...s, smtp: { ...s.smtp, [field]: value } }));
