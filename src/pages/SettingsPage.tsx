@@ -5,13 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
   CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock, FileText, Palette, Server,
+  ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { maskSecret } from "@/lib/settingsStore";
@@ -19,11 +21,29 @@ import { testAIConnection, testServiceNowConnection } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+
+// --- Sidebar nav items ---
+const navItems = [
+  { id: "general", label: "General", icon: Clock, description: "Fetch & alert configuration" },
+  { id: "branding", label: "Branding", icon: Palette, description: "Logo, name & identity" },
+  { id: "ai", label: "AI Integration", icon: Brain, description: "Model & provider settings" },
+  { id: "nmap", label: "Network Scanner", icon: Server, description: "Scan backend setup" },
+  { id: "email", label: "Email (SMTP)", icon: Mail, description: "Outbound email settings" },
+  { id: "servicenow", label: "ServiceDesk", icon: Ticket, description: "ServiceNow integration" },
+  { id: "shodan", label: "Shodan", icon: Globe, description: "Shodan API configuration" },
+  { id: "defender", label: "Defender", icon: Shield, description: "Microsoft Defender" },
+  { id: "notifications", label: "Notifications", icon: Bell, description: "Alerts & watchlist" },
+  { id: "template", label: "Alert Template", icon: Shield, description: "Email template customization" },
+  { id: "reports", label: "Reports", icon: FileText, description: "Report branding & sections" },
+];
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { settings, setSettings, general, setGeneral, loading, saving, saveAll } = useSettings();
   const { isAdmin, role, loading: authLoading } = useAuth();
+
+  const [activeTab, setActiveTab] = useState("general");
 
   const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [showSnowPass, setShowSnowPass] = useState(false);
@@ -44,7 +64,6 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
 
-  // Report customization state
   const [reportConfig, setReportConfig] = useState({
     orgName: "ThreatIntel",
     logoUrl: "",
@@ -54,28 +73,19 @@ export default function SettingsPage() {
     primaryColor: "#14b8a6",
     dateFormat: "MMM d, yyyy HH:mm",
     includeSections: {
-      summary: true,
-      hostDetails: true,
-      aiAnalysis: true,
-      remediation: true,
-      firewallRules: true,
-      patchRecommendations: true,
+      summary: true, hostDetails: true, aiAnalysis: true,
+      remediation: true, firewallRules: true, patchRecommendations: true,
     },
   });
   const [savingReport, setSavingReport] = useState(false);
 
-  // Watchlist notification settings
   const [watchlistNotify, setWatchlistNotify] = useState({
-    enabled: false,
-    recipients: "",
-    frequency: "daily",
-    method: "email",
+    enabled: false, recipients: "", frequency: "daily", method: "email",
   });
   const [savingWatchlistNotify, setSavingWatchlistNotify] = useState(false);
   const [testingWatchlist, setTestingWatchlist] = useState(false);
   const [watchlistTestResult, setWatchlistTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Load report customization & watchlist notification settings from DB
   useEffect(() => {
     supabase.from("app_settings").select("value").eq("key", "report_customization").single().then(({ data }) => {
       if (data?.value) setReportConfig(prev => ({ ...prev, ...(data.value as any), includeSections: { ...prev.includeSections, ...(data.value as any)?.includeSections } }));
@@ -85,16 +95,14 @@ export default function SettingsPage() {
     });
   }, []);
 
+  // --- Helpers (same logic, no changes) ---
   const saveReportConfig = async () => {
     setSavingReport(true);
     try {
       await supabase.from("app_settings").upsert({ key: "report_customization", value: reportConfig as any }, { onConflict: "key" });
       toast({ title: "Report Settings Saved" });
-    } catch (e: any) {
-      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
-    } finally {
-      setSavingReport(false);
-    }
+    } catch (e: any) { toast({ title: "Save Failed", description: e.message, variant: "destructive" }); }
+    finally { setSavingReport(false); }
   };
 
   const handleSaveWatchlistNotify = async () => {
@@ -102,30 +110,20 @@ export default function SettingsPage() {
     try {
       await supabase.from("app_settings").upsert({ key: "watchlist_notifications", value: watchlistNotify as any }, { onConflict: "key" });
       toast({ title: "Watchlist Notification Settings Saved" });
-    } catch (e: any) {
-      toast({ title: "Save Failed", description: e.message, variant: "destructive" });
-    } finally {
-      setSavingWatchlistNotify(false);
-    }
+    } catch (e: any) { toast({ title: "Save Failed", description: e.message, variant: "destructive" }); }
+    finally { setSavingWatchlistNotify(false); }
   };
 
   const handleTestWatchlistCheck = async () => {
-    setTestingWatchlist(true);
-    setWatchlistTestResult(null);
+    setTestingWatchlist(true); setWatchlistTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("watchlist-check", {
-        body: { test: true },
-      });
+      const { data, error } = await supabase.functions.invoke("watchlist-check", { body: { test: true } });
       if (error) throw new Error(error.message);
-      setWatchlistTestResult({ success: data?.success ?? true, message: data?.message || `Found ${data?.matches?.length || 0} matches across watchlist` });
-    } catch (e: any) {
-      setWatchlistTestResult({ success: false, message: e.message });
-    } finally {
-      setTestingWatchlist(false);
-    }
+      setWatchlistTestResult({ success: data?.success ?? true, message: data?.message || `Found ${data?.matches?.length || 0} matches` });
+    } catch (e: any) { setWatchlistTestResult({ success: false, message: e.message }); }
+    finally { setTestingWatchlist(false); }
   };
 
-  // Integration-specific settings stored in the integrations key
   const shodanApiKey = settings.shodan?.apiKey || "";
   const shodanEnabled = settings.shodan?.enabled ?? false;
   const defenderTenantId = settings.defender?.tenantId || "";
@@ -140,191 +138,109 @@ export default function SettingsPage() {
   const [testingNmap, setTestingNmap] = useState(false);
   const [nmapTestResult, setNmapTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const updateShodan = (field: string, value: any) => {
-    setSettings((s: any) => ({ ...s, shodan: { ...s.shodan, [field]: value } }));
+  const updateShodan = (field: string, value: any) => setSettings((s: any) => ({ ...s, shodan: { ...s.shodan, [field]: value } }));
+  const updateDefender = (field: string, value: any) => setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
+  const updateNmapBackend = (field: string, value: any) => setSettings((s: any) => ({ ...s, nmapBackend: { ...s.nmapBackend, [field]: value } }));
+  const updateSmtp = (field: string, value: string) => setSettings((s) => ({ ...s, smtp: { ...s.smtp, [field]: value } }));
+  const updateServiceNow = (field: string, value: string) => setSettings((s) => ({ ...s, serviceNow: { ...s.serviceNow, [field]: value } }));
+  const updateFieldMapping = (field: string, value: string) => setSettings((s) => ({ ...s, serviceNow: { ...s.serviceNow, fieldMapping: { ...s.serviceNow.fieldMapping, [field]: value } } }));
+  const updateAI = (field: string, value: string) => setSettings((s) => ({ ...s, ai: { ...s.ai, [field]: value } }));
+
+  const handleSave = async () => {
+    const success = await saveAll(settings, general);
+    toast({ title: success ? "Settings Saved" : "Save Failed", description: success ? "All configurations persisted" : "Could not save. Try again.", variant: success ? "default" : "destructive" });
   };
-  const updateDefender = (field: string, value: any) => {
-    setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
+
+  const handleTestAI = async () => {
+    setTestingAI(true); setAiTestResult(null);
+    try {
+      const result = await testAIConnection({ model: settings.ai.model, endpointUrl: settings.ai.endpointUrl, apiKey: settings.ai.apiKey, timeout: settings.ai.timeout, apiType: settings.ai.apiType, authHeaderType: settings.ai.authHeaderType });
+      setAiTestResult(result);
+    } catch (e: any) { setAiTestResult({ success: false, message: e.message }); }
+    finally { setTestingAI(false); }
   };
-  const updateNmapBackend = (field: string, value: any) => {
-    setSettings((s: any) => ({ ...s, nmapBackend: { ...s.nmapBackend, [field]: value } }));
+
+  const handleTestSN = async () => {
+    setTestingSN(true); setSnTestResult(null);
+    try {
+      const result = await testServiceNowConnection({ instanceUrl: settings.serviceNow.instanceUrl, username: settings.serviceNow.username, password: settings.serviceNow.password, apiKey: settings.serviceNow.apiKey, authMethod: settings.serviceNow.authMethod });
+      setSnTestResult(result);
+    } catch (e: any) { setSnTestResult({ success: false, message: e.message }); }
+    finally { setTestingSN(false); }
+  };
+
+  const handleTestShodan = async () => {
+    if (!shodanApiKey) { setShodanTestResult({ success: false, message: "API key required" }); return; }
+    setTestingShodan(true); setShodanTestResult(null);
+    try {
+      await saveAll(settings, general);
+      const { data, error } = await supabase.functions.invoke("shodan-proxy", { body: { query: "test", type: "info", apiKey: shodanApiKey } });
+      if (error) throw new Error(error.message);
+      if (data?.success === false) throw new Error(data?.error || "Connection failed");
+      setShodanTestResult({ success: true, message: "Shodan API connected & settings saved" });
+    } catch (e: any) { setShodanTestResult({ success: false, message: e.message }); }
+    finally { setTestingShodan(false); }
+  };
+
+  const handleTestDefender = async () => {
+    if (!defenderTenantId || !defenderClientId || !defenderClientSecret) { setDefenderTestResult({ success: false, message: "All fields required" }); return; }
+    setTestingDefender(true); setDefenderTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("defender-proxy", { body: { action: "test", tenantId: defenderTenantId, clientId: defenderClientId, clientSecret: defenderClientSecret } });
+      if (error) throw new Error(error.message);
+      if (data?.success === false) throw new Error(data?.error || "Connection failed");
+      setDefenderTestResult({ success: true, message: "Microsoft Defender connection successful" });
+    } catch (e: any) { setDefenderTestResult({ success: false, message: e.message }); }
+    finally { setTestingDefender(false); }
   };
 
   const handleTestNmap = async () => {
-    if (nmapMode !== "local") {
-      setNmapTestResult({ success: true, message: "Cloud backend is active — no local server needed." });
-      return;
-    }
-    setTestingNmap(true);
-    setNmapTestResult(null);
+    if (nmapMode !== "local") { setNmapTestResult({ success: true, message: "Cloud backend active — no local server needed." }); return; }
+    setTestingNmap(true); setNmapTestResult(null);
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
       if (nmapApiKey) headers["x-api-key"] = nmapApiKey;
       const resp = await fetch(`${nmapLocalUrl.replace(/\/$/, "")}/api/health`, { headers });
       const data = await resp.json();
-      if (data.status === "ok" && data.nmap) {
-        setNmapTestResult({ success: true, message: `Connected! ${data.version}` });
-      } else {
-        setNmapTestResult({ success: false, message: data.message || "Server reachable but Nmap not found" });
-      }
-    } catch (e: any) {
-      setNmapTestResult({ success: false, message: `Cannot reach server: ${e.message}` });
-    } finally {
-      setTestingNmap(false);
-    }
-  };
-
-  const updateSmtp = (field: string, value: string) => {
-    setSettings((s) => ({ ...s, smtp: { ...s.smtp, [field]: value } }));
-  };
-  const updateServiceNow = (field: string, value: string) => {
-    setSettings((s) => ({ ...s, serviceNow: { ...s.serviceNow, [field]: value } }));
-  };
-  const updateFieldMapping = (field: string, value: string) => {
-    setSettings((s) => ({
-      ...s,
-      serviceNow: {
-        ...s.serviceNow,
-        fieldMapping: { ...s.serviceNow.fieldMapping, [field]: value },
-      },
-    }));
-  };
-  const updateAI = (field: string, value: string) => {
-    setSettings((s) => ({ ...s, ai: { ...s.ai, [field]: value } }));
-  };
-
-  const handleSave = async () => {
-    const success = await saveAll(settings, general);
-    toast({
-      title: success ? "Settings Saved" : "Save Failed",
-      description: success ? "All configurations have been persisted to the database" : "Could not save settings. Please try again.",
-      variant: success ? "default" : "destructive",
-    });
-  };
-
-  const handleTestAI = async () => {
-    setTestingAI(true);
-    setAiTestResult(null);
-    try {
-      const result = await testAIConnection({
-        model: settings.ai.model,
-        endpointUrl: settings.ai.endpointUrl,
-        apiKey: settings.ai.apiKey,
-        timeout: settings.ai.timeout,
-        apiType: settings.ai.apiType,
-        authHeaderType: settings.ai.authHeaderType,
-      });
-      setAiTestResult(result);
-    } catch (e: any) {
-      setAiTestResult({ success: false, message: e.message });
-    } finally {
-      setTestingAI(false);
-    }
-  };
-
-  const handleTestSN = async () => {
-    setTestingSN(true);
-    setSnTestResult(null);
-    try {
-      const result = await testServiceNowConnection({ instanceUrl: settings.serviceNow.instanceUrl, username: settings.serviceNow.username, password: settings.serviceNow.password, apiKey: settings.serviceNow.apiKey, authMethod: settings.serviceNow.authMethod });
-      setSnTestResult(result);
-    } catch (e: any) {
-      setSnTestResult({ success: false, message: e.message });
-    } finally {
-      setTestingSN(false);
-    }
-  };
-
-  const handleTestShodan = async () => {
-    if (!shodanApiKey) {
-      setShodanTestResult({ success: false, message: "API key is required" });
-      return;
-    }
-    setTestingShodan(true);
-    setShodanTestResult(null);
-    try {
-      await saveAll(settings, general);
-      const { data, error } = await supabase.functions.invoke("shodan-proxy", {
-        body: { query: "test", type: "info", apiKey: shodanApiKey },
-      });
-      if (error) throw new Error(error.message);
-      if (data?.success === false) throw new Error(data?.error || "Connection failed");
-      setShodanTestResult({ success: true, message: "Shodan API connected & settings saved" });
-    } catch (e: any) {
-      setShodanTestResult({ success: false, message: e.message });
-    } finally {
-      setTestingShodan(false);
-    }
-  };
-
-  const handleTestDefender = async () => {
-    if (!defenderTenantId || !defenderClientId || !defenderClientSecret) {
-      setDefenderTestResult({ success: false, message: "All fields are required" });
-      return;
-    }
-    setTestingDefender(true);
-    setDefenderTestResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("defender-proxy", {
-        body: { action: "test", tenantId: defenderTenantId, clientId: defenderClientId, clientSecret: defenderClientSecret },
-      });
-      if (error) throw new Error(error.message);
-      if (data?.success === false) throw new Error(data?.error || "Connection failed");
-      setDefenderTestResult({ success: true, message: "Microsoft Defender connection successful" });
-    } catch (e: any) {
-      setDefenderTestResult({ success: false, message: e.message });
-    } finally {
-      setTestingDefender(false);
-    }
+      if (data.status === "ok" && data.nmap) setNmapTestResult({ success: true, message: `Connected! ${data.version}` });
+      else setNmapTestResult({ success: false, message: data.message || "Server reachable but Nmap not found" });
+    } catch (e: any) { setNmapTestResult({ success: false, message: `Cannot reach server: ${e.message}` }); }
+    finally { setTestingNmap(false); }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `logo.${ext}`;
+      const ext = file.name.split(".").pop(); const path = `logo.${ext}`;
       await supabase.storage.from("org-assets").remove(["logo.png", "logo.jpg", "logo.jpeg", "logo.svg", "logo.webp"]);
       const { error } = await supabase.storage.from("org-assets").upload(path, file, { upsert: true });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("org-assets").getPublicUrl(path);
       setGeneral(prev => ({ ...prev, logoUrl: urlData.publicUrl }));
-      toast({ title: "Logo Uploaded", description: "Organization logo has been updated" });
-    } catch (err: any) {
-      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
+      toast({ title: "Logo Uploaded" });
+    } catch (err: any) { toast({ title: "Upload Failed", description: err.message, variant: "destructive" }); }
+    finally { setUploading(false); }
   };
 
-  const removeLogo = () => {
-    setGeneral(prev => ({ ...prev, logoUrl: "" }));
-  };
+  const removeLogo = () => setGeneral(prev => ({ ...prev, logoUrl: "" }));
 
   const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     setUploadingIcon(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `sidebar-icon.${ext}`;
+      const ext = file.name.split(".").pop(); const path = `sidebar-icon.${ext}`;
       await supabase.storage.from("org-assets").remove(["sidebar-icon.png", "sidebar-icon.jpg", "sidebar-icon.jpeg", "sidebar-icon.svg", "sidebar-icon.webp"]);
       const { error } = await supabase.storage.from("org-assets").upload(path, file, { upsert: true });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("org-assets").getPublicUrl(path);
       setGeneral(prev => ({ ...prev, sidebarIconUrl: urlData.publicUrl }));
-      toast({ title: "Icon Uploaded", description: "Sidebar icon has been updated" });
-    } catch (err: any) {
-      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
-    } finally {
-      setUploadingIcon(false);
-    }
+      toast({ title: "Icon Uploaded" });
+    } catch (err: any) { toast({ title: "Upload Failed", description: err.message, variant: "destructive" }); }
+    finally { setUploadingIcon(false); }
   };
 
-  const removeIcon = () => {
-    setGeneral(prev => ({ ...prev, sidebarIconUrl: "" }));
-  };
+  const removeIcon = () => setGeneral(prev => ({ ...prev, sidebarIconUrl: "" }));
 
   const aiModels = [
     { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (Fast)" },
@@ -336,18 +252,52 @@ export default function SettingsPage() {
     { value: "openai/gpt-5.2", label: "GPT-5.2 (Latest)" },
   ];
 
+  // --- Reusable components ---
   const TestResultBadge = ({ result }: { result: { success: boolean; message: string } | null }) => {
     if (!result) return null;
     return (
-      <div className={`flex items-center gap-2 p-3 rounded-md border text-xs ${
-        result.success ? "bg-severity-low/10 border-severity-low/30 text-severity-low" : "bg-destructive/10 border-destructive/30 text-destructive"
-      }`}>
+      <div className={cn("flex items-center gap-2.5 p-3 rounded-lg border text-xs font-medium", result.success ? "bg-severity-low/10 border-severity-low/20 text-severity-low" : "bg-destructive/10 border-destructive/20 text-destructive")}>
         {result.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
         <span>{result.message}</span>
       </div>
     );
   };
 
+  const SectionCard = ({ title, icon: Icon, description, children, iconColor = "text-primary" }: { title: string; icon: any; description?: string; children: React.ReactNode; iconColor?: string }) => (
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-muted/20">
+        <div className="flex items-center gap-3">
+          <div className={cn("p-2 rounded-lg bg-primary/10", iconColor === "text-severity-high" && "bg-severity-high/10")}>
+            <Icon className={cn("h-4 w-4", iconColor)} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+          </div>
+        </div>
+      </div>
+      <div className="p-6 space-y-5">{children}</div>
+    </div>
+  );
+
+  const FieldGroup = ({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) => (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">{label}</Label>
+      {children}
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+    </div>
+  );
+
+  const PasswordField = ({ value, onChange, show, onToggle, placeholder }: { value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void; placeholder?: string }) => (
+    <div className="relative">
+      <Input type={show ? "text" : "password"} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="font-mono pr-10" />
+      <button type="button" onClick={onToggle} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+
+  // --- Loading / Access states ---
   if (loading || authLoading) {
     return (
       <AppLayout>
@@ -363,99 +313,63 @@ export default function SettingsPage() {
     return (
       <AppLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
-          <Lock className="h-12 w-12 text-muted-foreground" />
+          <div className="p-4 rounded-full bg-muted"><Lock className="h-8 w-8 text-muted-foreground" /></div>
           <h2 className="text-xl font-semibold text-foreground">Access Restricted</h2>
           <p className="text-sm text-muted-foreground max-w-md">
-            Settings are restricted to Admin users. Your current role: <Badge variant="secondary">{role || "user"}</Badge>
+            Settings are restricted to Admin users. Current role: <Badge variant="secondary">{role || "user"}</Badge>
           </p>
         </div>
       </AppLayout>
     );
   }
 
-  return (
-    <AppLayout>
-      <div className="p-6 max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Configure platform behavior and integrations — all changes persist to the database</p>
-        </div>
-
-        <Tabs defaultValue="general" className="space-y-4">
-          <TabsList className="bg-muted/30 border border-border flex-wrap h-auto gap-1 p-1">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="branding">Branding</TabsTrigger>
-            <TabsTrigger value="ai">AI Integration</TabsTrigger>
-            <TabsTrigger value="nmap">Network Scanner</TabsTrigger>
-            <TabsTrigger value="email">Email (SMTP)</TabsTrigger>
-            <TabsTrigger value="servicenow">ServiceDesk</TabsTrigger>
-            <TabsTrigger value="shodan">Shodan</TabsTrigger>
-            <TabsTrigger value="defender">Defender</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="template">Alert Template</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-          </TabsList>
-
-          {/* General Tab */}
-          <TabsContent value="general" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" /> Fetch Configuration
-              </h2>
+  // --- Tab content renderer ---
+  const renderContent = () => {
+    switch (activeTab) {
+      case "general":
+        return (
+          <SectionCard title="Fetch Configuration" icon={Clock} description="Control how feeds are fetched and alerts triggered.">
+            <FieldGroup label="RSS Fetch Interval" description="Cron expression — default: every 30 minutes">
+              <Input value={general.fetchInterval} onChange={e => setGeneral(g => ({ ...g, fetchInterval: e.target.value }))} className="font-mono" placeholder="*/30 * * * *" />
+            </FieldGroup>
+            <FieldGroup label="Severity Threshold for Alerts">
+              <Select value={general.severityThreshold} onValueChange={v => setGeneral(g => ({ ...g, severityThreshold: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["critical", "high", "medium", "low", "info"].map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+            <div className="flex items-center justify-between py-2">
               <div>
-                <Label>RSS Fetch Interval (cron expression)</Label>
-                <Input value={general.fetchInterval} onChange={e => setGeneral(g => ({ ...g, fetchInterval: e.target.value }))} className="mt-1 font-mono" placeholder="*/30 * * * *" />
-                <p className="text-xs text-muted-foreground mt-1">Default: every 30 minutes</p>
+                <Label className="text-sm font-medium">Duplicate Detection</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Prevent ingesting duplicate feed items</p>
               </div>
-              <div>
-                <Label>Severity Threshold for Alerts</Label>
-                <Select value={general.severityThreshold} onValueChange={v => setGeneral(g => ({ ...g, severityThreshold: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["critical", "high", "medium", "low", "info"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Duplicate Detection</Label>
-                  <p className="text-xs text-muted-foreground">Prevent ingesting duplicate feed items</p>
-                </div>
-                <Switch checked={general.duplicateDetection} onCheckedChange={v => setGeneral(g => ({ ...g, duplicateDetection: v }))} />
-              </div>
+              <Switch checked={general.duplicateDetection} onCheckedChange={v => setGeneral(g => ({ ...g, duplicateDetection: v }))} />
             </div>
-          </TabsContent>
+          </SectionCard>
+        );
 
-          {/* Branding Tab */}
-          <TabsContent value="branding" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Palette className="h-4 w-4 text-primary" /> Application Name
-              </h2>
-              <p className="text-xs text-muted-foreground">Set the name displayed across the application — sidebar, page title, and reports.</p>
-              <div>
-                <Label>App Name</Label>
-                <Input value={general.appName} onChange={e => setGeneral(g => ({ ...g, appName: e.target.value }))} className="mt-1" placeholder="ThreatIntel" />
-              </div>
-            </div>
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <ImageIcon className="h-4 w-4 text-primary" /> Organization Logo
-              </h2>
-              <p className="text-xs text-muted-foreground">Upload your organization's logo. It will appear in the sidebar and reports.</p>
+      case "branding":
+        return (
+          <div className="space-y-6">
+            <SectionCard title="Application Name" icon={Palette} description="Displayed across sidebar, page title, and reports.">
+              <FieldGroup label="App Name">
+                <Input value={general.appName} onChange={e => setGeneral(g => ({ ...g, appName: e.target.value }))} placeholder="ThreatIntel" />
+              </FieldGroup>
+            </SectionCard>
+            <SectionCard title="Organization Logo" icon={ImageIcon} description="Appears in the sidebar and generated reports.">
               <div className="flex items-center gap-6">
                 {general.logoUrl ? (
                   <div className="relative group">
-                    <div className="w-24 h-24 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden">
-                      <img src={general.logoUrl} alt="Organization logo" className="max-w-full max-h-full object-contain" />
+                    <div className="w-24 h-24 rounded-xl border border-border bg-background flex items-center justify-center overflow-hidden shadow-sm">
+                      <img src={general.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
                     </div>
-                    <button onClick={removeLogo} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <button onClick={removeLogo} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-3 w-3" /></button>
                   </div>
                 ) : (
-                  <div className="w-24 h-24 rounded-lg border-2 border-dashed border-border bg-muted/20 flex items-center justify-center">
-                    <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                  <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/20 flex items-center justify-center">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
                   </div>
                 )}
                 <div className="space-y-2">
@@ -464,28 +378,22 @@ export default function SettingsPage() {
                     {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                     {uploading ? "Uploading..." : "Upload Logo"}
                   </Button>
-                  <p className="text-[11px] text-muted-foreground">PNG, JPG, SVG or WEBP. Max 2MB.</p>
+                  <p className="text-[11px] text-muted-foreground">PNG, JPG, SVG or WEBP — max 2MB</p>
                 </div>
               </div>
-            </div>
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" /> Sidebar Icon
-              </h2>
-              <p className="text-xs text-muted-foreground">Upload a custom icon for the sidebar header. Replaces the default shield icon. Recommended: 28×28px square image.</p>
+            </SectionCard>
+            <SectionCard title="Sidebar Icon" icon={Shield} description="Custom icon for the sidebar header — recommended 28×28px.">
               <div className="flex items-center gap-6">
                 {general.sidebarIconUrl ? (
                   <div className="relative group">
-                    <div className="w-16 h-16 rounded-lg border border-border bg-background flex items-center justify-center overflow-hidden">
-                      <img src={general.sidebarIconUrl} alt="Sidebar icon" className="max-w-full max-h-full object-contain" />
+                    <div className="w-16 h-16 rounded-xl border border-border bg-background flex items-center justify-center overflow-hidden shadow-sm">
+                      <img src={general.sidebarIconUrl} alt="Icon" className="max-w-full max-h-full object-contain" />
                     </div>
-                    <button onClick={removeIcon} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <button onClick={removeIcon} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><Trash2 className="h-3 w-3" /></button>
                   </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border bg-muted/20 flex items-center justify-center">
-                    <Shield className="h-6 w-6 text-muted-foreground/40" />
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-border bg-muted/20 flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-muted-foreground/30" />
                   </div>
                 )}
                 <div className="space-y-2">
@@ -494,572 +402,326 @@ export default function SettingsPage() {
                     {uploadingIcon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                     {uploadingIcon ? "Uploading..." : "Upload Icon"}
                   </Button>
-                  <p className="text-[11px] text-muted-foreground">PNG, SVG or WEBP. Square format recommended.</p>
+                  <p className="text-[11px] text-muted-foreground">PNG, SVG or WEBP — square format</p>
                 </div>
               </div>
-            </div>
-          </TabsContent>
+            </SectionCard>
+          </div>
+        );
 
-          {/* AI Integration Tab */}
-          <TabsContent value="ai" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Brain className="h-4 w-4 text-primary" /> AI Model Configuration
-              </h2>
-              <div>
-                <Label>AI Provider</Label>
+      case "ai":
+        return (
+          <div className="space-y-6">
+            <SectionCard title="AI Model Configuration" icon={Brain} description="Configure the AI provider used for threat analysis.">
+              <FieldGroup label="AI Provider" description={
+                settings.ai.apiType === "intelligence-studio" ? "Using Aptean Intelligence Studio API" :
+                settings.ai.apiType === "openai-compatible" ? "Using custom OpenAI-compatible endpoint" :
+                "Built-in AI — no API key needed"
+              }>
                 <Select value={settings.ai.apiType || "builtin"} onValueChange={(v) => {
-                  if (v === "builtin") {
-                    updateAI("endpointUrl", "");
-                    updateAI("apiKey", "");
-                    updateAI("model", "google/gemini-3-flash-preview");
-                    updateAI("apiType", "builtin");
-                    updateAI("authHeaderType", "bearer");
-                  } else if (v === "intelligence-studio") {
-                    updateAI("apiType", "intelligence-studio");
-                    updateAI("authHeaderType", "x-api-key");
-                    updateAI("endpointUrl", " ");
-                  } else {
-                    updateAI("apiType", "openai-compatible");
-                    updateAI("authHeaderType", "bearer");
-                    updateAI("endpointUrl", " ");
-                  }
+                  if (v === "builtin") { updateAI("endpointUrl", ""); updateAI("apiKey", ""); updateAI("model", "google/gemini-3-flash-preview"); updateAI("apiType", "builtin"); updateAI("authHeaderType", "bearer"); }
+                  else if (v === "intelligence-studio") { updateAI("apiType", "intelligence-studio"); updateAI("authHeaderType", "x-api-key"); updateAI("endpointUrl", " "); }
+                  else { updateAI("apiType", "openai-compatible"); updateAI("authHeaderType", "bearer"); updateAI("endpointUrl", " "); }
                 }}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="builtin">Built-in AI (Lovable Gateway)</SelectItem>
                     <SelectItem value="openai-compatible">Custom / Self-Hosted (OpenAI-compatible)</SelectItem>
                     <SelectItem value="intelligence-studio">Intelligence Studio (Aptean)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {settings.ai.apiType === "intelligence-studio" ? "Using Aptean Intelligence Studio API" : settings.ai.apiType === "openai-compatible" ? "Using custom OpenAI-compatible endpoint — configure below" : "Using built-in AI service, no API key needed"}
-                </p>
-              </div>
-              <div>
-                <Label>AI Model</Label>
+              </FieldGroup>
+              <FieldGroup label="AI Model">
                 {settings.ai.apiType !== "builtin" ? (
-                  <>
-                    <Input value={settings.ai.model} onChange={(e) => updateAI("model", e.target.value)} className="mt-1 font-mono" placeholder={settings.ai.apiType === "intelligence-studio" ? "Flow ID or model name" : "gpt-4o, llama3, mistral, etc."} />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {settings.ai.apiType === "intelligence-studio" ? "The flow/model identifier used by Intelligence Studio" : "Type any model name supported by your endpoint"}
-                    </p>
-                  </>
+                  <Input value={settings.ai.model} onChange={(e) => updateAI("model", e.target.value)} className="font-mono" placeholder={settings.ai.apiType === "intelligence-studio" ? "Flow ID or model name" : "gpt-4o, llama3, etc."} />
                 ) : (
                   <Select value={settings.ai.model} onValueChange={(v) => updateAI("model", v)}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {aiModels.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                    </SelectContent>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{aiModels.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                   </Select>
                 )}
+              </FieldGroup>
+              <div className="grid md:grid-cols-3 gap-4">
+                <FieldGroup label="Max Tokens"><Input value={settings.ai.maxTokens} onChange={(e) => updateAI("maxTokens", e.target.value)} className="font-mono" /></FieldGroup>
+                <FieldGroup label="Temperature"><Input value={settings.ai.temperature} onChange={(e) => updateAI("temperature", e.target.value)} className="font-mono" /></FieldGroup>
+                <FieldGroup label="Timeout (s)"><Input value={settings.ai.timeout} onChange={(e) => updateAI("timeout", e.target.value)} className="font-mono" /></FieldGroup>
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Max Tokens</Label>
-                  <Input value={settings.ai.maxTokens} onChange={(e) => updateAI("maxTokens", e.target.value)} className="mt-1 font-mono" />
-                </div>
-                <div>
-                  <Label>Temperature</Label>
-                  <Input value={settings.ai.temperature} onChange={(e) => updateAI("temperature", e.target.value)} className="mt-1 font-mono" />
-                </div>
-              </div>
-              <div>
-                <Label>Timeout (seconds)</Label>
-                <Input value={settings.ai.timeout} onChange={(e) => updateAI("timeout", e.target.value)} className="mt-1 font-mono" />
-              </div>
-            </div>
+            </SectionCard>
 
-            {/* Custom Endpoint Config — shown when non-builtin provider selected */}
             {settings.ai.apiType !== "builtin" && (
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Key className="h-4 w-4 text-primary" />
-                {settings.ai.apiType === "intelligence-studio" ? "Intelligence Studio Configuration" : "Custom Endpoint Configuration"}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {settings.ai.apiType === "intelligence-studio"
-                  ? "Configure your Aptean Intelligence Studio endpoint. Uses x-api-key authentication."
-                  : "Configure your self-hosted or third-party OpenAI-compatible endpoint."}
-              </p>
-              <div>
-                <Label>Endpoint URL</Label>
-                <Input value={settings.ai.endpointUrl?.trim() || ""} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="mt-1 font-mono" placeholder={settings.ai.apiType === "intelligence-studio" ? "https://appcentral-int.aptean.com/ais/api/v1/run/<flow-id>" : "http://localhost:11434/v1/chat/completions"} />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {settings.ai.apiType === "intelligence-studio"
-                    ? "Full Intelligence Studio API URL including the flow/run ID"
-                    : "Supports OpenAI-compatible APIs: Ollama, LM Studio, vLLM, LocalAI, Azure OpenAI, etc."}
-                </p>
-              </div>
-              <div>
-                <Label>Authentication Header</Label>
-                <Select value={settings.ai.authHeaderType || "bearer"} onValueChange={(v) => updateAI("authHeaderType", v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bearer">Authorization: Bearer (standard)</SelectItem>
-                    <SelectItem value="x-api-key">x-api-key (Intelligence Studio)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>API Key <span className="text-muted-foreground font-normal">(optional for local endpoints)</span></Label>
-                <div className="relative mt-1">
-                  <Input type={showAIKey ? "text" : "password"} value={settings.ai.apiKey} onChange={(e) => updateAI("apiKey", e.target.value)} placeholder={settings.ai.apiType === "intelligence-studio" ? "sk-..." : "sk-... or leave blank for local"} className="font-mono" />
-                  <button type="button" onClick={() => setShowAIKey(!showAIKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {settings.ai.apiKey && !showAIKey && <p className="text-xs text-muted-foreground mt-1 font-mono">{maskSecret(settings.ai.apiKey)}</p>}
-              </div>
-              <div className="flex items-center gap-3">
+              <SectionCard title={settings.ai.apiType === "intelligence-studio" ? "Intelligence Studio Configuration" : "Custom Endpoint"} icon={Key} description="Endpoint URL and authentication credentials.">
+                <FieldGroup label="Endpoint URL" description={settings.ai.apiType === "intelligence-studio" ? "Full Intelligence Studio API URL including the flow/run ID" : "Supports Ollama, LM Studio, vLLM, Azure OpenAI, etc."}>
+                  <Input value={settings.ai.endpointUrl?.trim() || ""} onChange={(e) => updateAI("endpointUrl", e.target.value)} className="font-mono" placeholder={settings.ai.apiType === "intelligence-studio" ? "https://appcentral-int.aptean.com/ais/api/v1/run/<flow-id>" : "http://localhost:11434/v1/chat/completions"} />
+                </FieldGroup>
+                <FieldGroup label="Authentication Header">
+                  <Select value={settings.ai.authHeaderType || "bearer"} onValueChange={(v) => updateAI("authHeaderType", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bearer">Authorization: Bearer (standard)</SelectItem>
+                      <SelectItem value="x-api-key">x-api-key (Intelligence Studio)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+                <FieldGroup label="API Key" description={settings.ai.apiKey && !showAIKey ? maskSecret(settings.ai.apiKey) : undefined}>
+                  <PasswordField value={settings.ai.apiKey} onChange={v => updateAI("apiKey", v)} show={showAIKey} onToggle={() => setShowAIKey(!showAIKey)} placeholder="sk-..." />
+                </FieldGroup>
                 <Button variant="outline" size="sm" onClick={handleTestAI} disabled={testingAI} className="gap-2">
                   {testingAI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
                 </Button>
-              </div>
-              <TestResultBadge result={aiTestResult} />
-            </div>
+                <TestResultBadge result={aiTestResult} />
+              </SectionCard>
             )}
-          </TabsContent>
+          </div>
+        );
 
-          {/* Email (SMTP) Tab */}
-          <TabsContent value="email" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary" /> SMTP Configuration
-              </h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>SMTP Host</Label>
-                  <Input value={settings.smtp.host} onChange={(e) => updateSmtp("host", e.target.value)} className="mt-1 font-mono" placeholder="smtp.gmail.com" />
-                </div>
-                <div>
-                  <Label>Port</Label>
-                  <Input value={settings.smtp.port} onChange={(e) => updateSmtp("port", e.target.value)} className="mt-1 font-mono" placeholder="587" />
-                </div>
-              </div>
-              <div>
-                <Label>Username</Label>
-                <Input value={settings.smtp.username} onChange={(e) => updateSmtp("username", e.target.value)} className="mt-1" placeholder="your-email@example.com" />
-              </div>
-              <div>
-                <Label>Password</Label>
-                <div className="relative mt-1">
-                  <Input type={showSmtpPass ? "text" : "password"} value={settings.smtp.password} onChange={(e) => updateSmtp("password", e.target.value)} placeholder="App password" />
-                  <button type="button" onClick={() => setShowSmtpPass(!showSmtpPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showSmtpPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <Label>From Address</Label>
-                <Input value={settings.smtp.from} onChange={(e) => updateSmtp("from", e.target.value)} className="mt-1" placeholder="threatintel@yourcompany.com" />
-              </div>
+      case "nmap":
+        return (
+          <SectionCard title="Scan Backend" icon={Server} description="Choose between cloud TCP scanner or local Nmap server.">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { mode: "cloud", emoji: "☁️", title: "Cloud Backend", desc: "Simulated TCP-connect scanning. No local setup." },
+                { mode: "local", emoji: "🖥️", title: "Local Nmap Server", desc: "Real Nmap with OS detection, version scanning & NSE scripts." },
+              ].map(opt => (
+                <button key={opt.mode} onClick={() => updateNmapBackend("mode", opt.mode)}
+                  className={cn("border rounded-xl p-4 text-left transition-all", nmapMode === opt.mode ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/50")}>
+                  <p className="text-sm font-semibold text-foreground">{opt.emoji} {opt.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{opt.desc}</p>
+                </button>
+              ))}
             </div>
-          </TabsContent>
-
-          {/* ServiceDesk Tab */}
-          <TabsContent value="servicenow" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-primary" /> ServiceNow Connection
-              </h2>
-              <div>
-                <Label>Instance URL</Label>
-                <Input value={settings.serviceNow.instanceUrl} onChange={(e) => updateServiceNow("instanceUrl", e.target.value)} className="mt-1 font-mono" placeholder="https://yourinstance.service-now.com" />
+            {nmapMode === "local" && (
+              <div className="space-y-4 border-t border-border pt-5">
+                <FieldGroup label="Server URL" description="URL of your local Nmap backend server">
+                  <Input value={nmapLocalUrl} onChange={e => updateNmapBackend("localUrl", e.target.value)} className="font-mono" placeholder="http://localhost:3001" />
+                </FieldGroup>
+                <FieldGroup label="API Key (optional)">
+                  <div className="flex gap-2">
+                    <PasswordField value={nmapApiKey} onChange={v => updateNmapBackend("apiKey", v)} show={showNmapKey} onToggle={() => setShowNmapKey(!showNmapKey)} placeholder="Leave empty if not configured" />
+                  </div>
+                </FieldGroup>
+                <div className="border border-dashed border-border rounded-xl p-4 bg-muted/10">
+                  <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">📋 Setup Instructions</h4>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Install Node.js 18+ and Nmap on your machine</li>
+                    <li>Navigate to <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">local-nmap-server/</code></li>
+                    <li>Run <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">npm install</code></li>
+                    <li>Start with <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">sudo node server.js</code></li>
+                    <li>Optionally set <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">NMAP_API_KEY=your-key</code></li>
+                  </ol>
+                </div>
+                <Button onClick={handleTestNmap} disabled={testingNmap} variant="outline" className="gap-2">
+                  {testingNmap ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Test Connection
+                </Button>
+                <TestResultBadge result={nmapTestResult} />
               </div>
-              <div>
-                <Label>Authentication Method</Label>
+            )}
+          </SectionCard>
+        );
+
+      case "email":
+        return (
+          <SectionCard title="SMTP Configuration" icon={Mail} description="Outbound email settings for alerts and reports.">
+            <div className="grid md:grid-cols-2 gap-4">
+              <FieldGroup label="SMTP Host"><Input value={settings.smtp.host} onChange={(e) => updateSmtp("host", e.target.value)} className="font-mono" placeholder="smtp.gmail.com" /></FieldGroup>
+              <FieldGroup label="Port"><Input value={settings.smtp.port} onChange={(e) => updateSmtp("port", e.target.value)} className="font-mono" placeholder="587" /></FieldGroup>
+            </div>
+            <FieldGroup label="Username"><Input value={settings.smtp.username} onChange={(e) => updateSmtp("username", e.target.value)} placeholder="your-email@example.com" /></FieldGroup>
+            <FieldGroup label="Password">
+              <PasswordField value={settings.smtp.password} onChange={v => updateSmtp("password", v)} show={showSmtpPass} onToggle={() => setShowSmtpPass(!showSmtpPass)} placeholder="App password" />
+            </FieldGroup>
+            <FieldGroup label="From Address"><Input value={settings.smtp.from} onChange={(e) => updateSmtp("from", e.target.value)} placeholder="threatintel@yourcompany.com" /></FieldGroup>
+          </SectionCard>
+        );
+
+      case "servicenow":
+        return (
+          <div className="space-y-6">
+            <SectionCard title="ServiceNow Connection" icon={Ticket} description="Configure ServiceNow instance for ticket creation.">
+              <FieldGroup label="Instance URL"><Input value={settings.serviceNow.instanceUrl} onChange={(e) => updateServiceNow("instanceUrl", e.target.value)} className="font-mono" placeholder="https://yourinstance.service-now.com" /></FieldGroup>
+              <FieldGroup label="Authentication Method">
                 <Select value={settings.serviceNow.authMethod} onValueChange={(v) => updateServiceNow("authMethod", v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="basic">Basic Auth (Username/Password)</SelectItem>
                     <SelectItem value="bearer">Bearer Token (API Key)</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </FieldGroup>
               {settings.serviceNow.authMethod === "basic" && (
                 <>
-                  <div>
-                    <Label>Username</Label>
-                    <Input value={settings.serviceNow.username} onChange={(e) => updateServiceNow("username", e.target.value)} className="mt-1" placeholder="admin" />
-                  </div>
-                  <div>
-                    <Label>Password</Label>
-                    <div className="relative mt-1">
-                      <Input type={showSnowPass ? "text" : "password"} value={settings.serviceNow.password} onChange={(e) => updateServiceNow("password", e.target.value)} placeholder="ServiceNow password" />
-                      <button type="button" onClick={() => setShowSnowPass(!showSnowPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        {showSnowPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
+                  <FieldGroup label="Username"><Input value={settings.serviceNow.username} onChange={(e) => updateServiceNow("username", e.target.value)} placeholder="admin" /></FieldGroup>
+                  <FieldGroup label="Password">
+                    <PasswordField value={settings.serviceNow.password} onChange={v => updateServiceNow("password", v)} show={showSnowPass} onToggle={() => setShowSnowPass(!showSnowPass)} placeholder="ServiceNow password" />
+                  </FieldGroup>
                 </>
               )}
               {settings.serviceNow.authMethod === "bearer" && (
-                <div>
-                  <Label>API Key / Bearer Token</Label>
-                  <div className="relative mt-1">
-                    <Input type={showSnowKey ? "text" : "password"} value={settings.serviceNow.apiKey} onChange={(e) => updateServiceNow("apiKey", e.target.value)} placeholder="Bearer token" className="font-mono" />
-                    <button type="button" onClick={() => setShowSnowKey(!showSnowKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      {showSnowKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {settings.serviceNow.apiKey && !showSnowKey && <p className="text-xs text-muted-foreground mt-1 font-mono">{maskSecret(settings.serviceNow.apiKey)}</p>}
-                </div>
+                <FieldGroup label="API Key / Bearer Token" description={settings.serviceNow.apiKey && !showSnowKey ? maskSecret(settings.serviceNow.apiKey) : undefined}>
+                  <PasswordField value={settings.serviceNow.apiKey} onChange={v => updateServiceNow("apiKey", v)} show={showSnowKey} onToggle={() => setShowSnowKey(!showSnowKey)} placeholder="Bearer token" />
+                </FieldGroup>
               )}
-              <div>
-                <Label>Table Name</Label>
-                <Input value={settings.serviceNow.tableName} onChange={(e) => updateServiceNow("tableName", e.target.value)} className="mt-1 font-mono" placeholder="incident" />
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={handleTestSN} disabled={testingSN} className="gap-2">
-                  {testingSN ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
-                </Button>
-              </div>
+              <FieldGroup label="Table Name"><Input value={settings.serviceNow.tableName} onChange={(e) => updateServiceNow("tableName", e.target.value)} className="font-mono" placeholder="incident" /></FieldGroup>
+              <Button variant="outline" size="sm" onClick={handleTestSN} disabled={testingSN} className="gap-2">
+                {testingSN ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
+              </Button>
               <TestResultBadge result={snTestResult} />
-            </div>
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <ArrowRightLeft className="h-4 w-4 text-primary" /> Field Mapping
-              </h2>
+            </SectionCard>
+            <SectionCard title="Field Mapping" icon={ArrowRightLeft} description="Map ThreatIntel fields to ServiceNow fields.">
               <div className="grid md:grid-cols-2 gap-4">
                 {(["title", "description", "priority", "category"] as const).map(field => (
-                  <div key={field}>
-                    <Label className="capitalize">{field} → Field</Label>
-                    <Input value={settings.serviceNow.fieldMapping[field]} onChange={(e) => updateFieldMapping(field, e.target.value)} className="mt-1 font-mono" />
-                  </div>
+                  <FieldGroup key={field} label={`${field.charAt(0).toUpperCase() + field.slice(1)} → Field`}>
+                    <Input value={settings.serviceNow.fieldMapping[field]} onChange={(e) => updateFieldMapping(field, e.target.value)} className="font-mono" />
+                  </FieldGroup>
                 ))}
               </div>
-            </div>
-          </TabsContent>
+            </SectionCard>
+          </div>
+        );
 
-          {/* Shodan Tab */}
-          <TabsContent value="shodan" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-primary" /> Shodan API Configuration
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">Enabled</Label>
-                  <Switch checked={shodanEnabled} onCheckedChange={v => updateShodan("enabled", v)} />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Get your API key from <a href="https://account.shodan.io" target="_blank" rel="noopener noreferrer" className="text-primary underline">account.shodan.io</a>.
-              </p>
-              <div>
-                <Label>API Key</Label>
-                <div className="relative mt-1">
-                  <Input
-                    type={showShodanKey ? "text" : "password"}
-                    value={shodanApiKey}
-                    onChange={(e) => updateShodan("apiKey", e.target.value)}
-                    placeholder="Enter your Shodan API key"
-                    className="font-mono"
-                  />
-                  <button type="button" onClick={() => setShowShodanKey(!showShodanKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showShodanKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {shodanApiKey && !showShodanKey && <p className="text-xs text-muted-foreground mt-1 font-mono">{maskSecret(shodanApiKey)}</p>}
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={handleTestShodan} disabled={testingShodan || !shodanApiKey} className="gap-2">
-                  {testingShodan ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
-                </Button>
-              </div>
-              <TestResultBadge result={shodanTestResult} />
+      case "shodan":
+        return (
+          <SectionCard title="Shodan API Configuration" icon={Globe} description="External attack surface intelligence via Shodan.">
+            <div className="flex items-center justify-between py-1">
+              <Label className="text-sm font-medium">Enable Shodan Integration</Label>
+              <Switch checked={shodanEnabled} onCheckedChange={v => updateShodan("enabled", v)} />
             </div>
-          </TabsContent>
+            <p className="text-xs text-muted-foreground">
+              Get your API key from <a href="https://account.shodan.io" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">account.shodan.io</a>
+            </p>
+            <FieldGroup label="API Key" description={shodanApiKey && !showShodanKey ? maskSecret(shodanApiKey) : undefined}>
+              <PasswordField value={shodanApiKey} onChange={v => updateShodan("apiKey", v)} show={showShodanKey} onToggle={() => setShowShodanKey(!showShodanKey)} placeholder="Enter your Shodan API key" />
+            </FieldGroup>
+            <Button variant="outline" size="sm" onClick={handleTestShodan} disabled={testingShodan || !shodanApiKey} className="gap-2">
+              {testingShodan ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
+            </Button>
+            <TestResultBadge result={shodanTestResult} />
+          </SectionCard>
+        );
 
-          {/* Defender Tab */}
-          <TabsContent value="defender" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" /> Microsoft Defender Configuration
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">Enabled</Label>
-                  <Switch checked={defenderEnabled} onCheckedChange={v => updateDefender("enabled", v)} />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Requires Azure AD App Registration with Microsoft Defender for Endpoint permissions.
-              </p>
-              <div>
-                <Label>Tenant ID</Label>
-                <Input value={defenderTenantId} onChange={(e) => updateDefender("tenantId", e.target.value)} className="mt-1 font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-              </div>
-              <div>
-                <Label>Client ID (Application ID)</Label>
-                <Input value={defenderClientId} onChange={(e) => updateDefender("clientId", e.target.value)} className="mt-1 font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-              </div>
-              <div>
-                <Label>Client Secret</Label>
-                <div className="relative mt-1">
-                  <Input
-                    type={showDefenderSecret ? "text" : "password"}
-                    value={defenderClientSecret}
-                    onChange={(e) => updateDefender("clientSecret", e.target.value)}
-                    placeholder="Client secret value"
-                    className="font-mono"
-                  />
-                  <button type="button" onClick={() => setShowDefenderSecret(!showDefenderSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showDefenderSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {defenderClientSecret && !showDefenderSecret && <p className="text-xs text-muted-foreground mt-1 font-mono">{maskSecret(defenderClientSecret)}</p>}
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={handleTestDefender} disabled={testingDefender || !defenderTenantId || !defenderClientId || !defenderClientSecret} className="gap-2">
-                  {testingDefender ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
-                </Button>
-              </div>
-              <TestResultBadge result={defenderTestResult} />
+      case "defender":
+        return (
+          <SectionCard title="Microsoft Defender Configuration" icon={Shield} description="Azure AD App Registration with Defender for Endpoint permissions.">
+            <div className="flex items-center justify-between py-1">
+              <Label className="text-sm font-medium">Enable Defender Integration</Label>
+              <Switch checked={defenderEnabled} onCheckedChange={v => updateDefender("enabled", v)} />
             </div>
-          </TabsContent>
+            <FieldGroup label="Tenant ID"><Input value={defenderTenantId} onChange={(e) => updateDefender("tenantId", e.target.value)} className="font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" /></FieldGroup>
+            <FieldGroup label="Client ID (Application ID)"><Input value={defenderClientId} onChange={(e) => updateDefender("clientId", e.target.value)} className="font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" /></FieldGroup>
+            <FieldGroup label="Client Secret" description={defenderClientSecret && !showDefenderSecret ? maskSecret(defenderClientSecret) : undefined}>
+              <PasswordField value={defenderClientSecret} onChange={v => updateDefender("clientSecret", v)} show={showDefenderSecret} onToggle={() => setShowDefenderSecret(!showDefenderSecret)} placeholder="Client secret value" />
+            </FieldGroup>
+            <Button variant="outline" size="sm" onClick={handleTestDefender} disabled={testingDefender || !defenderTenantId || !defenderClientId || !defenderClientSecret} className="gap-2">
+              {testingDefender ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />} Test Connection
+            </Button>
+            <TestResultBadge result={defenderTestResult} />
+          </SectionCard>
+        );
 
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Bell className="h-4 w-4 text-primary" /> Notification Provider
-              </h2>
-              <div>
-                <Label>Provider</Label>
+      case "notifications":
+        return (
+          <div className="space-y-6">
+            <SectionCard title="Notification Provider" icon={Bell} description="Configure how alerts are delivered.">
+              <FieldGroup label="Provider">
                 <Select value={general.notifyProvider} onValueChange={v => setGeneral(g => ({ ...g, notifyProvider: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["slack", "email", "webhook", "telegram", "discord"].map(p => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label>Webhook / API URL</Label>
-                <Input value={general.webhookUrl} onChange={e => setGeneral(g => ({ ...g, webhookUrl: e.target.value }))} className="mt-1 font-mono" placeholder="https://hooks.slack.com/services/..." />
-              </div>
-              <div className="flex items-center justify-between">
+              </FieldGroup>
+              <FieldGroup label="Webhook / API URL"><Input value={general.webhookUrl} onChange={e => setGeneral(g => ({ ...g, webhookUrl: e.target.value }))} className="font-mono" placeholder="https://hooks.slack.com/services/..." /></FieldGroup>
+              <div className="flex items-center justify-between py-2">
                 <div>
-                  <Label>Email Notifications</Label>
-                  <p className="text-xs text-muted-foreground">Send alerts to configured email</p>
+                  <Label className="text-sm font-medium">Email Notifications</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Send alerts to configured email</p>
                 </div>
                 <Switch checked={general.emailEnabled} onCheckedChange={v => setGeneral(g => ({ ...g, emailEnabled: v }))} />
               </div>
-            </div>
+            </SectionCard>
 
-            {/* RansomLook Watchlist Notifications */}
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Eye className="h-4 w-4 text-severity-high" /> RansomLook Watchlist Notifications
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                When organizations on the watchlist are detected in new ransomware leak posts, send notifications via the configured method.
-              </p>
-              <div className="flex items-center justify-between">
+            <SectionCard title="RansomLook Watchlist Notifications" icon={Eye} iconColor="text-severity-high" description="Get alerted when watched organizations appear in ransomware leak data.">
+              <div className="flex items-center justify-between py-2">
                 <div>
-                  <Label>Enable Watchlist Alerts</Label>
-                  <p className="text-xs text-muted-foreground">Automatically check new leaks against your watchlist</p>
+                  <Label className="text-sm font-medium">Enable Watchlist Alerts</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Automatically check new leaks against your watchlist</p>
                 </div>
-                <Switch
-                  checked={watchlistNotify.enabled}
-                  onCheckedChange={v => setWatchlistNotify(c => ({ ...c, enabled: v }))}
-                />
+                <Switch checked={watchlistNotify.enabled} onCheckedChange={v => setWatchlistNotify(c => ({ ...c, enabled: v }))} />
               </div>
-              <div>
-                <Label>Notification Recipients (email)</Label>
-                <Input
-                  value={watchlistNotify.recipients}
-                  onChange={e => setWatchlistNotify(c => ({ ...c, recipients: e.target.value }))}
-                  className="mt-1 font-mono text-sm"
-                  placeholder="user@company.com, soc@company.com"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Comma-separated list of email addresses</p>
-              </div>
-              <div>
-                <Label>Check Frequency</Label>
-                <Select value={watchlistNotify.frequency} onValueChange={v => setWatchlistNotify(c => ({ ...c, frequency: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="realtime">Real-time (every new check)</SelectItem>
-                    <SelectItem value="hourly">Hourly Digest</SelectItem>
-                    <SelectItem value="daily">Daily Digest</SelectItem>
-                    <SelectItem value="weekly">Weekly Digest</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Notification Method</Label>
-                <Select value={watchlistNotify.method} onValueChange={v => setWatchlistNotify(c => ({ ...c, method: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="email">Email (via SMTP)</SelectItem>
-                    <SelectItem value="webhook">Webhook</SelectItem>
-                    <SelectItem value="slack">Slack</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={handleSaveWatchlistNotify} disabled={savingWatchlistNotify} className="gap-2">
-                {savingWatchlistNotify ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {savingWatchlistNotify ? "Saving..." : "Save Watchlist Settings"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleTestWatchlistCheck}
-                disabled={testingWatchlist}
-                className="gap-2 ml-2"
-              >
-                {testingWatchlist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                Test Watchlist Check Now
-              </Button>
-              {watchlistTestResult && (
-                <div className={`mt-2 flex items-center gap-2 text-xs ${watchlistTestResult.success ? "text-severity-low" : "text-severity-high"}`}>
-                  {watchlistTestResult.success ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                  {watchlistTestResult.message}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Alert Template Tab */}
-          <TabsContent value="template" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" /> Alert Template
-              </h2>
-              <div>
-                <Label>Template (supports variables)</Label>
-                <Textarea value={general.alertTemplate} onChange={e => setGeneral(g => ({ ...g, alertTemplate: e.target.value }))} className="mt-1 font-mono text-xs min-h-[150px]" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Variables: {"{{title}}"}, {"{{severity}}"}, {"{{source}}"}, {"{{date}}"}, {"{{description}}"}, {"{{link}}"}
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Network Scanner Backend Tab */}
-          <TabsContent value="nmap" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Server className="h-4 w-4 text-primary" /> Scan Backend
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Choose between the cloud-based TCP scanner or a local Nmap server for real network scanning with OS detection, service fingerprinting, and NSE scripts.
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => updateNmapBackend("mode", "cloud")}
-                  className={`border rounded-lg p-4 text-left transition-colors ${nmapMode === "cloud" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-                >
-                  <p className="text-sm font-semibold text-foreground">☁️ Cloud Backend</p>
-                  <p className="text-xs text-muted-foreground mt-1">Simulated TCP-connect scanning via backend functions. No local setup required.</p>
-                </button>
-                <button
-                  onClick={() => updateNmapBackend("mode", "local")}
-                  className={`border rounded-lg p-4 text-left transition-colors ${nmapMode === "local" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-                >
-                  <p className="text-sm font-semibold text-foreground">🖥️ Local Nmap Server</p>
-                  <p className="text-xs text-muted-foreground mt-1">Real Nmap execution with OS detection, version scanning, and NSE vulnerability scripts.</p>
-                </button>
-              </div>
-
-              {nmapMode === "local" && (
-                <div className="space-y-4 border-t border-border pt-4">
-                  <div>
-                    <Label>Server URL</Label>
-                    <Input
-                      value={nmapLocalUrl}
-                      onChange={e => updateNmapBackend("localUrl", e.target.value)}
-                      className="mt-1 font-mono"
-                      placeholder="http://localhost:3001"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">URL of your local Nmap backend server</p>
-                  </div>
-                  <div>
-                    <Label>API Key (optional)</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        type={showNmapKey ? "text" : "password"}
-                        value={nmapApiKey}
-                        onChange={e => updateNmapBackend("apiKey", e.target.value)}
-                        className="font-mono"
-                        placeholder="Leave empty if not configured"
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => setShowNmapKey(!showNmapKey)}>
-                        {showNmapKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="border border-dashed border-border rounded-lg p-4 bg-muted/20">
-                    <h3 className="text-xs font-semibold text-foreground mb-2">📋 Setup Instructions</h3>
-                    <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Install Node.js 18+ and Nmap on your machine</li>
-                      <li>Navigate to <code className="bg-muted px-1 rounded">local-nmap-server/</code> in the project</li>
-                      <li>Run <code className="bg-muted px-1 rounded">npm install</code></li>
-                      <li>Start with <code className="bg-muted px-1 rounded">sudo node server.js</code> (root needed for OS detection)</li>
-                      <li>Optionally set <code className="bg-muted px-1 rounded">NMAP_API_KEY=your-key</code> environment variable</li>
-                    </ol>
-                  </div>
-
-                  <Button onClick={handleTestNmap} disabled={testingNmap} variant="outline" className="gap-2">
-                    {testingNmap ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                    Test Connection
-                  </Button>
-                  {nmapTestResult && <TestResultBadge result={nmapTestResult} />}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Report Customization Tab */}
-          <TabsContent value="reports" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" /> Report Branding
-              </h2>
+              <FieldGroup label="Notification Recipients" description="Comma-separated email addresses">
+                <Input value={watchlistNotify.recipients} onChange={e => setWatchlistNotify(c => ({ ...c, recipients: e.target.value }))} className="font-mono text-sm" placeholder="user@company.com, soc@company.com" />
+              </FieldGroup>
               <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Organization Name</Label>
-                  <Input value={reportConfig.orgName} onChange={e => setReportConfig(c => ({ ...c, orgName: e.target.value }))} className="mt-1" placeholder="Your Organization" />
-                </div>
-                <div>
-                  <Label>Report Title</Label>
-                  <Input value={reportConfig.reportTitle} onChange={e => setReportConfig(c => ({ ...c, reportTitle: e.target.value }))} className="mt-1" placeholder="Security Scan Report" />
-                </div>
+                <FieldGroup label="Check Frequency">
+                  <Select value={watchlistNotify.frequency} onValueChange={v => setWatchlistNotify(c => ({ ...c, frequency: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="realtime">Real-time</SelectItem>
+                      <SelectItem value="hourly">Hourly Digest</SelectItem>
+                      <SelectItem value="daily">Daily Digest</SelectItem>
+                      <SelectItem value="weekly">Weekly Digest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+                <FieldGroup label="Notification Method">
+                  <Select value={watchlistNotify.method} onValueChange={v => setWatchlistNotify(c => ({ ...c, method: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="email">Email (via SMTP)</SelectItem>
+                      <SelectItem value="webhook">Webhook</SelectItem>
+                      <SelectItem value="slack">Slack</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
               </div>
-              <div>
-                <Label>Header Text (optional)</Label>
-                <Input value={reportConfig.headerText} onChange={e => setReportConfig(c => ({ ...c, headerText: e.target.value }))} className="mt-1" placeholder="Internal Use Only" />
+              <div className="flex items-center gap-3 pt-1">
+                <Button onClick={handleSaveWatchlistNotify} disabled={savingWatchlistNotify} size="sm" className="gap-2">
+                  {savingWatchlistNotify ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Save Watchlist Settings
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleTestWatchlistCheck} disabled={testingWatchlist} className="gap-2">
+                  {testingWatchlist ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  Test Now
+                </Button>
               </div>
-              <div>
-                <Label>Footer / Disclaimer</Label>
-                <Textarea value={reportConfig.footerText} onChange={e => setReportConfig(c => ({ ...c, footerText: e.target.value }))} className="mt-1 text-sm" rows={2} />
-              </div>
-              <div>
-                <Label>Logo URL</Label>
-                <Input value={reportConfig.logoUrl} onChange={e => setReportConfig(c => ({ ...c, logoUrl: e.target.value }))} className="mt-1 font-mono text-sm" placeholder="https://... (or use the one from Branding tab)" />
-                <p className="text-xs text-muted-foreground mt-1">Leave empty to use the organization logo from the Branding tab.</p>
-              </div>
-            </div>
+              <TestResultBadge result={watchlistTestResult} />
+            </SectionCard>
+          </div>
+        );
 
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Palette className="h-4 w-4 text-primary" /> Appearance
-              </h2>
+      case "template":
+        return (
+          <SectionCard title="Alert Template" icon={Shield} description="Customize the alert email template with variables.">
+            <FieldGroup label="Template" description='Variables: {{title}}, {{severity}}, {{source}}, {{date}}, {{description}}, {{link}}'>
+              <Textarea value={general.alertTemplate} onChange={e => setGeneral(g => ({ ...g, alertTemplate: e.target.value }))} className="font-mono text-xs min-h-[180px]" />
+            </FieldGroup>
+          </SectionCard>
+        );
+
+      case "reports":
+        return (
+          <div className="space-y-6">
+            <SectionCard title="Report Branding" icon={FileText} description="Organization info shown in generated PDF/HTML reports.">
               <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Primary Color</Label>
-                  <div className="flex gap-2 mt-1">
-                    <input type="color" value={reportConfig.primaryColor} onChange={e => setReportConfig(c => ({ ...c, primaryColor: e.target.value }))} className="w-10 h-10 rounded border border-border cursor-pointer" />
+                <FieldGroup label="Organization Name"><Input value={reportConfig.orgName} onChange={e => setReportConfig(c => ({ ...c, orgName: e.target.value }))} placeholder="Your Organization" /></FieldGroup>
+                <FieldGroup label="Report Title"><Input value={reportConfig.reportTitle} onChange={e => setReportConfig(c => ({ ...c, reportTitle: e.target.value }))} placeholder="Security Scan Report" /></FieldGroup>
+              </div>
+              <FieldGroup label="Header Text (optional)"><Input value={reportConfig.headerText} onChange={e => setReportConfig(c => ({ ...c, headerText: e.target.value }))} placeholder="Internal Use Only" /></FieldGroup>
+              <FieldGroup label="Footer / Disclaimer"><Textarea value={reportConfig.footerText} onChange={e => setReportConfig(c => ({ ...c, footerText: e.target.value }))} className="text-sm" rows={2} /></FieldGroup>
+              <FieldGroup label="Logo URL" description="Leave empty to use the organization logo from Branding tab.">
+                <Input value={reportConfig.logoUrl} onChange={e => setReportConfig(c => ({ ...c, logoUrl: e.target.value }))} className="font-mono text-sm" placeholder="https://..." />
+              </FieldGroup>
+            </SectionCard>
+            <SectionCard title="Appearance" icon={Palette} description="Report visual styling.">
+              <div className="grid md:grid-cols-2 gap-4">
+                <FieldGroup label="Primary Color">
+                  <div className="flex gap-2">
+                    <input type="color" value={reportConfig.primaryColor} onChange={e => setReportConfig(c => ({ ...c, primaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-border cursor-pointer" />
                     <Input value={reportConfig.primaryColor} onChange={e => setReportConfig(c => ({ ...c, primaryColor: e.target.value }))} className="font-mono" />
                   </div>
-                </div>
-                <div>
-                  <Label>Date/Time Format</Label>
+                </FieldGroup>
+                <FieldGroup label="Date/Time Format">
                   <Select value={reportConfig.dateFormat} onValueChange={v => setReportConfig(c => ({ ...c, dateFormat: v }))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="MMM d, yyyy HH:mm">MMM d, yyyy HH:mm</SelectItem>
                       <SelectItem value="yyyy-MM-dd HH:mm:ss">yyyy-MM-dd HH:mm:ss</SelectItem>
@@ -1067,15 +729,10 @@ export default function SettingsPage() {
                       <SelectItem value="MM/dd/yyyy hh:mm a">MM/dd/yyyy hh:mm a</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </FieldGroup>
               </div>
-            </div>
-
-            <div className="border border-border rounded-lg bg-card p-6 space-y-5">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-primary" /> Sections to Include
-              </h2>
-              <p className="text-xs text-muted-foreground">Choose which sections appear in the generated PDF/HTML reports.</p>
+            </SectionCard>
+            <SectionCard title="Sections to Include" icon={Settings2} description="Choose which sections appear in generated reports.">
               <div className="grid md:grid-cols-2 gap-3">
                 {([
                   { key: "summary", label: "Scan Summary" },
@@ -1085,32 +742,82 @@ export default function SettingsPage() {
                   { key: "firewallRules", label: "Firewall Hardening Rules" },
                   { key: "patchRecommendations", label: "Patch Recommendations" },
                 ] as const).map(section => (
-                  <div key={section.key} className="flex items-center gap-3">
-                    <Checkbox
-                      id={`section-${section.key}`}
-                      checked={reportConfig.includeSections[section.key]}
-                      onCheckedChange={(v) => setReportConfig(c => ({
-                        ...c,
-                        includeSections: { ...c.includeSections, [section.key]: !!v },
-                      }))}
-                    />
+                  <div key={section.key} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/30 transition-colors">
+                    <Checkbox id={`section-${section.key}`} checked={reportConfig.includeSections[section.key]}
+                      onCheckedChange={(v) => setReportConfig(c => ({ ...c, includeSections: { ...c.includeSections, [section.key]: !!v } }))} />
                     <Label htmlFor={`section-${section.key}`} className="text-sm cursor-pointer">{section.label}</Label>
                   </div>
                 ))}
               </div>
-            </div>
-
+            </SectionCard>
             <Button onClick={saveReportConfig} className="gap-2" disabled={savingReport}>
               {savingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {savingReport ? "Saving..." : "Save Report Settings"}
             </Button>
-          </TabsContent>
-        </Tabs>
+          </div>
+        );
 
-        <Button onClick={handleSave} className="gap-2" disabled={saving}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>
+      default:
+        return null;
+    }
+  };
+
+  const activeNavItem = navItems.find(n => n.id === activeTab);
+
+  return (
+    <AppLayout>
+      <div className="flex h-[calc(100vh-0px)]">
+        {/* Sidebar Navigation */}
+        <div className="w-64 shrink-0 border-r border-border bg-card/50">
+          <div className="px-5 py-5 border-b border-border">
+            <h1 className="text-lg font-bold text-foreground flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-primary/10"><Settings2 className="h-4 w-4 text-primary" /></div>
+              Settings
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1.5">Platform configuration</p>
+          </div>
+          <ScrollArea className="h-[calc(100vh-90px)]">
+            <nav className="p-3 space-y-0.5">
+              {navItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all group",
+                    activeTab === item.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  )}
+                >
+                  <item.icon className={cn("h-4 w-4 shrink-0", activeTab === item.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                  <span className="text-sm font-medium truncate">{item.label}</span>
+                  {activeTab === item.id && <ChevronRight className="h-3.5 w-3.5 ml-auto shrink-0 text-primary/60" />}
+                </button>
+              ))}
+            </nav>
+          </ScrollArea>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="max-w-3xl mx-auto px-8 py-6 space-y-6">
+              {/* Page header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">{activeNavItem?.label}</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">{activeNavItem?.description}</p>
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="gap-2 shadow-sm">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? "Saving..." : "Save All"}
+                </Button>
+              </div>
+              <Separator />
+              {renderContent()}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
     </AppLayout>
   );
