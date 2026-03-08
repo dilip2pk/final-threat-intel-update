@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, Loader2, Globe, Shield, Plus, Star, Trash2, Download, AlertTriangle,
-  Server, Lock, Wifi, Eye, Settings2, FileText, FileDown, Calendar,
+  Server, Lock, Wifi, Eye, Settings2, FileText, FileDown, Calendar, Sparkles,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useScheduledJobs } from "@/hooks/useScheduledJobs";
 import { supabase } from "@/integrations/supabase/client";
+import { AICommandGenerator } from "@/components/AICommandGenerator";
 
 interface ShodanResult {
   ip_str?: string;
@@ -77,6 +78,7 @@ export default function ShodanSearch() {
   const [schedName, setSchedName] = useState("");
   const [schedFreq, setSchedFreq] = useState("daily");
   const [schedCron, setSchedCron] = useState("");
+  const [aiCommandOpen, setAiCommandOpen] = useState(false);
 
   // Load saved queries
   useEffect(() => {
@@ -295,6 +297,9 @@ export default function ShodanSearch() {
                 <Calendar className="h-4 w-4" /> Schedule
               </Button>
             )}
+            <Button variant="outline" onClick={() => setAiCommandOpen(true)} className="gap-2 border-primary/30 text-primary hover:bg-primary/5">
+              <Sparkles className="h-4 w-4" /> AI Assistant
+            </Button>
           </div>
 
           {/* Quick Dorks */}
@@ -507,6 +512,16 @@ export default function ShodanSearch() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AICommandGenerator
+          open={aiCommandOpen}
+          onOpenChange={setAiCommandOpen}
+          type="shodan"
+          onSelectCommand={(cmd) => {
+            setQuery(cmd);
+            setQueryType("search");
+          }}
+        />
       </div>
     </AppLayout>
   );

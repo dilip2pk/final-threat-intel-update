@@ -15,7 +15,7 @@ import {
   Loader2, Play, Brain, Download, Trash2, Clock, Shield, Server,
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, FileText,
   Calendar, Plus, ToggleLeft, Globe, Wifi, Activity, Radar,
-  Monitor, Lock, Unlock, Eye, Zap, BarChart3,
+  Monitor, Lock, Unlock, Eye, Zap, BarChart3, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useScans, useScanSchedules, type Scan, type ScanResult } from "@/hooks/useScans";
@@ -23,6 +23,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { generatePDFReport, type ReportBranding } from "@/lib/pdfReportGenerator";
+import { AICommandGenerator } from "@/components/AICommandGenerator";
 
 const SCAN_TYPES = [
   { value: "quick", label: "Quick Scan", desc: "Top 20 common ports", icon: Zap },
@@ -126,6 +127,7 @@ export default function NetworkScanner() {
 
   const [exporting, setExporting] = useState(false);
   const [activeTab, setActiveTab] = useState("scan");
+  const [aiCommandOpen, setAiCommandOpen] = useState(false);
 
   const handleStartScan = async () => {
     if (scanType === "raw") {
@@ -528,6 +530,9 @@ export default function NetworkScanner() {
                   >
                     {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                     {scanning ? (scanProgress ? `Scanning ${scanProgress.percent}%...` : "Scanning...") : "Launch Scan"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setAiCommandOpen(true)} className="w-full gap-2 h-9 text-xs border-primary/30 text-primary hover:bg-primary/5">
+                    <Sparkles className="h-3.5 w-3.5" /> AI Command Assistant
                   </Button>
                   <Button variant="outline" onClick={() => { setScheduleDialog(true); setSchedName(`Scan ${target}`); }} disabled={scanType === "raw" || !target.trim()} className="w-full gap-2 h-9 text-xs">
                     <Calendar className="h-3.5 w-3.5" /> Schedule Recurring
@@ -934,6 +939,16 @@ export default function NetworkScanner() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AICommandGenerator
+          open={aiCommandOpen}
+          onOpenChange={setAiCommandOpen}
+          type="nmap"
+          onSelectCommand={(cmd) => {
+            setScanType("raw");
+            setRawCommand(cmd);
+          }}
+        />
       </div>
     </AppLayout>
   );
