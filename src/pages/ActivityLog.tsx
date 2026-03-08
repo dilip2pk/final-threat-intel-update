@@ -209,8 +209,11 @@ function exportPDF(tickets: any[], emails: any[], tab: string) {
 
 // ── Stat Card ──
 
-const StatCard = ({ label, value, icon: Icon, color }: { label: string; value: number; icon: any; color: string }) => (
-  <Card>
+const StatCard = ({ label, value, icon: Icon, color, active, onClick }: { label: string; value: number; icon: any; color: string; active?: boolean; onClick?: () => void }) => (
+  <Card
+    className={`cursor-pointer transition-all hover:shadow-md ${active ? "ring-2 ring-primary shadow-md" : ""}`}
+    onClick={onClick}
+  >
     <CardContent className="flex items-center gap-3 py-4">
       <div className={`rounded-lg p-2.5 ${color}`}>
         <Icon className="h-4 w-4" />
