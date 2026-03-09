@@ -914,6 +914,11 @@ export default function SoftwareInventory() {
               </DropdownMenuContent>
             </DropdownMenu>
             {software.length > 0 && (
+              <Button onClick={fetchAffectedUsers} variant="outline" className="gap-2">
+                <User className="h-4 w-4" />Affected Users
+              </Button>
+            )}
+            {software.length > 0 && (
               <Button onClick={clearData} variant="outline" className="gap-2"><Trash2 className="h-4 w-4" />Clear</Button>
             )}
             <Button onClick={fetchSoftwareInventory} disabled={loading} className="gap-2">
