@@ -229,6 +229,96 @@ export default function SoftwareInventory() {
     toast({ title: "Data Cleared", description: "Software inventory has been removed" });
   }, [toast]);
 
+  // ─── Affected Users Export Functions ───
+  const buildAffectedUsersData = (users: AffectedUser[]) => {
+    let idx = 0;
+    const rows: { no: number; user: string; software: string; device: string; installed: string; recommended: string; cves: string; risk: string }[] = [];
+    users.forEach(u => {
+      u.affectedSoftware.forEach(sw => {
+        idx++;
+        rows.push({
+          no: idx,
+          user: u.username,
+          software: sw.name,
+          device: sw.deviceName,
+          installed: sw.installedVersion,
+          recommended: sw.recommendedVersion,
+          cves: sw.cves.join(", ") || "—",
+          risk: sw.exposureLevel,
+        });
+      });
+    });
+    return rows;
+  };
+
+  const exportAffectedUsersCSV = () => {
+    const rows = buildAffectedUsersData(affectedUsers);
+    const headers = ["#", "User", "Software", "Device", "Installed Version", "Recommended Version", "CVEs", "Risk Level"];
+    const csv = [headers, ...rows.map(r => [r.no, r.user, r.software, r.device, r.installed, r.recommended, `"${r.cves}"`, r.risk])].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `affected-users-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "CSV downloaded" });
+  };
+
+  const exportAffectedUsersTXT = () => {
+    const rows = buildAffectedUsersData(affectedUsers);
+    let content = `AFFECTED USERS REPORT\nGenerated: ${new Date().toLocaleString()}\nTotal Affected Users: ${affectedUsers.length}\nTotal Entries: ${rows.length}\n${"=".repeat(100)}\n\n`;
+    let currentUser = "";
+    rows.forEach(r => {
+      if (r.user !== currentUser) {
+        currentUser = r.user;
+        content += `\n── USER: ${r.user} ──\n`;
+      }
+      content += `  ${r.no}. ${r.software}\n`;
+      content += `     Device: ${r.device}\n`;
+      content += `     Installed: v${r.installed}  →  Recommended: v${r.recommended}\n`;
+      content += `     CVEs: ${r.cves}\n`;
+      content += `     Risk: ${r.risk}\n\n`;
+    });
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `affected-users-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "TXT downloaded" });
+  };
+
+  const exportAffectedUsersPDF = async () => {
+    try {
+      const jsPDF = (await import("jspdf")).default;
+      const autoTable = (await import("jspdf-autotable")).default;
+      const doc = new jsPDF({ orientation: "landscape" });
+      doc.setFontSize(18);
+      doc.setTextColor(204, 0, 0);
+      doc.text("Affected Users Report", 14, 20);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text(`Total Affected Users: ${affectedUsers.length}`, 14, 34);
+
+      const rows = buildAffectedUsersData(affectedUsers);
+      autoTable(doc, {
+        head: [["#", "User", "Software", "Device", "Installed", "Recommended", "CVEs", "Risk"]],
+        body: rows.map(r => [r.no, r.user, r.software, r.device, `v${r.installed}`, `v${r.recommended}`, r.cves, r.risk]),
+        startY: 42,
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [204, 0, 0] },
+        columnStyles: { 6: { cellWidth: 50 } },
+      });
+      doc.save(`affected-users-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast({ title: "Exported", description: "PDF downloaded" });
+    } catch {
+      toast({ title: "Export Failed", description: "Could not generate PDF", variant: "destructive" });
+    }
+  };
+
   const filteredSoftware = useMemo(() => {
     return software.filter(s => {
       if (statFilter === "vulnerable" && s.exposedVulnerabilities <= 0) return false;
@@ -788,14 +878,28 @@ export default function SoftwareInventory() {
     return (
       <AppLayout>
         <div className="p-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />Affected Users
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Users running vulnerable software versions</p>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />Affected Users
+                </h1>
+                <p className="text-sm text-muted-foreground mt-0.5">Users running vulnerable software versions</p>
+              </div>
             </div>
+            {affectedUsers.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2"><Download className="h-4 w-4" />Export</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportAffectedUsersPDF} className="gap-2"><FileText className="h-4 w-4" />PDF</DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAffectedUsersCSV} className="gap-2"><FileSpreadsheet className="h-4 w-4" />CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAffectedUsersTXT} className="gap-2"><FileText className="h-4 w-4" />TXT</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {affectedUsersLoading ? (
