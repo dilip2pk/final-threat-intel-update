@@ -58,7 +58,7 @@ export default function RansomLook() {
       return;
     }
     const timer = setTimeout(() => {
-      searchPosts(search, 90).then((results) => {
+      searchPosts(search, 730).then((results) => {
         setLiveSearchResults(results);
         setPage(1);
       });
