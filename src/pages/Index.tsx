@@ -137,16 +137,23 @@ const Index = () => {
             </div>
             <p className="text-xs text-muted-foreground ml-[42px]">Real-time security feeds from {stats.totalSources} configured sources</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="gap-2 self-start sm:self-auto"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {intervalMs && (
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                Auto-refresh: {intervalMs >= 3600000 ? `${intervalMs / 3600000}h` : `${intervalMs / 60000}m`}
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
