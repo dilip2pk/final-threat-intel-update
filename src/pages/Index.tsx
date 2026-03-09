@@ -10,7 +10,7 @@ import { useRSSFeeds, type RSSFeedItem, type RSSSource } from "@/hooks/useRSSFee
 import { Search, Shield, AlertTriangle, Rss, Activity, Loader2, Clock, Brain, Plus } from "lucide-react";
 import { TopCVEsWidget } from "@/components/TopCVEsWidget";
 
-const ITEMS_PER_PAGE = 9;
+const ITEMS_PER_PAGE = 10;
 
 const Index = () => {
   const navigate = useNavigate();
