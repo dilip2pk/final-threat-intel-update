@@ -327,6 +327,12 @@ export default function SoftwareInventory() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {software.length > 0 && (
+              <Button onClick={clearData} variant="outline" className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                Clear Data
+              </Button>
+            )}
             <Button onClick={fetchSoftwareInventory} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {software.length > 0 ? "Refresh" : "Fetch Inventory"}
