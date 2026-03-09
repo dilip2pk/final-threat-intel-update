@@ -265,15 +265,32 @@ export default function SettingsPage() {
   };
 
   const handleTestNmap = async () => {
-    if (nmapMode !== "local") { setNmapTestResult({ success: true, message: "Cloud backend active — no local server needed." }); return; }
-    setTestingNmap(true); setNmapTestResult(null);
+    if (nmapMode !== "local") { setNmapTestResult({ success: true, message: "Cloud backend active — no local server needed." }); setDiscoveredTools([]); return; }
+    setTestingNmap(true); setNmapTestResult(null); setDiscoveredTools([]);
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" };
       if (nmapApiKey) headers["x-api-key"] = nmapApiKey;
       const resp = await fetch(`${nmapLocalUrl.replace(/\/$/, "")}/api/health`, { headers });
       const data = await resp.json();
-      if (data.status === "ok" && data.nmap) setNmapTestResult({ success: true, message: `Connected! ${data.version}` });
-      else setNmapTestResult({ success: false, message: data.message || "Server reachable but Nmap not found" });
+      // New universal server format
+      if (data.tools && typeof data.tools === "object") {
+        const tools = Object.entries(data.tools).map(([id, info]: [string, any]) => ({ id, name: id, icon: "🔧", available: info.available, version: info.version, description: "", category: "misc", ...info }));
+        setDiscoveredTools(tools);
+        // Also try to get full tool metadata
+        try {
+          const toolsResp = await fetch(`${nmapLocalUrl.replace(/\/$/, "")}/api/tools`, { headers });
+          const toolsData = await toolsResp.json();
+          if (toolsData.tools) setDiscoveredTools(toolsData.tools.map((t: any) => ({ ...t, available: data.tools[t.id]?.available ?? false, version: data.tools[t.id]?.version })));
+        } catch {}
+        const availCount = tools.filter(t => t.available).length;
+        setNmapTestResult({ success: availCount > 0, message: `Connected! ${data.server_version ? `Server v${data.server_version} — ` : ""}${availCount}/${tools.length} tool(s) available` });
+      }
+      // Legacy nmap-only format
+      else if (data.status === "ok" && data.nmap) {
+        setNmapTestResult({ success: true, message: `Connected! ${data.version}` });
+        setDiscoveredTools([{ id: "nmap", name: "Nmap Network Scanner", icon: "🔍", available: true, version: data.version, description: "Network scanning", category: "network" }]);
+      }
+      else setNmapTestResult({ success: false, message: data.message || "Server reachable but no tools found" });
     } catch (e: any) { setNmapTestResult({ success: false, message: `Cannot reach server: ${e.message}` }); }
     finally { setTestingNmap(false); }
   };
