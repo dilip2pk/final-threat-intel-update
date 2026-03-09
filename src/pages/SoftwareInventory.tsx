@@ -878,14 +878,28 @@ export default function SoftwareInventory() {
     return (
       <AppLayout>
         <div className="p-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />Affected Users
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Users running vulnerable software versions</p>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />Affected Users
+                </h1>
+                <p className="text-sm text-muted-foreground mt-0.5">Users running vulnerable software versions</p>
+              </div>
             </div>
+            {affectedUsers.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2"><Download className="h-4 w-4" />Export</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportAffectedUsersPDF} className="gap-2"><FileText className="h-4 w-4" />PDF</DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAffectedUsersCSV} className="gap-2"><FileSpreadsheet className="h-4 w-4" />CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAffectedUsersTXT} className="gap-2"><FileText className="h-4 w-4" />TXT</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {affectedUsersLoading ? (
