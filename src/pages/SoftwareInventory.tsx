@@ -281,15 +281,43 @@ export default function SoftwareInventory() {
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Software Inventory</h1>
             <p className="text-sm text-muted-foreground mt-1">Microsoft Defender — Vulnerability Management</p>
           </div>
-          <Button onClick={fetchSoftwareInventory} disabled={loading} className="gap-2">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {software.length > 0 ? "Refresh" : "Fetch Inventory"}
-          </Button>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToPDF} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToCSV} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToHTML} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Export as HTML
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToTXT} className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Export as TXT
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={fetchSoftwareInventory} disabled={loading} className="gap-2">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {software.length > 0 ? "Refresh" : "Fetch Inventory"}
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
