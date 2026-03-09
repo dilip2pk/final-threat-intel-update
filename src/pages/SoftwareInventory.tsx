@@ -78,6 +78,14 @@ export default function SoftwareInventory() {
     }
   }, [toast]);
 
+  const clearData = useCallback(() => {
+    setSoftware([]);
+    setStatFilter("all");
+    setSearch("");
+    setSeverityFilter("all");
+    toast({ title: "Data Cleared", description: "Software inventory has been removed" });
+  }, [toast]);
+
   const handleSelectSoftware = (sw: SoftwareEntry) => {
     setSelectedSoftware(sw);
     fetchMachineDetails(sw.id);
