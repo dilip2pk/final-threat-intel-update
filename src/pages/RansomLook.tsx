@@ -25,7 +25,7 @@ const ITEMS_PER_PAGE = 10;
 export default function RansomLook() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { loading: apiLoading, error: apiError, searchPosts, fetchRecentPosts } = useRansomLookAPI();
+  const { loading: apiLoading, error: apiError, searchPosts, fetchLastDays } = useRansomLookAPI();
   const { items: watchlistItems, addItem: addWatchlistItem, removeItem: removeWatchlistItem } = useWatchlist();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -41,11 +41,11 @@ export default function RansomLook() {
   const watchlist = watchlistItems.map(w => w.organization);
 
   useEffect(() => {
-    fetchRecentPosts(200).then((posts) => {
+    fetchLastDays(730).then((posts) => {
       if (posts.length > 0) setLivePosts(posts);
       setInitialLoading(false);
     });
-  }, [fetchRecentPosts]);
+  }, [fetchLastDays]);
 
   const handleGroupClick = (groupName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -58,7 +58,7 @@ export default function RansomLook() {
       return;
     }
     const timer = setTimeout(() => {
-      searchPosts(search, 90).then((results) => {
+      searchPosts(search, 730).then((results) => {
         setLiveSearchResults(results);
         setPage(1);
       });
