@@ -1,0 +1,178 @@
+# =============================================================
+# ThreatIntel — Self-Hosted Docker Compose
+# =============================================================
+# Spins up PostgreSQL, Supabase (API + Auth + Realtime),
+# local Nmap server, local tools server, and the frontend.
+#
+# Usage:
+#   cp .env.docker.example .env.docker
+#   # Edit .env.docker with your secrets
+#   docker compose up -d
+#
+# Dashboard: http://localhost:8080
+# Supabase Studio: http://localhost:54323
+# Nmap API: http://localhost:3001/api/health
+# Tools API: http://localhost:3002/api/health
+# =============================================================
+
+version: "3.8"
+
+services:
+  # ---- PostgreSQL Database ----
+  postgres:
+    image: supabase/postgres:15.6.1.143
+    container_name: threatintel-db
+    restart: unless-stopped
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-threatintel_secure_pw}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---- Supabase Kong API Gateway ----
+  kong:
+    image: kong:2.8.1
+    container_name: threatintel-kong
+    restart: unless-stopped
+    ports:
+      - "54321:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    volumes:
+      - ./docker/kong/kong.yml:/var/lib/kong/kong.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---- Supabase Auth (GoTrue) ----
+  auth:
+    image: supabase/gotrue:v2.164.0
+    container_name: threatintel-auth
+    restart: unless-stopped
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:54321}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-threatintel_secure_pw}@postgres:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:8080}
+      GOTRUE_URI_ALLOW_LIST: ""
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---- Supabase REST (PostgREST) ----
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: threatintel-rest
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-threatintel_secure_pw}@postgres:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---- Supabase Realtime ----
+  realtime:
+    image: supabase/realtime:v2.33.58
+    container_name: threatintel-realtime
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-threatintel_secure_pw}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+      FLY_ALLOC_ID: fly123
+      FLY_APP_NAME: realtime
+      SECRET_KEY_BASE: UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ENABLE_TAILSCALE: "false"
+      DNS_NODES: "''"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---- Local Nmap Server ----
+  nmap-server:
+    build:
+      context: ./local-nmap-server
+      dockerfile: ../docker/nmap-server/Dockerfile
+    container_name: threatintel-nmap
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NMAP_API_KEY: ${NMAP_API_KEY:-}
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ---- Local Tools Server ----
+  tools-server:
+    build:
+      context: ./local-tools-server
+      dockerfile: ../docker/tools-server/Dockerfile
+    container_name: threatintel-tools
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      TOOLS_API_KEY: ${TOOLS_API_KEY:-}
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ---- Frontend (Vite / Static) ----
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-http://localhost:54321}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.placeholder}
+        VITE_LOCAL_NMAP_URL: ${VITE_LOCAL_NMAP_URL:-http://localhost:3001}
+        VITE_LOCAL_TOOLS_URL: ${VITE_LOCAL_TOOLS_URL:-http://localhost:3002}
+    container_name: threatintel-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - rest
+      - auth
+
+volumes:
+  pgdata:
