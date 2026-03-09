@@ -1,6 +1,6 @@
 # Threat Intelligence Platform
 
-A comprehensive **Threat Intelligence + Vulnerability Scanning + AI Advisory System** built with React, TypeScript, and a flexible backend supporting both Lovable Cloud and self-hosted PostgreSQL.
+A comprehensive **Threat Intelligence + Vulnerability Scanning + AI Advisory System** built with React, TypeScript, and Lovable Cloud.
 
 ## Overview
 
@@ -10,17 +10,8 @@ This platform aggregates, correlates, and analyzes security threat data from mul
 
 - **Threat Intelligence Aggregation** — Ingest and correlate RSS feeds from trusted security sources (CISA, NVD, Krebs, Talos, etc.)
 - **Vulnerability Scanning** — TCP-based network scanning with port detection, banner grabbing, and service identification
-- **AI-Powered Analysis** — Automated threat analysis with risk scoring and remediation recommendations
+- **AI-Powered Analysis** — Automated threat analysis with risk scoring and remediation recommendations using Lovable AI models
 - **Enterprise Reporting** — Branded PDF/HTML/CSV reports with customizable templates
-
-## Deployment Options
-
-| Mode | Backend | Best For |
-|------|---------|----------|
-| **Lovable Cloud** (default) | Managed Supabase | Zero-config, hosted deployment |
-| **Local Self-Hosted** | PostgreSQL + Express API | Air-gapped environments, full control |
-
-The frontend uses an abstraction layer (`src/lib/apiClient.ts`) that switches between backends based on the `VITE_BACKEND_MODE` environment variable. No UI changes needed.
 
 ## Key Features
 
@@ -95,17 +86,16 @@ The frontend uses an abstraction layer (`src/lib/apiClient.ts`) that switches be
 
 ## Technology Stack
 
-| Layer | Cloud Mode | Local Mode |
-|-------|-----------|------------|
-| Frontend | React 18, TypeScript, Vite | Same |
-| UI | Tailwind CSS, shadcn/ui, Lucide Icons | Same |
-| State | React Query, React Hooks | Same |
-| Backend | Lovable Cloud (Supabase) | Express.js API Server |
-| Database | PostgreSQL (managed) | PostgreSQL (self-hosted) |
-| Functions | Deno Edge Functions | Node.js Express Routes |
-| AI | Lovable AI models | Direct OpenAI/Google API keys |
-| Auth | Supabase Auth | JWT + bcrypt |
-| Charts | Recharts | Same |
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, TypeScript, Vite |
+| UI | Tailwind CSS, shadcn/ui, Lucide Icons |
+| State | React Query, React Hooks |
+| Backend | Lovable Cloud (Supabase) |
+| Database | PostgreSQL (via Supabase) |
+| Edge Functions | Deno (Supabase Edge Functions) |
+| AI | Lovable AI (Gemini, GPT-5 models) |
+| Charts | Recharts |
 
 ## Project Structure
 
@@ -124,7 +114,6 @@ src/
 │   ├── useSettings.ts  # App settings management
 │   └── useRansomLookAPI.ts
 ├── lib/                # Utilities
-│   ├── apiClient.ts    # Backend abstraction layer (Supabase ↔ Local)
 │   ├── api.ts          # API call helpers
 │   ├── formatters.ts   # Report formatting
 │   ├── mockData.ts     # Type definitions & helpers
@@ -138,38 +127,21 @@ src/
 │   ├── AlertMonitoring.tsx
 │   ├── SettingsPage.tsx
 │   └── ...
-└── integrations/       # Auto-generated Supabase client (cloud mode)
+└── integrations/       # Auto-generated Supabase client
 
-local-api-server/       # Self-hosted Express backend
-├── server.js           # Express app entry point
-├── db.js               # PostgreSQL connection pool
-├── init.sql            # Combined schema (18 tables, enums, triggers)
-├── middleware/
-│   └── auth.js         # JWT validation middleware
-├── routes/
-│   ├── auth.js         # Signup, login, session, password reset
-│   ├── db.js           # Generic CRUD for all tables
-│   ├── functions.js    # All 15 edge function ports
-│   └── storage.js      # File upload/serve (multer)
-├── Dockerfile
-├── package.json
-└── .env.example
-
-supabase/               # Cloud mode backend
-├── functions/          # Edge Functions (Deno)
-│   ├── rss-proxy/
-│   ├── port-scan/
-│   ├── analyze-feed/
-│   ├── analyze-scan/
-│   ├── generate-scan-report/
-│   ├── shodan-proxy/
-│   ├── defender-proxy/
-│   ├── send-email/
-│   ├── servicenow-ticket/
+supabase/
+├── functions/          # Edge Functions
+│   ├── rss-proxy/      # RSS feed proxy
+│   ├── port-scan/      # Network scanner
+│   ├── analyze-scan/   # AI scan analysis
+│   ├── analyze-feed/   # AI feed analysis
+│   ├── generate-scan-report/ # Report generation
+│   ├── shodan-proxy/   # Shodan API proxy
+│   ├── defender-proxy/ # Microsoft Defender proxy
+│   ├── send-email/     # SMTP email sender
+│   ├── servicenow-ticket/ # ServiceNow integration
 │   └── ransomlook-proxy/
-└── migrations/
-
-docker-compose.yml      # One-command local deployment
+└── migrations/         # Database migrations
 ```
 
 ## Database Schema
@@ -182,7 +154,6 @@ docker-compose.yml      # One-command local deployment
 | `scans` | Network scan records |
 | `scan_results` | Individual host scan results |
 | `scan_schedules` | Scheduled scan configurations |
-| `scheduled_jobs` | General scheduled job configurations |
 | `email_log` | Email delivery history |
 | `ticket_log` | ServiceDesk ticket history |
 | `ticket_history` | Ticket status changes |
@@ -190,16 +161,10 @@ docker-compose.yml      # One-command local deployment
 | `watchlist` | RansomLook organization watchlist |
 | `shodan_queries` | Saved Shodan queries |
 | `shodan_results` | Cached Shodan results |
-| `generated_reports` | Stored scan reports |
-| `top_cves` | Tracked high-severity CVEs |
-| `profiles` | User profile data |
-| `user_roles` | Role-based access control |
-
----
 
 ## Setup Instructions
 
-### Option 1: Lovable Cloud (Default)
+### Quick Start (Lovable Cloud)
 
 1. Open the project in [Lovable](https://lovable.dev)
 2. The backend (database, edge functions, storage) is automatically provisioned
@@ -212,135 +177,70 @@ docker-compose.yml      # One-command local deployment
 4. Go to **Feed Sources** and add your RSS feeds
 5. The dashboard will populate with live threat data
 
-### Option 2: Local Self-Hosted (Docker)
-
-One-command deployment with Docker Compose:
+### Local Development
 
 ```bash
-# Clone and start everything
+# Clone the repository
 git clone <YOUR_GIT_URL>
 cd <YOUR_PROJECT_NAME>
-docker compose up -d
-```
 
-This starts:
-- **PostgreSQL 16** on port 5432 (auto-initialized with schema)
-- **Express API Server** on port 3001
-- **React Frontend** on port 8080
-
-The first user to sign up is automatically assigned the **admin** role.
-
-### Option 3: Local Self-Hosted (Manual)
-
-#### 1. Set up PostgreSQL
-
-```bash
-createdb threat_intel
-psql -d threat_intel -f local-api-server/init.sql
-```
-
-#### 2. Start the API server
-
-```bash
-cd local-api-server
-cp .env.example .env
-# Edit .env: set DATABASE_URL, JWT_SECRET, and optional API keys
+# Install dependencies
 npm install
+
+# Start development server
 npm run dev
 ```
 
-#### 3. Start the frontend
+The app connects to the Lovable Cloud backend automatically via environment variables (`.env`).
 
-```bash
-# From project root — set backend mode
-# Add to .env or .env.local:
-#   VITE_BACKEND_MODE=local
-#   VITE_API_URL=http://localhost:3001
+### Environment Variables
 
-npm install
-npm run dev
-```
+These are auto-configured by Lovable Cloud:
 
----
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Backend API URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public API key |
+| `VITE_SUPABASE_PROJECT_ID` | Project identifier |
 
-## Environment Variables
+### Setting Up a New Supabase Instance
 
-### Frontend
+If deploying with a separate Supabase project:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_BACKEND_MODE` | `supabase` | `supabase` or `local` |
-| `VITE_API_URL` | — | Local API URL (required when mode is `local`) |
-| `VITE_SUPABASE_URL` | (auto) | Supabase API URL (cloud mode) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | (auto) | Supabase anon key (cloud mode) |
-
-### Local API Server
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `JWT_SECRET` | Yes | Secret for JWT token signing |
-| `PORT` | No | API port (default: 3001) |
-| `AI_API_KEY` | No | OpenAI or Google API key for AI features |
-| `AI_ENDPOINT_URL` | No | Custom AI endpoint URL |
-| `AI_MODEL` | No | AI model name (e.g. `gpt-4o`) |
-| `SHODAN_API_KEY` | No | Shodan API key |
-| `DEFENDER_TENANT_ID` | No | Microsoft Defender tenant ID |
-| `DEFENDER_CLIENT_ID` | No | Microsoft Defender client ID |
-| `DEFENDER_CLIENT_SECRET` | No | Microsoft Defender client secret |
-| `TOOLS_API_KEY` | No | API key for local-tools-server (Nmap) |
-
----
-
-## Local API Endpoints
-
-When running in local mode, the Express server exposes:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/auth/signup` | POST | Register (first user = admin) |
-| `/api/auth/login` | POST | Login (returns JWT) |
-| `/api/auth/session` | GET | Validate session |
-| `/api/auth/signout` | POST | Sign out |
-| `/api/auth/user` | PUT | Update password |
-| `/api/db/:table` | GET | Query with filters, ordering, pagination |
-| `/api/db/:table` | POST | Insert row(s) |
-| `/api/db/:table` | PATCH | Update row(s) with filters |
-| `/api/db/:table` | DELETE | Delete row(s) with filters |
-| `/api/functions/:name` | POST | Execute function (15 available) |
-| `/api/storage/:bucket/upload` | POST | Upload file |
-| `/api/storage/:bucket/:file` | GET | Serve uploaded file |
-
-### Available Functions
-
-`rss-proxy`, `ransomlook-proxy`, `shodan-proxy`, `cve-proxy`, `defender-proxy`, `port-scan`, `analyze-feed`, `analyze-scan`, `generate-command`, `generate-scan-report`, `send-email`, `servicenow-ticket`, `servicenow-sync`, `test-connection`, `watchlist-check`
-
----
+1. Create a new Supabase project at [supabase.com](https://supabase.com)
+2. Run the migration files in `supabase/migrations/` in order
+3. Create a storage bucket named `org-assets` (public)
+4. Deploy edge functions:
+   ```bash
+   supabase functions deploy rss-proxy
+   supabase functions deploy port-scan
+   supabase functions deploy analyze-scan
+   supabase functions deploy analyze-feed
+   supabase functions deploy generate-scan-report
+   supabase functions deploy shodan-proxy
+   supabase functions deploy defender-proxy
+   supabase functions deploy send-email
+   supabase functions deploy servicenow-ticket
+   supabase functions deploy ransomlook-proxy
+   ```
+5. Set the `LOVABLE_API_KEY` secret for AI functionality:
+   ```bash
+   supabase secrets set LOVABLE_API_KEY=your-key
+   ```
+6. Update `.env` with your Supabase project credentials
 
 ## Production Deployment
 
-### Cloud
-1. Click **Share → Publish** in Lovable
+1. Click **Share → Publish** in Lovable to deploy
 2. Optionally connect a custom domain in **Settings → Domains**
-
-### Self-Hosted
-1. Configure `docker-compose.yml` with production passwords and secrets
-2. Set `JWT_SECRET` to a strong random value
-3. Add a reverse proxy (nginx/Caddy) with TLS
-4. Run `docker compose up -d`
-
----
 
 ## Security Notes
 
-- All API keys are stored in the database settings (not in client code)
+- All API keys are stored encrypted in the database settings (not in client code)
 - API keys are masked in the UI (•••• format)
-- Edge functions / API routes validate inputs and sanitize parameters
+- Edge functions validate inputs and sanitize parameters
 - Network scanner has rate limiting (max 64 hosts, 500 ports per scan)
 - CIDR ranges are capped to prevent abuse
-- Local mode uses JWT authentication with bcrypt password hashing
-- Role-based access control (admin/user) enforced at the API layer
 - No mock or placeholder data in production — all data is live from configured sources
 
 ## License

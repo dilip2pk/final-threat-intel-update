@@ -1,4 +1,4 @@
-import { db } from "@/lib/apiClient";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AIAnalysis {
   summary: string;

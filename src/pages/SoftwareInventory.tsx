@@ -12,7 +12,7 @@ import {
   User, Cpu, HardDrive, ChevronRight, Download, FileText, FileSpreadsheet, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/apiClient";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SoftwareEntry {
   id: string;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { db } from "@/lib/apiClient";
+import { supabase } from "@/integrations/supabase/client";
 import type { AppSettings } from "@/lib/settingsStore";
 
 export interface ShodanConfig {

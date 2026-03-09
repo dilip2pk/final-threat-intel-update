@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ShieldAlert, ExternalLink, Loader2, AlertTriangle, RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { db } from "@/lib/apiClient";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
