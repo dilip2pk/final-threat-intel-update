@@ -17,6 +17,7 @@ export interface DefenderConfig {
 export interface NmapBackendConfig {
   mode: "cloud" | "local";
   localUrl: string;
+  toolsUrl?: string;
   apiKey: string;
 }
 
