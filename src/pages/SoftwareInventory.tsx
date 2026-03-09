@@ -329,14 +329,24 @@ export default function SoftwareInventory() {
         {/* Stats */}
         {software.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="border border-border rounded-md bg-card p-4">
+            <div 
+              onClick={() => setStatFilter(statFilter === "all" ? "all" : "all")}
+              className={`border rounded-md bg-card p-4 cursor-pointer transition-all hover:shadow-md ${
+                statFilter === "all" ? "ring-2 ring-primary" : "border-border"
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1">
                 <HardDrive className="h-4 w-4 text-primary" />
                 <span className="text-xs text-muted-foreground">Total Software</span>
               </div>
               <span className="text-2xl font-bold font-mono text-primary">{software.length}</span>
             </div>
-            <div className="border border-border rounded-md bg-card p-4">
+            <div 
+              onClick={() => setStatFilter(statFilter === "vulnerable" ? "all" : "vulnerable")}
+              className={`border rounded-md bg-card p-4 cursor-pointer transition-all hover:shadow-md ${
+                statFilter === "vulnerable" ? "ring-2 ring-severity-critical" : "border-border"
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="h-4 w-4 text-severity-critical" />
                 <span className="text-xs text-muted-foreground">Vulnerable</span>
@@ -345,7 +355,12 @@ export default function SoftwareInventory() {
                 {software.filter(s => s.exposedVulnerabilities > 0).length}
               </span>
             </div>
-            <div className="border border-border rounded-md bg-card p-4">
+            <div 
+              onClick={() => setStatFilter(statFilter === "exploits" ? "all" : "exploits")}
+              className={`border rounded-md bg-card p-4 cursor-pointer transition-all hover:shadow-md ${
+                statFilter === "exploits" ? "ring-2 ring-severity-high" : "border-border"
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1">
                 <Shield className="h-4 w-4 text-severity-high" />
                 <span className="text-xs text-muted-foreground">Public Exploits</span>
@@ -354,7 +369,12 @@ export default function SoftwareInventory() {
                 {software.filter(s => s.publicExploit).length}
               </span>
             </div>
-            <div className="border border-border rounded-md bg-card p-4">
+            <div 
+              onClick={() => setStatFilter(statFilter === "high-exposure" ? "all" : "high-exposure")}
+              className={`border rounded-md bg-card p-4 cursor-pointer transition-all hover:shadow-md ${
+                statFilter === "high-exposure" ? "ring-2 ring-severity-medium" : "border-border"
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1">
                 <Monitor className="h-4 w-4 text-severity-medium" />
                 <span className="text-xs text-muted-foreground">High Exposure</span>
