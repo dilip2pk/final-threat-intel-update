@@ -13,8 +13,9 @@ import { Separator } from "@/components/ui/separator";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
   CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock, FileText, Palette, Server,
-  ChevronRight,
+  ChevronRight, Activity,
 } from "lucide-react";
+import { HealthCheckPanel } from "@/components/HealthCheckPanel";
 import { useToast } from "@/hooks/use-toast";
 import { maskSecret } from "@/lib/settingsStore";
 import { testAIConnection, testServiceNowConnection } from "@/lib/api";
@@ -74,6 +75,7 @@ const navItems = [
   { id: "branding", label: "Branding", icon: Palette, description: "Logo, name & identity" },
   { id: "ai", label: "AI Integration", icon: Brain, description: "Model & provider settings" },
   { id: "localtools", label: "Local Tools", icon: Server, description: "Local tool server & plugins" },
+  { id: "infrastructure", label: "Infrastructure", icon: Activity, description: "Docker services health check" },
   { id: "email", label: "Email (SMTP)", icon: Mail, description: "Outbound email settings" },
   { id: "servicenow", label: "ServiceDesk", icon: Ticket, description: "ServiceNow integration" },
   { id: "shodan", label: "Shodan", icon: Globe, description: "Shodan API configuration" },
@@ -881,6 +883,49 @@ export default function SettingsPage() {
               {savingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {savingReport ? "Saving..." : "Save Report Settings"}
             </Button>
+          </div>
+        );
+
+      case "infrastructure":
+        return (
+          <div className="space-y-6">
+            <SectionCard
+              title="Backend Services Health"
+              icon={Activity}
+              description="Verify all Docker backend services are reachable and healthy"
+            >
+              <HealthCheckPanel
+                nmapUrl={nmapLocalUrl}
+                toolsUrl={settings.nmapBackend?.toolsUrl || ""}
+                autoCheck
+              />
+            </SectionCard>
+
+            <SectionCard
+              title="Custom Endpoints"
+              icon={Server}
+              description="Override endpoint URLs for health checks (useful for custom Docker setups)"
+            >
+              <FieldGroup label="Nmap / Tools Server URL" description="Used for the Nmap local backend and health check">
+                <Input
+                  value={nmapLocalUrl}
+                  onChange={e => updateNmapBackend("localUrl", e.target.value)}
+                  placeholder="http://localhost:3001"
+                  className="font-mono text-sm"
+                />
+              </FieldGroup>
+              <FieldGroup label="Tools Server URL" description="Separate tools server (port 3002 by default in Docker)">
+                <Input
+                  value={settings.nmapBackend?.toolsUrl || ""}
+                  onChange={e => updateNmapBackend("toolsUrl", e.target.value)}
+                  placeholder="http://localhost:3002"
+                  className="font-mono text-sm"
+                />
+              </FieldGroup>
+              <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                💡 When running via Docker Compose, the Nmap server is on port <code className="font-mono">3001</code> and the Tools server on <code className="font-mono">3002</code> by default.
+              </p>
+            </SectionCard>
           </div>
         );
 
