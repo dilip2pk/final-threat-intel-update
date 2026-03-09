@@ -85,6 +85,11 @@ export default function SoftwareInventory() {
 
   const filteredSoftware = useMemo(() => {
     return software.filter(s => {
+      // Stat card filter
+      if (statFilter === "vulnerable" && s.exposedVulnerabilities <= 0) return false;
+      if (statFilter === "exploits" && !s.publicExploit) return false;
+      if (statFilter === "high-exposure" && s.exposureScore < 5) return false;
+
       // Search filter
       if (search && search.trim()) {
         const q = search.toLowerCase();
@@ -103,7 +108,7 @@ export default function SoftwareInventory() {
       
       return true;
     });
-  }, [software, search, severityFilter]);
+  }, [software, search, severityFilter, statFilter]);
 
   const exportToCSV = () => {
     const headers = ["Software Name", "Vendor", "Version", "Installed Machines", "Vulnerabilities", "Exposure Score", "Public Exploit"];
