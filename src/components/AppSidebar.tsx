@@ -1,5 +1,5 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut, LogIn, Calendar, FileText } from "lucide-react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { LayoutDashboard, Rss, AlertTriangle, Settings, Shield, ChevronLeft, ChevronRight, Globe, Eye, Sun, Moon, ClipboardList, Radar, Monitor, Crosshair, LogOut, LogIn, Calendar, FileText, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
@@ -23,9 +23,11 @@ const navItems = [
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, role, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [logoUrl, setLogoUrl] = useState("");
   const [sidebarIconUrl, setSidebarIconUrl] = useState("");
   const [appName, setAppName] = useState("ThreatIntel");
@@ -44,12 +46,23 @@ export function AppSidebar() {
     });
   }, []);
 
-  return (
-    <aside className={cn(
-      "flex flex-col border-r border-border/50 bg-sidebar transition-all duration-300 h-screen sticky top-0 shadow-lg",
-      collapsed ? "w-[68px]" : "w-[240px]"
-    )}>
-      {/* Header with logo + theme toggle */}
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, []);
+
+  const sidebarContent = (isMobile: boolean) => (
+    <>
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-border/50">
         <div className="flex items-center gap-3 min-w-0">
           {sidebarIconUrl ? (
@@ -61,23 +74,33 @@ export function AppSidebar() {
               <Shield className="h-5 w-5 text-primary" />
             </div>
           )}
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <span className="text-sm font-semibold text-foreground tracking-tight truncate">{appName}</span>
           )}
         </div>
-        {!collapsed && (
-          <button
-            onClick={toggleTheme}
-            className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {(!collapsed || isMobile) && (
+            <button
+              onClick={toggleTheme}
+              className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          )}
+          {isMobile && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Theme toggle when collapsed - show below header */}
-      {collapsed && (
+      {/* Theme toggle when collapsed (desktop only) */}
+      {collapsed && !isMobile && (
         <div className="flex justify-center py-2 border-b border-border/50">
           <button
             onClick={toggleTheme}
@@ -91,7 +114,7 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <div className="px-3 pb-2 pt-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Navigation</span>
           </div>
@@ -103,17 +126,16 @@ export function AppSidebar() {
             end={item.to === "/"}
             className={({ isActive }) => cn(
               "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 group relative",
-              collapsed && "justify-center px-0",
+              collapsed && !isMobile && "justify-center px-0",
               isActive
                 ? "bg-primary/10 text-primary shadow-sm"
                 : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
             )}
-            title={collapsed ? item.label : undefined}
+            title={collapsed && !isMobile ? item.label : undefined}
           >
-            <item.icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors")} />
-            {!collapsed && <span>{item.label}</span>}
-            {/* Tooltip for collapsed state */}
-            {collapsed && (
+            <item.icon className="h-[18px] w-[18px] shrink-0 transition-colors" />
+            {(!collapsed || isMobile) && <span>{item.label}</span>}
+            {collapsed && !isMobile && (
               <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-popover text-popover-foreground text-xs rounded-md shadow-md border border-border opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                 {item.label}
               </div>
@@ -126,8 +148,8 @@ export function AppSidebar() {
       <div className="border-t border-border/50 bg-sidebar">
         {user ? (
           <>
-            <div className={cn("px-3 py-3 border-b border-border/30", collapsed && "px-2")}>
-              {!collapsed ? (
+            <div className={cn("px-3 py-3 border-b border-border/30", collapsed && !isMobile && "px-2")}>
+              {(!collapsed || isMobile) ? (
                 <div className="flex items-center gap-2.5">
                   <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                     <span className="text-xs font-semibold text-primary uppercase">
@@ -153,12 +175,12 @@ export function AppSidebar() {
               onClick={() => { signOut(); navigate("/"); }}
               className={cn(
                 "flex items-center gap-3 w-full px-4 py-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all text-[13px]",
-                collapsed && "justify-center px-0"
+                collapsed && !isMobile && "justify-center px-0"
               )}
               title="Sign out"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Sign Out</span>}
+              {(!collapsed || isMobile) && <span>Sign Out</span>}
             </button>
           </>
         ) : (
@@ -166,24 +188,85 @@ export function AppSidebar() {
             onClick={() => navigate("/admin-login")}
             className={cn(
               "flex items-center gap-3 w-full px-4 py-2.5 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all text-[13px]",
-              collapsed && "justify-center px-0"
+              collapsed && !isMobile && "justify-center px-0"
             )}
             title="Admin Login"
           >
             <LogIn className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Admin Login</span>}
+            {(!collapsed || isMobile) && <span>Admin Login</span>}
           </button>
         )}
 
-        {/* Collapse toggle */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-full py-2.5 border-t border-border/30 text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-all"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
+        {/* Collapse toggle - desktop only */}
+        {!isMobile && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center justify-center w-full py-2.5 border-t border-border/30 text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-all"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        )}
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-sidebar border-b border-border/50 flex items-center px-4 gap-3 shadow-sm">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="h-9 w-9 rounded-lg flex items-center justify-center text-foreground hover:bg-accent/50 transition-all"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        {sidebarIconUrl ? (
+          <img src={sidebarIconUrl} alt="Icon" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+        ) : logoUrl ? (
+          <img src={logoUrl} alt="Logo" className="h-7 w-7 shrink-0 rounded-lg object-contain" />
+        ) : (
+          <div className="h-7 w-7 shrink-0 rounded-lg bg-primary/15 flex items-center justify-center">
+            <Shield className="h-4 w-4 text-primary" />
+          </div>
+        )}
+        <span className="text-sm font-semibold text-foreground tracking-tight truncate">{appName}</span>
+        <div className="ml-auto">
+          <button
+            onClick={toggleTheme}
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile slide-out sidebar */}
+      <aside
+        className={cn(
+          "md:hidden fixed top-0 left-0 z-50 h-screen w-[280px] bg-sidebar flex flex-col shadow-2xl transition-transform duration-300 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {sidebarContent(true)}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className={cn(
+        "hidden md:flex flex-col border-r border-border/50 bg-sidebar transition-all duration-300 h-screen sticky top-0 shadow-lg",
+        collapsed ? "w-[68px]" : "w-[240px]"
+      )}>
+        {sidebarContent(false)}
+      </aside>
+    </>
   );
 }
