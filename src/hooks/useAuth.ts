@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 import type { User, Session } from "@supabase/supabase-js";
 
 export type AppRole = "admin" | "user";
@@ -10,7 +10,7 @@ export type AppRole = "admin" | "user";
  */
 async function fetchRole(userId: string): Promise<AppRole> {
   try {
-    const { data } = await supabase
+    const { data } = await db
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
@@ -63,14 +63,14 @@ export function useAuth() {
     }
 
     // 1. Get initial session first
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    db.auth.getSession().then(({ data: { session: initialSession } }) => {
       handleSession(initialSession);
     });
 
     // 2. Listen for subsequent auth changes only (skip INITIAL_SESSION)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
+    } = db.auth.onAuthStateChange((event, newSession) => {
       if (event === "INITIAL_SESSION") return;
 
       // Set loading immediately on sign-in to prevent any role flash
@@ -93,7 +93,7 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     roleCache.current.clear();
-    await supabase.auth.signOut();
+    await db.auth.signOut();
     setRole(null);
   }, []);
 

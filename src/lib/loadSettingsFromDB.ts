@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 import type { AppSettings, SmtpConfig, ServiceNowConfig } from "@/lib/settingsStore";
 
 const defaultSettings: AppSettings = {

@@ -8,7 +8,7 @@ import {
   FileText, Download, Trash2, Eye, Loader2, Search, CalendarDays, Filter,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 import { format, isAfter, isBefore, startOfDay, endOfDay, parseISO } from "date-fns";
 
 interface GeneratedReport {

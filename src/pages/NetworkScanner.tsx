@@ -20,7 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useScans, useScanSchedules, type Scan, type ScanResult } from "@/hooks/useScans";
 import { useSettings } from "@/hooks/useSettings";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 import { format } from "date-fns";
 import { generatePDFReport, type ReportBranding } from "@/lib/pdfReportGenerator";
 import { AICommandGenerator } from "@/components/AICommandGenerator";

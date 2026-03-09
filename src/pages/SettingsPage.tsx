@@ -20,7 +20,7 @@ import { maskSecret } from "@/lib/settingsStore";
 import { testAIConnection, testServiceNowConnection } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
 
 // --- Reusable components (defined outside to prevent re-creation on re-render) ---
