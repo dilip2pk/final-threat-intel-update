@@ -82,19 +82,194 @@ export default function SoftwareInventory() {
     fetchMachineDetails(sw.id);
   };
 
-  const filteredSoftware = software.filter(s => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!s.name.toLowerCase().includes(q) && !s.vendor.toLowerCase().includes(q)) return false;
+  const filteredSoftware = useMemo(() => {
+    return software.filter(s => {
+      // Search filter
+      if (search && search.trim()) {
+        const q = search.toLowerCase();
+        const nameMatch = s.name.toLowerCase().includes(q);
+        const vendorMatch = s.vendor.toLowerCase().includes(q);
+        if (!nameMatch && !vendorMatch) return false;
+      }
+      
+      // Severity filter
+      if (severityFilter !== "all") {
+        if (severityFilter === "critical" && s.exposureScore < 8) return false;
+        if (severityFilter === "high" && (s.exposureScore < 5 || s.exposureScore >= 8)) return false;
+        if (severityFilter === "medium" && (s.exposureScore < 2 || s.exposureScore >= 5)) return false;
+        if (severityFilter === "low" && s.exposureScore >= 2) return false;
+      }
+      
+      return true;
+    });
+  }, [software, search, severityFilter]);
+
+  const exportToCSV = () => {
+    const headers = ["Software Name", "Vendor", "Version", "Installed Machines", "Vulnerabilities", "Exposure Score", "Public Exploit"];
+    const rows = filteredSoftware.map(s => [
+      s.name,
+      s.vendor,
+      s.version,
+      s.installedMachines,
+      s.exposedVulnerabilities,
+      s.exposureScore.toFixed(1),
+      s.publicExploit ? "Yes" : "No"
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `software-inventory-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "CSV file downloaded successfully" });
+  };
+
+  const exportToTXT = () => {
+    let content = "SOFTWARE INVENTORY REPORT\n";
+    content += `Generated: ${new Date().toLocaleString()}\n`;
+    content += `Total Software: ${filteredSoftware.length}\n\n`;
+    content += "=".repeat(80) + "\n\n";
+    
+    filteredSoftware.forEach((s, idx) => {
+      content += `${idx + 1}. ${s.name}\n`;
+      content += `   Vendor: ${s.vendor}\n`;
+      content += `   Version: ${s.version}\n`;
+      content += `   Installed Machines: ${s.installedMachines}\n`;
+      content += `   Vulnerabilities: ${s.exposedVulnerabilities}\n`;
+      content += `   Exposure Score: ${s.exposureScore.toFixed(1)}\n`;
+      content += `   Public Exploit: ${s.publicExploit ? "Yes" : "No"}\n\n`;
+    });
+    
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `software-inventory-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "TXT file downloaded successfully" });
+  };
+
+  const exportToHTML = () => {
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Software Inventory Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    h1 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+    .meta { color: #666; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th { background: #0066cc; color: white; padding: 12px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #ddd; }
+    tr:hover { background: #f9f9f9; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .critical { background: #fee; color: #c00; }
+    .high { background: #ffebe6; color: #ff4d00; }
+    .medium { background: #fff4e6; color: #ff9800; }
+    .low { background: #e8f5e9; color: #4caf50; }
+  </style>
+</head>
+<body>
+  <h1>Software Inventory Report</h1>
+  <div class="meta">
+    <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+    <p><strong>Total Software:</strong> ${filteredSoftware.length}</p>
+    <p><strong>Vulnerable Software:</strong> ${filteredSoftware.filter(s => s.exposedVulnerabilities > 0).length}</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Software</th>
+        <th>Vendor</th>
+        <th>Version</th>
+        <th>Machines</th>
+        <th>Vulnerabilities</th>
+        <th>Exposure Score</th>
+        <th>Public Exploit</th>
+      </tr>
+    </thead>
+    <tbody>`;
+    
+    filteredSoftware.forEach(s => {
+      const severityClass = s.exposureScore >= 8 ? "critical" : s.exposureScore >= 5 ? "high" : s.exposureScore >= 2 ? "medium" : "low";
+      html += `
+      <tr>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.vendor}</td>
+        <td><code>${s.version}</code></td>
+        <td>${s.installedMachines}</td>
+        <td>${s.exposedVulnerabilities > 0 ? `<span class="badge critical">${s.exposedVulnerabilities}</span>` : "—"}</td>
+        <td><span class="badge ${severityClass}">${s.exposureScore.toFixed(1)}</span></td>
+        <td>${s.publicExploit ? "✓ Yes" : "✗ No"}</td>
+      </tr>`;
+    });
+    
+    html += `
+    </tbody>
+  </table>
+</body>
+</html>`;
+    
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `software-inventory-${new Date().toISOString().split("T")[0]}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "HTML file downloaded successfully" });
+  };
+
+  const exportToPDF = async () => {
+    try {
+      const jsPDF = (await import("jspdf")).default;
+      const autoTable = (await import("jspdf-autotable")).default;
+      
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(0, 102, 204);
+      doc.text("Software Inventory Report", 14, 20);
+      
+      // Metadata
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`Total Software: ${filteredSoftware.length}`, 14, 36);
+      doc.text(`Vulnerable: ${filteredSoftware.filter(s => s.exposedVulnerabilities > 0).length}`, 14, 42);
+      
+      // Table
+      const tableData = filteredSoftware.map(s => [
+        s.name,
+        s.vendor,
+        s.version,
+        s.installedMachines,
+        s.exposedVulnerabilities,
+        s.exposureScore.toFixed(1),
+        s.publicExploit ? "Yes" : "No"
+      ]);
+      
+      autoTable(doc, {
+        head: [["Software", "Vendor", "Version", "Machines", "Vulns", "Score", "Exploit"]],
+        body: tableData,
+        startY: 50,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [0, 102, 204] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
+      
+      doc.save(`software-inventory-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast({ title: "Exported", description: "PDF file downloaded successfully" });
+    } catch (error) {
+      toast({ title: "Export Failed", description: "Could not generate PDF", variant: "destructive" });
     }
-    if (severityFilter !== "all") {
-      if (severityFilter === "critical" && s.exposureScore < 8) return false;
-      if (severityFilter === "high" && (s.exposureScore < 5 || s.exposureScore >= 8)) return false;
-      if (severityFilter === "medium" && (s.exposureScore < 2 || s.exposureScore >= 5)) return false;
-      if (severityFilter === "low" && s.exposureScore >= 2) return false;
-    }
-    return true;
-  });
+  };
 
   const exposureColor = (score: number) => {
     if (score >= 8) return "bg-severity-critical/15 text-severity-critical border-severity-critical/30";
