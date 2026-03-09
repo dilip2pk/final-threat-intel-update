@@ -18,22 +18,22 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 // ══════════════════════════════════════════
 
 function getToken(): string | null {
-  return localStorage.getItem("local_auth_token");
+  return window.localStorage.getItem("local_auth_token");
 }
 
 function setToken(token: string | null) {
-  if (token) localStorage.setItem("local_auth_token", token);
-  else localStorage.removeItem("local_auth_token");
+  if (token) window.localStorage.setItem("local_auth_token", token);
+  else window.localStorage.removeItem("local_auth_token");
 }
 
 function getUserData(): any {
-  const raw = localStorage.getItem("local_auth_user");
+  const raw = window.localStorage.getItem("local_auth_user");
   return raw ? JSON.parse(raw) : null;
 }
 
 function setUserData(user: any) {
-  if (user) localStorage.setItem("local_auth_user", JSON.stringify(user));
-  else localStorage.removeItem("local_auth_user");
+  if (user) window.localStorage.setItem("local_auth_user", JSON.stringify(user));
+  else window.localStorage.removeItem("local_auth_user");
 }
 
 async function apiFetch(path: string, options: RequestInit = {}) {
