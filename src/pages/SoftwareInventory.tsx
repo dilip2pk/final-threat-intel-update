@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Search, Loader2, Shield, Monitor, RefreshCw, AlertTriangle,
-  User, Cpu, HardDrive, ChevronRight, Download, FileText, FileSpreadsheet,
+  User, Cpu, HardDrive, ChevronRight, Download, FileText, FileSpreadsheet, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +76,14 @@ export default function SoftwareInventory() {
     } finally {
       setMachineLoading(false);
     }
+  }, [toast]);
+
+  const clearData = useCallback(() => {
+    setSoftware([]);
+    setStatFilter("all");
+    setSearch("");
+    setSeverityFilter("all");
+    toast({ title: "Data Cleared", description: "Software inventory has been removed" });
   }, [toast]);
 
   const handleSelectSoftware = (sw: SoftwareEntry) => {
@@ -319,6 +327,12 @@ export default function SoftwareInventory() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {software.length > 0 && (
+              <Button onClick={clearData} variant="outline" className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                Clear Data
+              </Button>
+            )}
             <Button onClick={fetchSoftwareInventory} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {software.length > 0 ? "Refresh" : "Fetch Inventory"}
