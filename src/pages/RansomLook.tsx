@@ -18,10 +18,7 @@ import {
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import {
-  mockLeaks, mockRansomGroups, monthlyLeakTrend, sectorBreakdown, groupActivity,
-  type LeakEntry,
-} from "@/lib/ransomLookData";
+import { type LeakEntry } from "@/lib/ransomLookData";
 import { useRansomLookAPI, type RansomLookPost } from "@/hooks/useRansomLookAPI";
 import { useWatchlist } from "@/hooks/useSettings";
 
