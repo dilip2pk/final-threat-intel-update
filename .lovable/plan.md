@@ -1,147 +1,99 @@
 
 
-# Migration Plan: Supabase to Local PostgreSQL
+# Local PostgreSQL Migration Plan (Optional Self-Hosted Setup)
 
-This is a significant architectural migration. Here is a comprehensive breakdown of everything involved.
+This creates a parallel local deployment option alongside the existing Supabase setup, so users can choose either mode.
 
 ---
 
-## Current Supabase Dependencies (What Needs Replacing)
+## Scope Summary
 
-| Dependency | Usage | Files Affected |
+| Component | Supabase Dependency | Local Replacement |
 |---|---|---|
-| **Database (`.from()`)** | CRUD on 12+ tables | 12 files across hooks, pages, lib |
-| **Auth (`supabase.auth.*`)** | Login, signup, session, roles | `useAuth.ts`, `AuthPage.tsx` |
-| **Edge Functions (`.functions.invoke()`)** | 15 serverless functions | 9 files |
-| **Storage (`.storage`)** | Logo/icon uploads | `SettingsPage.tsx` |
-| **Realtime** | Not currently used | N/A |
+| Database (20 files, `.from()`) | Supabase Postgres + RLS | Local PostgreSQL + Express API |
+| Auth (2 files) | `supabase.auth.*` | JWT + bcrypt via Express |
+| Edge Functions (9 files, 15 functions) | `supabase.functions.invoke()` | Express routes under `/api/functions/` |
+| Storage (1 file) | `supabase.storage` | multer + static file serving |
 
 ---
 
-## Architecture: What to Build
+## What Gets Built
 
-```text
-┌─────────────────────────┐
-│   React Frontend        │
-│   (unchanged UI)        │
-└───────────┬─────────────┘
-            │ HTTP (fetch / axios)
-┌───────────▼─────────────┐
-│   Express API Server    │  ← NEW (replaces Edge Functions + Supabase client)
-│   - /api/auth/*         │  (JWT-based auth with bcrypt)
-│   - /api/db/*           │  (CRUD endpoints for all tables)
-│   - /api/functions/*    │  (ports all 15 edge functions)
-│   - /api/storage/*      │  (file upload to local disk)
-│   - /api/tools/*        │  (existing local-tools-server merged)
-└───────────┬─────────────┘
-            │ pg / knex
-┌───────────▼─────────────┐
-│   PostgreSQL (local)    │
-│   Same schema as today  │
-└─────────────────────────┘
-```
+### 1. Combined `init.sql` Schema File
+Single file with all 18 tables, the `app_role` enum, `has_role()` function, `handle_new_user()` trigger function, and `update_updated_at_column()` trigger. No RLS (access control handled in API middleware).
 
----
+### 2. `local-api-server/` — Full Express Backend
+Extends the existing `local-tools-server/` concept into a complete backend:
 
-## Step-by-Step Plan
+- **Auth routes** (`/api/auth/signup`, `/api/auth/login`, `/api/auth/session`, `/api/auth/reset-password`) using bcrypt + jsonwebtoken
+- **Generic DB CRUD** (`/api/db/:table`) supporting `select`, `insert`, `update`, `delete` with query params for `.eq()`, `.order()`, `.single()`, `.limit()`
+- **15 function routes** (`/api/functions/:name`) — direct Node.js ports of each Deno edge function (most are simple HTTP proxies, so minimal changes)
+- **Storage routes** (`/api/storage/upload`, `/api/storage/:bucket/:file`) using multer for file uploads, serving from `./uploads/`
+- **Auth middleware** that validates JWT and injects `req.user` with role info
 
-### 1. Set Up Local PostgreSQL Schema
-- Combine all 9 migration files into a single `init.sql`
-- Create all 12 tables: `feed_sources`, `app_settings`, `alert_rules`, `scans`, `scan_results`, `scan_schedules`, `email_log`, `ticket_log`, `ticket_history`, `audit_log`, `watchlist`, `shodan_queries`, `shodan_results`, `generated_reports`, `profiles`, `user_roles`, `top_cves`, `scheduled_jobs`
-- Create the `app_role` enum and DB functions (`has_role`, `handle_new_user`, `update_updated_at_column`)
-- RLS is not needed locally (handled by API middleware)
-
-### 2. Build Express API Server (`local-api-server/`)
-Expand the existing `local-tools-server/` into a full backend:
-
-**Auth endpoints** (replaces `supabase.auth`):
-- `POST /api/auth/signup` — bcrypt password, insert into `users` + `profiles` + `user_roles`
-- `POST /api/auth/login` — verify password, return JWT
-- `GET /api/auth/session` — validate JWT, return user
-- `POST /api/auth/logout` — client-side token removal
-- Middleware: `authMiddleware` extracts JWT and sets `req.user`
-
-**Database endpoints** (replaces `supabase.from()`):
-- Generic CRUD: `GET/POST/PUT/DELETE /api/db/:table`
-- Query params for filtering (`.eq()`, `.order()`, `.single()`)
-- Role-based access checks in middleware (admin vs user)
-
-**Function endpoints** (replaces `supabase.functions.invoke()`):
-- Port each of the 15 edge functions to Express routes under `/api/functions/`
-- Same request/response contracts, just running in Node.js instead of Deno
-- Key functions: `rss-proxy`, `port-scan`, `analyze-feed`, `analyze-scan`, `shodan-proxy`, `cve-proxy`, `send-email`, `servicenow-ticket`, `defender-proxy`, `watchlist-check`, `generate-scan-report`, `generate-command`, `test-connection`, `servicenow-sync`, `ransomlook-proxy`
-
-**Storage endpoints** (replaces `supabase.storage`):
-- `POST /api/storage/upload` — save to `./uploads/` directory
-- `GET /api/storage/:filename` — serve static files
-- Used for org logos/icons
-
-### 3. Create Frontend API Abstraction Layer
-Create `src/lib/apiClient.ts` — a drop-in replacement for the Supabase client:
+### 3. `src/lib/apiClient.ts` — Frontend Abstraction Layer
+A drop-in client that mirrors the Supabase SDK interface so existing code needs only an import swap:
 
 ```typescript
-// Replaces: import { supabase } from "@/integrations/supabase/client"
-// Usage:    import { api } from "@/lib/apiClient"
+// Detects mode from VITE_BACKEND_MODE env var
+// "supabase" → uses existing supabase client (default)
+// "local" → uses fetch-based client hitting local Express API
 
-api.from("scans").select("*").eq("status", "completed")  // → GET /api/db/scans?status=completed
-api.from("scans").insert({...})                            // → POST /api/db/scans
-api.functions.invoke("analyze-feed", { body })             // → POST /api/functions/analyze-feed
-api.auth.signInWithPassword({ email, password })           // → POST /api/auth/login
-api.storage.from("org-assets").upload(path, file)          // → POST /api/storage/upload
+export const db = getClient(); // same .from().select().eq() API
 ```
 
-This approach means **minimal changes to existing component code** — just swap the import.
+Key: the abstraction implements a chainable query builder that translates to REST calls against the local API.
 
-### 4. Update All Frontend Files
-Files requiring the import swap (23 files total):
-- `src/hooks/useAuth.ts` — replace `supabase.auth.*` with `api.auth.*`
-- `src/hooks/useFeedSources.ts`, `useScans.ts`, `useScheduledJobs.ts`, `useActivityLog.ts`, `useSettings.ts`, `useRSSFeeds.ts`
-- `src/pages/AuthPage.tsx`, `NetworkScanner.tsx`, `ShodanSearch.tsx`, `SettingsPage.tsx`, `FeedManagement.tsx`, `SoftwareInventory.tsx`, `Reports.tsx`, `ScheduleManager.tsx`, `AlertMonitoring.tsx`
-- `src/lib/api.ts`, `loadSettingsFromDB.ts`
-- `src/components/TopCVEsWidget.tsx`, `AICommandGenerator.tsx`
+### 4. Frontend Import Swap (20 files)
+Replace `import { supabase } from "@/integrations/supabase/client"` with `import { db } from "@/lib/apiClient"` across all 20 consuming files. The `db` object exposes the same `.from()`, `.auth`, `.functions.invoke()`, and `.storage` interface.
 
-### 5. Environment Configuration
-Create a `.env.local`:
-```
-VITE_API_URL=http://localhost:3001
-DATABASE_URL=postgresql://user:pass@localhost:5432/threat_intel
-JWT_SECRET=your-secret-key
-```
-
-### 6. Docker Compose (Optional but Recommended)
-```yaml
-services:
-  db:
-    image: postgres:16
-    volumes: ["./init.sql:/docker-entrypoint-initdb.d/init.sql"]
-  api:
-    build: ./local-api-server
-    depends_on: [db]
-  frontend:
-    build: .
-    depends_on: [api]
-```
+### 5. Environment & Docker Setup
+- `.env.local` with `VITE_BACKEND_MODE=local`, `VITE_API_URL=http://localhost:3001`
+- `docker-compose.yml` with PostgreSQL 16 + API server + React dev server
+- `local-api-server/.env` with `DATABASE_URL`, `JWT_SECRET`
 
 ---
 
-## Risk Areas & Mitigations
+## Edge Function Porting (Deno → Node.js)
 
-| Risk | Mitigation |
-|---|---|
-| Auth session management differs from Supabase | Use JWT with httpOnly cookies or localStorage, matching current behavior |
-| Edge functions use Deno APIs | Port to Node.js — most are simple fetch-based proxies |
-| `LOVABLE_API_KEY` for AI | Must self-host AI or use direct API keys to OpenAI/Google |
-| Supabase types file (`types.ts`) | Generate from local PG schema with `pg-to-ts` or maintain manually |
-| File uploads | Simple `multer` + local disk storage |
+All 15 functions are simple HTTP handlers. The port involves:
+- Replace `serve()` with Express route handler
+- Replace `Deno.env.get()` with `process.env`
+- Replace Deno TCP/TLS APIs (in `send-email`) with `nodemailer`
+- The LOVABLE_API_KEY-based AI calls become direct API calls using user-configured keys
+
+| Function | Complexity | Notes |
+|---|---|---|
+| rss-proxy | Low | fetch-based proxy |
+| ransomlook-proxy | Low | fetch-based proxy |
+| shodan-proxy | Low | fetch-based proxy |
+| cve-proxy | Low | fetch-based proxy |
+| defender-proxy | Low | fetch-based proxy |
+| port-scan | Medium | needs nmap binary (already handled by local-tools-server) |
+| analyze-feed | Medium | AI API call, swap to direct OpenAI/Google SDK |
+| analyze-scan | Medium | AI API call |
+| generate-command | Medium | AI API call |
+| generate-scan-report | Medium | AI API call |
+| send-email | Medium | replace Deno TCP with nodemailer |
+| servicenow-ticket | Low | HTTP POST |
+| servicenow-sync | Low | HTTP calls |
+| test-connection | Low | HTTP calls |
+| watchlist-check | Low | DB query + proxy |
 
 ---
 
-## Estimated Scope
+## Implementation Order
 
-- **New files**: ~20 (API server routes, DB client, auth middleware, Docker config)
-- **Modified files**: ~23 (import swap from supabase to local API client)
-- **Edge function ports**: 15 functions → Express routes
-- **No UI changes** — all pages/components remain identical
+1. Create `init.sql` + `docker-compose.yml`
+2. Build `local-api-server/` with auth, CRUD, and middleware
+3. Port all 15 edge functions to Express routes
+4. Create `src/lib/apiClient.ts` abstraction
+5. Update 20 frontend files with conditional import
+6. Add `local-api-server/README.md` with setup instructions
 
-This is a multi-session effort. I recommend tackling it in phases: (1) DB + API server scaffold, (2) Auth, (3) CRUD endpoints, (4) Edge function ports, (5) Frontend swap.
+---
+
+## Key Design Decision
+
+The frontend uses a **mode switch** (`VITE_BACKEND_MODE`), so the same codebase supports both Supabase Cloud and local PostgreSQL. No UI changes needed — the abstraction layer handles the routing transparently.
 
