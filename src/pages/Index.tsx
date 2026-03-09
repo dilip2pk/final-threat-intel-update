@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { useRSSFeeds, type RSSFeedItem, type RSSSource } from "@/hooks/useRSSFeeds";
+import { useAutoFetchFeeds } from "@/hooks/useAutoFetchFeeds";
 import { Search, Shield, AlertTriangle, Rss, Activity, Loader2, Clock, Brain, Plus, TrendingUp, RefreshCw } from "lucide-react";
 import { TopCVEsWidget } from "@/components/TopCVEsWidget";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
