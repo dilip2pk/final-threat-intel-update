@@ -22,7 +22,13 @@ const navItems = [
 ];
 
 export function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("sidebar-collapsed") === "true"; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("sidebar-collapsed", String(collapsed)); } catch {}
+  }, [collapsed]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user, role, isAdmin, signOut } = useAuth();
