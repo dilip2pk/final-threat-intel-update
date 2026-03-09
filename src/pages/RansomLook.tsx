@@ -246,8 +246,8 @@ export default function RansomLook() {
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: "Total Leaks", value: mockLeaks.length, icon: Database, color: "text-primary" },
-            { label: "Groups Tracked", value: mockRansomGroups.length, icon: Shield, color: "text-primary" },
+            { label: "Total Leaks", value: livePosts.length, icon: Database, color: "text-primary" },
+            { label: "Groups Tracked", value: 0, icon: Shield, color: "text-primary" },
             { label: "Records Exposed", value: formatRecords(totalRecords), icon: Globe, color: "text-severity-high" },
             { label: "Critical", value: criticalCount, icon: AlertTriangle, color: "text-severity-critical" },
             { label: "Watching", value: watchlist.length, icon: BellRing, color: "text-severity-medium" },
