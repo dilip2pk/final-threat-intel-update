@@ -1,15 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-/**
- * Parse a simple cron expression into milliseconds interval.
- * Supports common patterns like:
- *   "*/5 * * * *"  → every 5 minutes
- *   "*/30 * * * *" → every 30 minutes
- *   "0 * * * *"    → every hour
- *   "0 */2 * * *"  → every 2 hours
- * Falls back to 30 minutes for unsupported patterns.
- */
+// Parse a simple cron expression into milliseconds interval.
+// Supports: */N * * * * (every N min), 0 * * * * (hourly), 0 */N * * * (every N hours)
+// Falls back to 30 minutes for unsupported patterns.
 function cronToMs(cron: string): number {
   const DEFAULT_MS = 30 * 60 * 1000; // 30 min
   if (!cron) return DEFAULT_MS;
