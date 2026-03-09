@@ -187,18 +187,11 @@ export default function RansomLook() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search organization, group, or country..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9 bg-card border-border" />
               </div>
-              <Select value={sectorFilter} onValueChange={(v) => { setSectorFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full md:w-44 bg-card border-border"><SelectValue placeholder="All Sectors" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sectors</SelectItem>
-                  {sectors.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground px-4">
                 <Zap className="h-3.5 w-3.5" />
                 Live Data Only
-                {apiLoading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                {apiError && <span className="text-xs text-severity-critical">API error — showing cached data</span>}
+                {apiLoading && <Loader2 className="h-4 w-4 animate-spin text-primary ml-2" />}
+                {apiError && <span className="text-xs text-severity-critical ml-2">API error — showing cached data</span>}
               </div>
             </div>
 
