@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -12,28 +10,47 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./local-api-server/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d threat_intel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   api:
     build: ./local-api-server
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3001:3001"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/threat_intel
       JWT_SECRET: change-this-to-a-long-random-string
       PORT: 3001
+      # Optional: set these for AI, Shodan, Defender integrations
+      # AI_API_KEY: your-openai-key
+      # AI_ENDPOINT_URL: https://api.openai.com/v1/chat/completions
+      # AI_MODEL: gpt-4o
+      # SHODAN_API_KEY: your-shodan-key
+      # DEFENDER_TENANT_ID: your-tenant-id
+      # DEFENDER_CLIENT_ID: your-client-id
+      # DEFENDER_CLIENT_SECRET: your-client-secret
+    volumes:
+      - api-uploads:/app/uploads
     restart: unless-stopped
 
   frontend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BACKEND_MODE: local
+        VITE_API_URL: http://localhost:3001
     depends_on:
       - api
     ports:
       - "8080:8080"
-    environment:
-      VITE_BACKEND_MODE: local
-      VITE_API_URL: http://localhost:3001
 
 volumes:
   pgdata:
+  api-uploads:
