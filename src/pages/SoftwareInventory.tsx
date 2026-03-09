@@ -109,6 +109,10 @@ export default function SoftwareInventory() {
   const [machineExtra, setMachineExtra] = useState<MachineDetailExtra | null>(null);
   const [machineExtraLoading, setMachineExtraLoading] = useState(false);
 
+  const [affectedUsers, setAffectedUsers] = useState<AffectedUser[]>([]);
+  const [affectedUsersLoading, setAffectedUsersLoading] = useState(false);
+  const [affectedUserSearch, setAffectedUserSearch] = useState("");
+
   const { toast } = useToast();
 
   const fetchSoftwareInventory = useCallback(async () => {
