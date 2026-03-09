@@ -154,7 +154,41 @@ Without SMTP, set `GOTRUE_MAILER_AUTOCONFIRM=true` in `docker-compose.yml` to sk
 
 ---
 
-## Troubleshooting
+## RSS Feed Auto-Refresh
+
+The dashboard automatically fetches RSS feeds at a configurable interval. This ensures your threat intelligence stays current without manual intervention.
+
+### Configuration
+
+1. Navigate to **Settings → General** in the UI
+2. Set the **RSS Fetch Interval** using a cron expression:
+   - `*/1 * * * *` — every 1 minute (testing only)
+   - `*/5 * * * *` — every 5 minutes
+   - `*/30 * * * *` — every 30 minutes (recommended)
+   - `0 * * * *` — every hour
+   - `0 */2 * * *` — every 2 hours
+3. Click **Save Settings**
+
+### How It Works
+
+- The interval is stored in the `app_settings` table with key `general`
+- The dashboard reads this setting and starts a client-side timer
+- Feeds refresh automatically while the dashboard tab is open
+- The current interval is displayed next to the Refresh button (e.g., "Auto-refresh: 30m")
+- Minimum interval is capped at 1 minute to prevent excessive API calls
+
+### Database Setting
+
+You can also set the interval directly in the database:
+
+```sql
+UPDATE app_settings 
+SET value = jsonb_set(value, '{fetchInterval}', '"*/30 * * * *"')
+WHERE key = 'general';
+```
+
+---
+
 
 | Issue | Solution |
 |-------|----------|
