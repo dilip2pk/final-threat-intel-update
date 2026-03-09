@@ -63,7 +63,7 @@ export function useAuth() {
     }
 
     // 1. Get initial session first
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    db.auth.getSession().then(({ data: { session: initialSession } }) => {
       handleSession(initialSession);
     });
 
