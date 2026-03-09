@@ -283,7 +283,7 @@ const localFunctions = {
 };
 
 // Storage adapter for local mode
-const localStorage = {
+const localStorageAdapter = {
   from(bucket: string) {
     return {
       async upload(path: string, file: File) {
