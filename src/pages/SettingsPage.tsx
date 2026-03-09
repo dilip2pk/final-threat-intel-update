@@ -75,6 +75,7 @@ const navItems = [
   { id: "branding", label: "Branding", icon: Palette, description: "Logo, name & identity" },
   { id: "ai", label: "AI Integration", icon: Brain, description: "Model & provider settings" },
   { id: "localtools", label: "Local Tools", icon: Server, description: "Local tool server & plugins" },
+  { id: "infrastructure", label: "Infrastructure", icon: Activity, description: "Docker services health check" },
   { id: "email", label: "Email (SMTP)", icon: Mail, description: "Outbound email settings" },
   { id: "servicenow", label: "ServiceDesk", icon: Ticket, description: "ServiceNow integration" },
   { id: "shodan", label: "Shodan", icon: Globe, description: "Shodan API configuration" },
