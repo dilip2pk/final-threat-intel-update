@@ -83,7 +83,12 @@ interface MachineDetailExtra {
   deviceHealth: { lastFullScan: string | null; lastQuickScan: string | null; securityIntelligence: string; engineVersion: string; antivirusMode: string };
 }
 
-type ViewMode = "list" | "software-detail" | "machine-detail";
+type ViewMode = "list" | "software-detail" | "machine-detail" | "affected-users";
+
+interface AffectedUser {
+  username: string;
+  affectedSoftware: { name: string; installedVersion: string; recommendedVersion: string; cves: string[]; deviceName: string; exposureLevel: string }[];
+}
 
 export default function SoftwareInventory() {
   const [software, setSoftware] = useState<SoftwareEntry[]>([]);
@@ -103,6 +108,10 @@ export default function SoftwareInventory() {
   const [selectedMachine, setSelectedMachine] = useState<MachineDetail | null>(null);
   const [machineExtra, setMachineExtra] = useState<MachineDetailExtra | null>(null);
   const [machineExtraLoading, setMachineExtraLoading] = useState(false);
+
+  const [affectedUsers, setAffectedUsers] = useState<AffectedUser[]>([]);
+  const [affectedUsersLoading, setAffectedUsersLoading] = useState(false);
+  const [affectedUserSearch, setAffectedUserSearch] = useState("");
 
   const { toast } = useToast();
 
@@ -158,11 +167,53 @@ export default function SoftwareInventory() {
     }
   }, []);
 
+  const fetchAffectedUsers = useCallback(async () => {
+    setViewMode("affected-users");
+    setAffectedUsersLoading(true);
+    setAffectedUserSearch("");
+    try {
+      const vulnerableSoftware = software.filter(s => s.exposedVulnerabilities > 0);
+      const results = await Promise.all(
+        vulnerableSoftware.map(sw =>
+          supabase.functions.invoke("defender-proxy", { body: { action: "software-machines", softwareId: sw.id } })
+            .then(res => ({ sw, machines: (res.data?.machines || []) as MachineDetail[] }))
+        )
+      );
+      // Group by user
+      const userMap = new Map<string, AffectedUser["affectedSoftware"]>();
+      results.forEach(({ sw, machines }) => {
+        machines.filter(m => m.isVulnerable).forEach(m => {
+          const username = m.primaryUser || m.lastLoggedOnUser || "Unknown";
+          if (!userMap.has(username)) userMap.set(username, []);
+          userMap.get(username)!.push({
+            name: sw.name,
+            installedVersion: m.installedVersion || sw.version,
+            recommendedVersion: m.recommendedVersion || sw.latestVersion || "",
+            cves: m.cves,
+            deviceName: m.deviceName,
+            exposureLevel: m.exposureLevel,
+          });
+        });
+      });
+      setAffectedUsers(
+        Array.from(userMap.entries())
+          .map(([username, affectedSoftware]) => ({ username, affectedSoftware }))
+          .sort((a, b) => b.affectedSoftware.length - a.affectedSoftware.length)
+      );
+    } catch (e: any) {
+      toast({ title: "Fetch Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setAffectedUsersLoading(false);
+    }
+  }, [software, toast]);
+
   const goBack = () => {
     if (viewMode === "machine-detail") {
       setViewMode("software-detail");
       setSelectedMachine(null);
       setMachineExtra(null);
+    } else if (viewMode === "affected-users") {
+      setViewMode("list");
     } else {
       setViewMode("list");
       setSelectedSoftware(null);
@@ -726,7 +777,122 @@ export default function SoftwareInventory() {
     );
   }
 
-  // ─── Software List View ───
+  // ─── Affected Users View ───
+  if (viewMode === "affected-users") {
+    const filteredUsers = affectedUsers.filter(u =>
+      !affectedUserSearch || u.username.toLowerCase().includes(affectedUserSearch.toLowerCase()) ||
+      u.affectedSoftware.some(s => s.name.toLowerCase().includes(affectedUserSearch.toLowerCase()) || s.deviceName.toLowerCase().includes(affectedUserSearch.toLowerCase()))
+    );
+    const totalCves = affectedUsers.reduce((sum, u) => sum + u.affectedSoftware.reduce((s2, sw) => s2 + sw.cves.length, 0), 0);
+
+    return (
+      <AppLayout>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />Affected Users
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Users running vulnerable software versions</p>
+            </div>
+          </div>
+
+          {affectedUsersLoading ? (
+            <div className="flex items-center justify-center py-16 gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-muted-foreground">Scanning all software for affected users...</span>
+            </div>
+          ) : (
+            <>
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="border border-border rounded-md bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1"><User className="h-4 w-4 text-primary" /><span className="text-xs text-muted-foreground">Affected Users</span></div>
+                  <span className="text-2xl font-bold font-mono text-primary">{affectedUsers.length}</span>
+                </div>
+                <div className="border border-border rounded-md bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1"><HardDrive className="h-4 w-4 text-severity-high" /><span className="text-xs text-muted-foreground">Affected Software</span></div>
+                  <span className="text-2xl font-bold font-mono text-severity-high">{new Set(affectedUsers.flatMap(u => u.affectedSoftware.map(s => s.name))).size}</span>
+                </div>
+                <div className="border border-border rounded-md bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1"><AlertTriangle className="h-4 w-4 text-severity-critical" /><span className="text-xs text-muted-foreground">Total CVEs</span></div>
+                  <span className="text-2xl font-bold font-mono text-severity-critical">{totalCves}</span>
+                </div>
+                <div className="border border-border rounded-md bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1"><Monitor className="h-4 w-4 text-severity-medium" /><span className="text-xs text-muted-foreground">Devices Affected</span></div>
+                  <span className="text-2xl font-bold font-mono text-severity-medium">{new Set(affectedUsers.flatMap(u => u.affectedSoftware.map(s => s.deviceName))).size}</span>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search by user, software, or device..." value={affectedUserSearch} onChange={e => setAffectedUserSearch(e.target.value)} className="pl-9 bg-card border-border" />
+              </div>
+
+              {/* User cards */}
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground text-sm">No affected users found</div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredUsers.map((user, idx) => (
+                    <Card key={idx} className="border-border">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                              <User className="h-4 w-4 text-destructive" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{user.username}</p>
+                              <p className="text-xs text-muted-foreground">{user.affectedSoftware.length} vulnerable software · {user.affectedSoftware.reduce((s, sw) => s + sw.cves.length, 0)} CVEs</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className={exposureColor(
+                            user.affectedSoftware.some(s => s.exposureLevel === "High") ? 8 : 5
+                          )}>
+                            {user.affectedSoftware.some(s => s.exposureLevel === "High") ? "High Risk" : "Medium Risk"}
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-2">
+                          {user.affectedSoftware.map((sw, si) => (
+                            <div key={si} className="bg-muted/30 border border-border rounded-md px-3 py-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <HardDrive className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-sm font-medium text-foreground">{sw.name}</span>
+                                  <span className="text-xs text-muted-foreground">on {sw.deviceName}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-mono text-destructive">v{sw.installedVersion}</span>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-[10px] font-mono text-severity-low">v{sw.recommendedVersion}</span>
+                                </div>
+                              </div>
+                              {sw.cves.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {sw.cves.map(cve => (
+                                    <Badge key={cve} variant="outline" className="text-[10px] font-mono bg-destructive/10 text-destructive border-destructive/20">{cve}</Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -747,6 +913,11 @@ export default function SoftwareInventory() {
                 <DropdownMenuItem onClick={exportToTXT} className="gap-2"><FileText className="h-4 w-4" />TXT</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {software.length > 0 && (
+              <Button onClick={fetchAffectedUsers} variant="outline" className="gap-2">
+                <User className="h-4 w-4" />Affected Users
+              </Button>
+            )}
             {software.length > 0 && (
               <Button onClick={clearData} variant="outline" className="gap-2"><Trash2 className="h-4 w-4" />Clear</Button>
             )}
