@@ -25,7 +25,7 @@ const ITEMS_PER_PAGE = 10;
 export default function RansomLook() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { loading: apiLoading, error: apiError, searchPosts, fetchRecentPosts } = useRansomLookAPI();
+  const { loading: apiLoading, error: apiError, searchPosts, fetchLastDays } = useRansomLookAPI();
   const { items: watchlistItems, addItem: addWatchlistItem, removeItem: removeWatchlistItem } = useWatchlist();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
