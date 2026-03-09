@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: threat_intel
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./local-api-server/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  api:
+    build: ./local-api-server
+    depends_on:
+      - db
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/threat_intel
+      JWT_SECRET: change-this-to-a-long-random-string
+      PORT: 3001
+    restart: unless-stopped
+
+  frontend:
+    build: .
+    depends_on:
+      - api
+    ports:
+      - "8080:8080"
+    environment:
+      VITE_BACKEND_MODE: local
+      VITE_API_URL: http://localhost:3001
+
+volumes:
+  pgdata:
