@@ -229,7 +229,96 @@ export default function SoftwareInventory() {
     toast({ title: "Data Cleared", description: "Software inventory has been removed" });
   }, [toast]);
 
-  const filteredSoftware = useMemo(() => {
+  // ─── Affected Users Export Functions ───
+  const buildAffectedUsersData = (users: AffectedUser[]) => {
+    let idx = 0;
+    const rows: { no: number; user: string; software: string; device: string; installed: string; recommended: string; cves: string; risk: string }[] = [];
+    users.forEach(u => {
+      u.affectedSoftware.forEach(sw => {
+        idx++;
+        rows.push({
+          no: idx,
+          user: u.username,
+          software: sw.name,
+          device: sw.deviceName,
+          installed: sw.installedVersion,
+          recommended: sw.recommendedVersion,
+          cves: sw.cves.join(", ") || "—",
+          risk: sw.exposureLevel,
+        });
+      });
+    });
+    return rows;
+  };
+
+  const exportAffectedUsersCSV = () => {
+    const rows = buildAffectedUsersData(affectedUsers);
+    const headers = ["#", "User", "Software", "Device", "Installed Version", "Recommended Version", "CVEs", "Risk Level"];
+    const csv = [headers, ...rows.map(r => [r.no, r.user, r.software, r.device, r.installed, r.recommended, `"${r.cves}"`, r.risk])].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `affected-users-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "CSV downloaded" });
+  };
+
+  const exportAffectedUsersTXT = () => {
+    const rows = buildAffectedUsersData(affectedUsers);
+    let content = `AFFECTED USERS REPORT\nGenerated: ${new Date().toLocaleString()}\nTotal Affected Users: ${affectedUsers.length}\nTotal Entries: ${rows.length}\n${"=".repeat(100)}\n\n`;
+    let currentUser = "";
+    rows.forEach(r => {
+      if (r.user !== currentUser) {
+        currentUser = r.user;
+        content += `\n── USER: ${r.user} ──\n`;
+      }
+      content += `  ${r.no}. ${r.software}\n`;
+      content += `     Device: ${r.device}\n`;
+      content += `     Installed: v${r.installed}  →  Recommended: v${r.recommended}\n`;
+      content += `     CVEs: ${r.cves}\n`;
+      content += `     Risk: ${r.risk}\n\n`;
+    });
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `affected-users-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "TXT downloaded" });
+  };
+
+  const exportAffectedUsersPDF = async () => {
+    try {
+      const jsPDF = (await import("jspdf")).default;
+      const autoTable = (await import("jspdf-autotable")).default;
+      const doc = new jsPDF({ orientation: "landscape" });
+      doc.setFontSize(18);
+      doc.setTextColor(204, 0, 0);
+      doc.text("Affected Users Report", 14, 20);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text(`Total Affected Users: ${affectedUsers.length}`, 14, 34);
+
+      const rows = buildAffectedUsersData(affectedUsers);
+      autoTable(doc, {
+        head: [["#", "User", "Software", "Device", "Installed", "Recommended", "CVEs", "Risk"]],
+        body: rows.map(r => [r.no, r.user, r.software, r.device, `v${r.installed}`, `v${r.recommended}`, r.cves, r.risk]),
+        startY: 42,
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [204, 0, 0] },
+        columnStyles: { 6: { cellWidth: 50 } },
+      });
+      doc.save(`affected-users-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast({ title: "Exported", description: "PDF downloaded" });
+    } catch {
+      toast({ title: "Export Failed", description: "Could not generate PDF", variant: "destructive" });
+    }
+  };
+
     return software.filter(s => {
       if (statFilter === "vulnerable" && s.exposedVulnerabilities <= 0) return false;
       if (statFilter === "exploits" && !s.publicExploit) return false;
