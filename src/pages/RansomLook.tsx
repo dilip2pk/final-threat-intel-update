@@ -65,16 +65,7 @@ export default function RansomLook() {
     return () => clearTimeout(timer);
   }, [search, searchPosts]);
 
-  const sectors = useMemo(() => [...new Set(livePosts.map((p) => p.activity))].filter(Boolean).sort(), [livePosts]);
-
-  const filteredLive = useMemo(() => {
-    return livePosts.filter((p) => {
-      if (sectorFilter !== "all" && p.activity !== sectorFilter) return false;
-      return true;
-    });
-  }, [livePosts, sectorFilter]);
-
-  const displayPosts = liveSearchResults ?? filteredLive;
+  const displayPosts = liveSearchResults ?? livePosts;
   const totalPages = Math.ceil(displayPosts.length / ITEMS_PER_PAGE);
   const paginatedLive = displayPosts.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
