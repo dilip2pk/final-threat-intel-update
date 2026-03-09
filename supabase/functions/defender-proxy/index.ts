@@ -257,6 +257,155 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, machines }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    if (action === "software-detail" && softwareId) {
+      // Fetch vulnerabilities for the software
+      const vulnRes = await fetch(`${baseUrl}/Software/${encodeURIComponent(softwareId)}/vulnerabilities`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      let weaknesses = { critical: 0, high: 0, medium: 0, low: 0 };
+      if (vulnRes.ok) {
+        const vulnData = await vulnRes.json();
+        for (const v of (vulnData.value || [])) {
+          const sev = (v.severity || "").toLowerCase();
+          if (sev === "critical") weaknesses.critical++;
+          else if (sev === "high") weaknesses.high++;
+          else if (sev === "medium") weaknesses.medium++;
+          else weaknesses.low++;
+        }
+      }
+
+      // Fetch exposed machines count trend (use current count as last point)
+      const machRes = await fetch(`${baseUrl}/Software/${encodeURIComponent(softwareId)}/machineReferences`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      let exposedCount = 0;
+      if (machRes.ok) {
+        const machData = await machRes.json();
+        exposedCount = (machData.value || []).filter((m: any) => (m.cveIds || []).length > 0).length;
+      }
+
+      const detail = {
+        weaknesses,
+        exposedDeviceTrend: [0, 0, 0, 0, 0, exposedCount],
+        topEvents: [],
+        threatContext: {
+          exploitAvailable: weaknesses.critical > 0,
+          exploitVerified: false,
+          exploitInKit: false,
+          activeThreats: weaknesses.critical + weaknesses.high,
+          threatSeverity: weaknesses.critical > 0 ? "Critical" : weaknesses.high > 0 ? "High" : "Low",
+        },
+        impactScore: Math.min(10, (weaknesses.critical * 3 + weaknesses.high * 2 + weaknesses.medium) / 2),
+      };
+      return new Response(JSON.stringify({ success: true, detail }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "software-recommendations" && softwareId) {
+      const res = await fetch(`${baseUrl}/recommendations?$filter=productName eq '${encodeURIComponent(softwareId)}'`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      let recommendations: any[] = [];
+      if (res.ok) {
+        const data = await res.json();
+        recommendations = (data.value || []).map((r: any) => ({
+          id: r.id,
+          title: r.recommendationName || r.title || "Security Recommendation",
+          description: r.description || "",
+          severity: r.severityScore >= 9 ? "Critical" : r.severityScore >= 7 ? "High" : r.severityScore >= 4 ? "Medium" : "Low",
+          status: r.status || "Active",
+          remediationType: r.remediationType || "Update",
+          affectedDevices: r.exposedMachinesCount || 0,
+          relatedCves: r.relatedCves || [],
+          vendor: r.vendor || "",
+          productName: r.productName || softwareId,
+        }));
+      }
+      // If no recommendations from API, generate a basic one
+      if (recommendations.length === 0) {
+        const sw = SAMPLE_SOFTWARE.find(s => s.id === softwareId);
+        recommendations = [{
+          id: `rec-live-${softwareId}`,
+          title: `Update ${sw?.name || softwareId} to the latest version`,
+          description: "Keep this software up to date to mitigate known vulnerabilities.",
+          severity: "Medium",
+          status: "Active",
+          remediationType: "Update",
+          affectedDevices: 0,
+          relatedCves: [],
+          vendor: sw?.vendor || "",
+          productName: sw?.name || softwareId,
+        }];
+      }
+      return new Response(JSON.stringify({ success: true, recommendations }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (action === "machine-detail" && deviceName) {
+      // Fetch machine info from Defender API
+      const res = await fetch(`${baseUrl}/machines?$filter=computerDnsName eq '${encodeURIComponent(deviceName)}'`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      let detail: any = {
+        category: "Endpoint", type: "Unknown", subtype: "Unknown",
+        securityAssessments: { critical: 0, high: 0, medium: 0, low: 0 },
+        loggedOnUsers: [],
+        deviceHealth: { lastFullScan: null, lastQuickScan: null, securityIntelligence: "N/A", engineVersion: "N/A", antivirusMode: "Unknown" },
+      };
+
+      if (res.ok) {
+        const data = await res.json();
+        const machine = (data.value || [])[0];
+        if (machine) {
+          // Fetch vulnerabilities for this machine
+          const vulnRes = await fetch(`${baseUrl}/machines/${machine.id}/vulnerabilities`, {
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          });
+          let securityAssessments = { critical: 0, high: 0, medium: 0, low: 0 };
+          if (vulnRes.ok) {
+            const vulnData = await vulnRes.json();
+            for (const v of (vulnData.value || [])) {
+              const sev = (v.severity || "").toLowerCase();
+              if (sev === "critical") securityAssessments.critical++;
+              else if (sev === "high") securityAssessments.high++;
+              else if (sev === "medium") securityAssessments.medium++;
+              else securityAssessments.low++;
+            }
+          }
+
+          // Fetch logged on users
+          const usersRes = await fetch(`${baseUrl}/machines/${machine.id}/logonusers`, {
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          });
+          let loggedOnUsers: any[] = [];
+          if (usersRes.ok) {
+            const usersData = await usersRes.json();
+            loggedOnUsers = (usersData.value || []).slice(0, 5).map((u: any) => ({
+              username: u.accountName || u.userName || "Unknown",
+              logonType: u.logonTypes || "Interactive",
+              lastSeen: u.lastSeen || null,
+            }));
+          }
+
+          detail = {
+            category: machine.osPlatform?.includes("Server") ? "Server" : "Endpoint",
+            type: machine.osPlatform || "Unknown",
+            subtype: machine.osProcessor || "x64",
+            securityAssessments,
+            loggedOnUsers: loggedOnUsers.length > 0 ? loggedOnUsers : [
+              { username: machine.lastLoggedOnUser || "Unknown", logonType: "Interactive", lastSeen: machine.lastSeen },
+            ],
+            deviceHealth: {
+              lastFullScan: machine.lastFullScanTime || null,
+              lastQuickScan: machine.lastQuickScanTime || null,
+              securityIntelligence: machine.avSignatureVersion || "N/A",
+              engineVersion: machine.avEngineVersion || "N/A",
+              antivirusMode: machine.avIsActive ? "Active" : machine.avIsPassive ? "Passive" : "Unknown",
+            },
+          };
+        }
+      }
+      return new Response(JSON.stringify({ success: true, detail }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     return new Response(JSON.stringify({ success: false, error: "Invalid action" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("Defender proxy error:", e);
