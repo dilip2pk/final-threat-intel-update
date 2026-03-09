@@ -70,7 +70,7 @@ export function useAuth() {
     // 2. Listen for subsequent auth changes only (skip INITIAL_SESSION)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
+    } = db.auth.onAuthStateChange((event, newSession) => {
       if (event === "INITIAL_SESSION") return;
 
       // Set loading immediately on sign-in to prevent any role flash
