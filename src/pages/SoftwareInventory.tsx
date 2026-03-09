@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Search, Loader2, Shield, Monitor, RefreshCw, AlertTriangle,
-  User, Cpu, HardDrive, ChevronRight, Download, FileText, FileSpreadsheet,
+  User, Cpu, HardDrive, ChevronRight, Download, FileText, FileSpreadsheet, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
