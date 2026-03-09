@@ -206,6 +206,7 @@ export default function SettingsPage() {
   const [showNmapKey, setShowNmapKey] = useState(false);
   const [testingNmap, setTestingNmap] = useState(false);
   const [nmapTestResult, setNmapTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [discoveredTools, setDiscoveredTools] = useState<Array<{ id: string; name: string; icon: string; version?: string; available: boolean; description: string; category: string }>>([]);
 
   const updateShodan = (field: string, value: any) => setSettings((s: any) => ({ ...s, shodan: { ...s.shodan, [field]: value } }));
   const updateDefender = (field: string, value: any) => setSettings((s: any) => ({ ...s, defender: { ...s.defender, [field]: value } }));
