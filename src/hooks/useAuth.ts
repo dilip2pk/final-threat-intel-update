@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 import type { User, Session } from "@supabase/supabase-js";
 
 export type AppRole = "admin" | "user";
