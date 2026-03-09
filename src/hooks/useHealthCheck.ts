@@ -11,7 +11,7 @@ export interface ServiceHealth {
 
 export interface HealthCheckResult {
   services: ServiceHealth[];
-  overallStatus: "healthy" | "degraded" | "unhealthy" | "checking";
+  overallStatus: "healthy" | "degraded" | "unhealthy" | "checking" | "unknown";
   checkedAt: Date | null;
 }
 
