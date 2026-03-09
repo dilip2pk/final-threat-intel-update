@@ -83,7 +83,12 @@ interface MachineDetailExtra {
   deviceHealth: { lastFullScan: string | null; lastQuickScan: string | null; securityIntelligence: string; engineVersion: string; antivirusMode: string };
 }
 
-type ViewMode = "list" | "software-detail" | "machine-detail";
+type ViewMode = "list" | "software-detail" | "machine-detail" | "affected-users";
+
+interface AffectedUser {
+  username: string;
+  affectedSoftware: { name: string; installedVersion: string; recommendedVersion: string; cves: string[]; deviceName: string; exposureLevel: string }[];
+}
 
 export default function SoftwareInventory() {
   const [software, setSoftware] = useState<SoftwareEntry[]>([]);
