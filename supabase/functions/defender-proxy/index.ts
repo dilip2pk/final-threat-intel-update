@@ -82,6 +82,28 @@ serve(async (req) => {
     const { action, softwareId } = await req.json();
 
     const token = await getDefenderToken();
+    
+    // Demo mode - return sample data if credentials not configured
+    if (!token) {
+      if (action === "software-inventory") {
+        return new Response(
+          JSON.stringify({ success: true, software: SAMPLE_SOFTWARE, demoMode: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (action === "software-machines" && softwareId) {
+        const machines = SAMPLE_MACHINES[softwareId] || [
+          { deviceName: "DEMO-DEVICE-001", osVersion: "Windows 11 Pro", lastLoggedOnUser: "demo.user@company.com", exposureLevel: "Low", cves: [], deviceGroup: "Demo" },
+        ];
+        return new Response(
+          JSON.stringify({ success: true, machines, demoMode: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Live mode - fetch from Defender API
     const baseUrl = "https://api.securitycenter.microsoft.com/api";
 
     if (action === "software-inventory") {
