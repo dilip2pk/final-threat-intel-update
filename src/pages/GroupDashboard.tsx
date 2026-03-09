@@ -34,7 +34,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function GroupDashboard() {
   const { groupName } = useParams<{ groupName: string }>();
   const navigate = useNavigate();
-  const { fetchGroupInfo, fetchRecentPosts } = useRansomLookAPI();
+  const { fetchGroupInfo, fetchLastDays } = useRansomLookAPI();
   const [group, setGroup] = useState<RansomLookGroup | null>(null);
   const [posts, setPosts] = useState<RansomLookPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,14 +51,14 @@ export default function GroupDashboard() {
       setLoading(true);
       const [groupData, allPosts] = await Promise.all([
         fetchGroupInfo(decodedName),
-        fetchRecentPosts(500),
+        fetchLastDays(730),
       ]);
       setGroup(groupData);
       setPosts(allPosts.filter(p => p.group_name.toLowerCase() === decodedName.toLowerCase()));
       setLoading(false);
     }
     if (decodedName) load();
-  }, [decodedName, fetchGroupInfo, fetchRecentPosts]);
+  }, [decodedName, fetchGroupInfo, fetchLastDays]);
 
   // Generate activity chart data from posts
   const activityData = useMemo(() => {
