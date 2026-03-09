@@ -10,7 +10,7 @@ export type AppRole = "admin" | "user";
  */
 async function fetchRole(userId: string): Promise<AppRole> {
   try {
-    const { data } = await supabase
+    const { data } = await db
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
