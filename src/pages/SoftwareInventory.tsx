@@ -39,6 +39,7 @@ export default function SoftwareInventory() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
+  const [statFilter, setStatFilter] = useState<"all" | "vulnerable" | "exploits" | "high-exposure">("all");
   const [selectedSoftware, setSelectedSoftware] = useState<SoftwareEntry | null>(null);
   const [machineDetails, setMachineDetails] = useState<MachineDetail[]>([]);
   const [machineLoading, setMachineLoading] = useState(false);
