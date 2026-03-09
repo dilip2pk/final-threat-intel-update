@@ -333,7 +333,7 @@ const localClient = {
   from: (table: string) => new LocalQueryBuilder(table),
   auth: localAuth,
   functions: localFunctions,
-  storage: localStorage,
+  storage: localStorageAdapter,
   channel: localChannel,
   removeChannel: (_channel: any) => {},
 };
