@@ -167,11 +167,53 @@ export default function SoftwareInventory() {
     }
   }, []);
 
+  const fetchAffectedUsers = useCallback(async () => {
+    setViewMode("affected-users");
+    setAffectedUsersLoading(true);
+    setAffectedUserSearch("");
+    try {
+      const vulnerableSoftware = software.filter(s => s.exposedVulnerabilities > 0);
+      const results = await Promise.all(
+        vulnerableSoftware.map(sw =>
+          supabase.functions.invoke("defender-proxy", { body: { action: "software-machines", softwareId: sw.id } })
+            .then(res => ({ sw, machines: (res.data?.machines || []) as MachineDetail[] }))
+        )
+      );
+      // Group by user
+      const userMap = new Map<string, AffectedUser["affectedSoftware"]>();
+      results.forEach(({ sw, machines }) => {
+        machines.filter(m => m.isVulnerable).forEach(m => {
+          const username = m.primaryUser || m.lastLoggedOnUser || "Unknown";
+          if (!userMap.has(username)) userMap.set(username, []);
+          userMap.get(username)!.push({
+            name: sw.name,
+            installedVersion: m.installedVersion || sw.version,
+            recommendedVersion: m.recommendedVersion || sw.latestVersion || "",
+            cves: m.cves,
+            deviceName: m.deviceName,
+            exposureLevel: m.exposureLevel,
+          });
+        });
+      });
+      setAffectedUsers(
+        Array.from(userMap.entries())
+          .map(([username, affectedSoftware]) => ({ username, affectedSoftware }))
+          .sort((a, b) => b.affectedSoftware.length - a.affectedSoftware.length)
+      );
+    } catch (e: any) {
+      toast({ title: "Fetch Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setAffectedUsersLoading(false);
+    }
+  }, [software, toast]);
+
   const goBack = () => {
     if (viewMode === "machine-detail") {
       setViewMode("software-detail");
       setSelectedMachine(null);
       setMachineExtra(null);
+    } else if (viewMode === "affected-users") {
+      setViewMode("list");
     } else {
       setViewMode("list");
       setSelectedSoftware(null);
