@@ -46,85 +46,140 @@ export function AppSidebar() {
 
   return (
     <aside className={cn(
-      "flex flex-col border-r border-border bg-sidebar transition-all duration-300 h-screen sticky top-0",
-      collapsed ? "w-16" : "w-60"
+      "flex flex-col border-r border-border/50 bg-sidebar transition-all duration-300 h-screen sticky top-0 shadow-lg",
+      collapsed ? "w-[68px]" : "w-[240px]"
     )}>
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
-        {sidebarIconUrl ? (
-          <img src={sidebarIconUrl} alt="Icon" className="h-7 w-7 shrink-0 rounded object-contain" />
-        ) : logoUrl ? (
-          <img src={logoUrl} alt="Logo" className="h-7 w-7 shrink-0 rounded object-contain" />
-        ) : (
-          <Shield className="h-7 w-7 text-primary shrink-0" />
-        )}
+      {/* Header with logo + theme toggle */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-border/50">
+        <div className="flex items-center gap-3 min-w-0">
+          {sidebarIconUrl ? (
+            <img src={sidebarIconUrl} alt="Icon" className="h-8 w-8 shrink-0 rounded-lg object-contain" />
+          ) : logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="h-8 w-8 shrink-0 rounded-lg object-contain" />
+          ) : (
+            <div className="h-8 w-8 shrink-0 rounded-lg bg-primary/15 flex items-center justify-center">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+          )}
+          {!collapsed && (
+            <span className="text-sm font-semibold text-foreground tracking-tight truncate">{appName}</span>
+          )}
+        </div>
         {!collapsed && (
-          <span className="text-lg font-bold text-foreground tracking-tight font-mono">{appName}</span>
+          <button
+            onClick={toggleTheme}
+            className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
         )}
       </div>
 
-      <nav className="flex-1 py-4 space-y-1 px-2">
+      {/* Theme toggle when collapsed - show below header */}
+      {collapsed && (
+        <div className="flex justify-center py-2 border-b border-border/50">
+          <button
+            onClick={toggleTheme}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
+        {!collapsed && (
+          <div className="px-3 pb-2 pt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Navigation</span>
+          </div>
+        )}
         {navItems.filter(item => !item.adminOnly || isAdmin).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === "/"}
             className={({ isActive }) => cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+              "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 group relative",
+              collapsed && "justify-center px-0",
               isActive
-                ? "bg-primary/10 text-primary"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                ? "bg-primary/10 text-primary shadow-sm"
+                : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
             )}
+            title={collapsed ? item.label : undefined}
           >
-            <item.icon className="h-4 w-4 shrink-0" />
+            <item.icon className={cn("h-[18px] w-[18px] shrink-0 transition-colors")} />
             {!collapsed && <span>{item.label}</span>}
+            {/* Tooltip for collapsed state */}
+            {collapsed && (
+              <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-popover text-popover-foreground text-xs rounded-md shadow-md border border-border opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                {item.label}
+              </div>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="border-t border-border">
-        {/* Show user info + sign out when logged in */}
+      {/* Footer */}
+      <div className="border-t border-border/50 bg-sidebar">
         {user ? (
           <>
-            <div className="px-4 py-2 border-b border-border">
-              {!collapsed && (
-                <>
-                  <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-                  <span className="text-[10px] font-medium text-primary uppercase">{role || "user"}</span>
-                </>
+            <div className={cn("px-3 py-3 border-b border-border/30", collapsed && "px-2")}>
+              {!collapsed ? (
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-semibold text-primary uppercase">
+                      {user.email?.charAt(0) || "U"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-foreground font-medium truncate">{user.email}</div>
+                    <span className="text-[10px] font-semibold text-primary/80 uppercase tracking-wide">{role || "user"}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center" title={user.email || ""}>
+                    <span className="text-xs font-semibold text-primary uppercase">
+                      {user.email?.charAt(0) || "U"}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
             <button
               onClick={() => { signOut(); navigate("/"); }}
-              className="flex items-center gap-3 w-full px-5 py-3 text-muted-foreground hover:text-destructive transition-colors"
+              className={cn(
+                "flex items-center gap-3 w-full px-4 py-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all text-[13px]",
+                collapsed && "justify-center px-0"
+              )}
               title="Sign out"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              {!collapsed && <span className="text-sm">Sign Out</span>}
+              {!collapsed && <span>Sign Out</span>}
             </button>
           </>
         ) : (
-          /* Show admin login when not logged in */
           <button
             onClick={() => navigate("/admin-login")}
-            className="flex items-center gap-3 w-full px-5 py-3 text-muted-foreground hover:text-primary transition-colors"
+            className={cn(
+              "flex items-center gap-3 w-full px-4 py-2.5 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all text-[13px]",
+              collapsed && "justify-center px-0"
+            )}
             title="Admin Login"
           >
             <LogIn className="h-4 w-4 shrink-0" />
-            {!collapsed && <span className="text-sm">Admin Login</span>}
+            {!collapsed && <span>Admin Login</span>}
           </button>
         )}
 
-        <button
-          onClick={toggleTheme}
-          className="flex items-center gap-3 w-full px-5 py-3 text-muted-foreground hover:text-foreground transition-colors"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {theme === "dark" ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
-          {!collapsed && <span className="text-sm">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
-        </button>
+        {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-full py-3 border-t border-border text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center justify-center w-full py-2.5 border-t border-border/30 text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-all"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
