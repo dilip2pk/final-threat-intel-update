@@ -91,7 +91,6 @@ export default function RansomLook() {
   const [notifyFreq, setNotifyFreq] = useState("instant");
   const [livePosts, setLivePosts] = useState<RansomLookPost[]>([]);
   const [liveSearchResults, setLiveSearchResults] = useState<RansomLookPost[] | null>(null);
-  const [dataMode, setDataMode] = useState<"live" | "mock">("live");
 
   const watchlist = watchlistItems.map(w => w.organization);
 
