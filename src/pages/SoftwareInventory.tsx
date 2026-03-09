@@ -319,6 +319,7 @@ export default function SoftwareInventory() {
     }
   };
 
+  const filteredSoftware = useMemo(() => {
     return software.filter(s => {
       if (statFilter === "vulnerable" && s.exposedVulnerabilities <= 0) return false;
       if (statFilter === "exploits" && !s.publicExploit) return false;
