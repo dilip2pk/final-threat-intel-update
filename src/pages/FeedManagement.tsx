@@ -12,7 +12,7 @@ import { useFeedSources } from "@/hooks/useFeedSources";
 import { formatDate } from "@/lib/mockData";
 import { useAuth } from "@/hooks/useAuth";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 
 export default function FeedManagement() {
   const { isAdmin } = useAuth();

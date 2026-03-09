@@ -93,7 +93,7 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     roleCache.current.clear();
-    await supabase.auth.signOut();
+    await db.auth.signOut();
     setRole(null);
   }, []);
 

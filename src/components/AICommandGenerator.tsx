@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Loader2, Copy, Check, Lightbulb, Sparkles, Terminal, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/apiClient";
 
 interface GeneratedCommand {
   command: string;
