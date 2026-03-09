@@ -24,7 +24,6 @@ export default function RansomLook() {
   const { loading: apiLoading, error: apiError, searchPosts, fetchRecentPosts } = useRansomLookAPI();
   const { items: watchlistItems, addItem: addWatchlistItem, removeItem: removeWatchlistItem } = useWatchlist();
   const [search, setSearch] = useState("");
-  const [sectorFilter, setSectorFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedLivePost, setSelectedLivePost] = useState<RansomLookPost | null>(null);
   const [watchDialogOpen, setWatchDialogOpen] = useState(false);
