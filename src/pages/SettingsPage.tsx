@@ -515,48 +515,91 @@ export default function SettingsPage() {
           </div>
         );
 
-      case "nmap":
+      case "localtools":
         return (
-          <SectionCard title="Scan Backend" icon={Server} description="Choose between cloud TCP scanner or local Nmap server.">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { mode: "cloud", emoji: "☁️", title: "Cloud Backend", desc: "Simulated TCP-connect scanning. No local setup." },
-                { mode: "local", emoji: "🖥️", title: "Local Nmap Server", desc: "Real Nmap with OS detection, version scanning & NSE scripts." },
-              ].map(opt => (
-                <button key={opt.mode} onClick={() => updateNmapBackend("mode", opt.mode)}
-                  className={cn("border rounded-xl p-4 text-left transition-all", nmapMode === opt.mode ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/50")}>
-                  <p className="text-sm font-semibold text-foreground">{opt.emoji} {opt.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-            {nmapMode === "local" && (
-              <div className="space-y-4 border-t border-border pt-5">
-                <FieldGroup label="Server URL" description="URL of your local Nmap backend server">
-                  <Input value={nmapLocalUrl} onChange={e => updateNmapBackend("localUrl", e.target.value)} className="font-mono" placeholder="http://localhost:3001" />
-                </FieldGroup>
-                <FieldGroup label="API Key (optional)">
-                  <div className="flex gap-2">
-                    <PasswordField value={nmapApiKey} onChange={v => updateNmapBackend("apiKey", v)} show={showNmapKey} onToggle={() => setShowNmapKey(!showNmapKey)} placeholder="Leave empty if not configured" />
-                  </div>
-                </FieldGroup>
-                <div className="border border-dashed border-border rounded-xl p-4 bg-muted/10">
-                  <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">📋 Setup Instructions</h4>
-                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                    <li>Install Node.js 18+ and Nmap on your machine</li>
-                    <li>Navigate to <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">local-nmap-server/</code></li>
-                    <li>Run <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">npm install</code></li>
-                    <li>Start with <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">sudo node server.js</code></li>
-                    <li>Optionally set <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">NMAP_API_KEY=your-key</code></li>
-                  </ol>
-                </div>
-                <Button onClick={handleTestNmap} disabled={testingNmap} variant="outline" className="gap-2">
-                  {testingNmap ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Test Connection
-                </Button>
-                <TestResultBadge result={nmapTestResult} />
+          <div className="space-y-6">
+            <SectionCard title="Scan Backend Mode" icon={Server} description="Choose between cloud TCP scanner or local tools server with full binary execution.">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { mode: "cloud", emoji: "☁️", title: "Cloud Backend", desc: "Simulated TCP-connect scanning. No local setup." },
+                  { mode: "local", emoji: "🖥️", title: "Local Tools Server", desc: "Real binaries: Nmap, and any custom plugins you add." },
+                ].map(opt => (
+                  <button key={opt.mode} onClick={() => updateNmapBackend("mode", opt.mode)}
+                    className={cn("border rounded-xl p-4 text-left transition-all", nmapMode === opt.mode ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/50")}>
+                    <p className="text-sm font-semibold text-foreground">{opt.emoji} {opt.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{opt.desc}</p>
+                  </button>
+                ))}
               </div>
+            </SectionCard>
+
+            {nmapMode === "local" && (
+              <>
+                <SectionCard title="Server Connection" icon={Globe} description="Connect to your local tools server instance.">
+                  <FieldGroup label="Server URL" description="URL of your local tools server">
+                    <Input value={nmapLocalUrl} onChange={e => updateNmapBackend("localUrl", e.target.value)} className="font-mono" placeholder="http://localhost:3001" />
+                  </FieldGroup>
+                  <FieldGroup label="API Key (optional)">
+                    <PasswordField value={nmapApiKey} onChange={v => updateNmapBackend("apiKey", v)} show={showNmapKey} onToggle={() => setShowNmapKey(!showNmapKey)} placeholder="Leave empty if not configured" />
+                  </FieldGroup>
+                  <Button onClick={handleTestNmap} disabled={testingNmap} variant="outline" className="gap-2">
+                    {testingNmap ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Test Connection & Discover Tools
+                  </Button>
+                  <TestResultBadge result={nmapTestResult} />
+                </SectionCard>
+
+                {/* Discovered tools */}
+                {discoveredTools.length > 0 && (
+                  <SectionCard title="Discovered Tools" icon={Settings2} description={`${discoveredTools.filter(t => t.available).length} of ${discoveredTools.length} plugin(s) available on the server.`}>
+                    <div className="space-y-2">
+                      {discoveredTools.map(tool => (
+                        <div key={tool.id} className={cn("flex items-center gap-3 p-3 rounded-lg border transition-colors",
+                          tool.available ? "border-[hsl(var(--severity-low))]/30 bg-[hsl(var(--severity-low))]/5" : "border-destructive/30 bg-destructive/5"
+                        )}>
+                          <span className="text-lg">{tool.icon || "🔧"}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-foreground">{tool.name}</span>
+                              {tool.version && <Badge variant="secondary" className="text-[9px]">{tool.version}</Badge>}
+                              <Badge variant="outline" className="text-[9px] capitalize">{tool.category}</Badge>
+                            </div>
+                            {tool.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{tool.description}</p>}
+                          </div>
+                          <Badge variant="outline" className={cn("text-[10px] shrink-0",
+                            tool.available
+                              ? "bg-[hsl(var(--severity-low))]/10 text-[hsl(var(--severity-low))] border-[hsl(var(--severity-low))]/30"
+                              : "bg-destructive/10 text-destructive border-destructive/30"
+                          )}>
+                            {tool.available ? "✓ Available" : "✗ Missing"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+                )}
+
+                <SectionCard title="Setup Instructions" icon={FileText} description="How to set up the local tools server.">
+                  <div className="border border-dashed border-border rounded-xl p-4 bg-muted/10">
+                    <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                      <li>Install Node.js 18+ and required tool binaries (e.g. Nmap)</li>
+                      <li>Navigate to <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">local-tools-server/</code></li>
+                      <li>Run <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">npm install</code></li>
+                      <li>Start with <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">sudo node server.js</code></li>
+                      <li>Optionally set <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">TOOLS_API_KEY=your-key</code></li>
+                    </ol>
+                  </div>
+                  <div className="border border-dashed border-border rounded-xl p-4 bg-muted/10">
+                    <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">🔌 Adding Custom Tools</h4>
+                    <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                      <li>Copy <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">plugins/_template.js</code> → <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">plugins/my-tool.js</code></li>
+                      <li>Implement <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">metadata</code>, <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">healthCheck()</code>, and <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">registerRoutes(router)</code></li>
+                      <li>Restart the server — the plugin auto-registers</li>
+                    </ol>
+                  </div>
+                </SectionCard>
+              </>
             )}
-          </SectionCard>
+          </div>
         );
 
       case "email":
