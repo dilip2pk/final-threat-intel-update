@@ -30,11 +30,17 @@ const Index = () => {
 
   const hasConfiguredSources = configuredSources.filter(s => s.active).length > 0;
 
-  const loadFeeds = async () => {
+  const loadFeeds = useCallback(async () => {
     const { sources: s, items: i } = await fetchAllFeeds();
     setSources(s);
     setItems(i);
-  };
+  }, [fetchAllFeeds]);
+
+  // Auto-fetch feeds based on configured interval
+  const { intervalMs, nextFetchAt } = useAutoFetchFeeds({
+    enabled: initialLoaded && hasConfiguredSources,
+    onFetch: loadFeeds,
+  });
 
   useEffect(() => {
     if (sourcesLoading) return;
@@ -43,7 +49,7 @@ const Index = () => {
       return;
     }
     loadFeeds().then(() => setInitialLoaded(true));
-  }, [fetchAllFeeds, sourcesLoading, hasConfiguredSources]);
+  }, [loadFeeds, sourcesLoading, hasConfiguredSources]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
