@@ -90,7 +90,7 @@ export function AICommandGenerator({ open, onOpenChange, type, onSelectCommand }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -100,7 +100,7 @@ export function AICommandGenerator({ open, onOpenChange, type, onSelectCommand }
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 min-h-0">
+        <div className="space-y-4 flex-1 min-h-0 overflow-hidden flex flex-col">
           {/* Input */}
           <div>
             <Textarea
@@ -139,7 +139,7 @@ export function AICommandGenerator({ open, onOpenChange, type, onSelectCommand }
 
           {/* Results */}
           {commands.length > 0 && (
-            <ScrollArea className="flex-1 max-h-[400px]">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-3 pr-3">
                 {commands.map((cmd, idx) => (
                   <div key={idx} className="border border-border rounded-lg bg-card overflow-hidden group hover:border-primary/30 transition-colors">
