@@ -139,7 +139,7 @@ export function AICommandGenerator({ open, onOpenChange, type, onSelectCommand }
 
           {/* Results */}
           {commands.length > 0 && (
-            <ScrollArea className="flex-1 max-h-[400px]">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-3 pr-3">
                 {commands.map((cmd, idx) => (
                   <div key={idx} className="border border-border rounded-lg bg-card overflow-hidden group hover:border-primary/30 transition-colors">
