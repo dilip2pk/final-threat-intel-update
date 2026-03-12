@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_prompt_versions: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          prompt_id: string
+          system_prompt: string
+          user_prompt_template: string
+          version: number
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          prompt_id: string
+          system_prompt?: string
+          user_prompt_template?: string
+          version: number
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          prompt_id?: string
+          system_prompt?: string
+          user_prompt_template?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prompt_versions_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "ai_prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_prompts: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          prompt_key: string
+          provider: string
+          system_prompt: string
+          updated_at: string
+          user_prompt_template: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          prompt_key: string
+          provider?: string
+          system_prompt?: string
+          updated_at?: string
+          user_prompt_template?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          prompt_key?: string
+          provider?: string
+          system_prompt?: string
+          updated_at?: string
+          user_prompt_template?: string
+          version?: number
+        }
+        Relationships: []
+      }
       alert_rules: {
         Row: {
           active: boolean

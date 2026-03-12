@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import AIPromptManager from "@/components/settings/AIPromptManager";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
   CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock, FileText, Palette, Server,
-  ChevronRight, Activity,
+  ChevronRight, Activity, MessageSquareCode,
 } from "lucide-react";
 import { HealthCheckPanel } from "@/components/HealthCheckPanel";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +75,7 @@ const navItems = [
   { id: "general", label: "General", icon: Clock, description: "Fetch & alert configuration" },
   { id: "branding", label: "Branding", icon: Palette, description: "Logo, name & identity" },
   { id: "ai", label: "AI Integration", icon: Brain, description: "Model & provider settings" },
+  { id: "ai-prompts", label: "AI Prompts", icon: MessageSquareCode, description: "Manage AI prompt instructions" },
   { id: "localtools", label: "Local Tools", icon: Server, description: "Local tool server & plugins" },
   { id: "infrastructure", label: "Infrastructure", icon: Activity, description: "Docker services health check" },
   { id: "email", label: "Email (SMTP)", icon: Mail, description: "Outbound email settings" },
@@ -516,6 +518,9 @@ export default function SettingsPage() {
             )}
           </div>
         );
+
+      case "ai-prompts":
+        return <AIPromptManager />;
 
       case "localtools":
         return (
