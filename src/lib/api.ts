@@ -14,6 +14,7 @@ export async function analyzeFeed(params: {
   description: string;
   content?: string;
   source?: string;
+  sourceUrl?: string;
   model?: string;
   endpointUrl?: string;
   apiKey?: string;

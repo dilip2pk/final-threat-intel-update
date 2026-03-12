@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { title, description, content, source, model, endpointUrl, apiKey, apiType, authHeaderType } = await req.json();
+    const { title, description, content, source, sourceUrl, model, endpointUrl, apiKey, apiType, authHeaderType } = await req.json();
 
     // Only use Intelligence Studio if both endpoint and key are provided
     const hasIntelStudio = apiType === "intelligence-studio" && apiKey?.trim() && endpointUrl?.trim();
@@ -26,8 +26,11 @@ serve(async (req) => {
 
 Title: ${title}
 Source: ${source || "Unknown"}
+${sourceUrl ? `Source URL: ${sourceUrl}` : ""}
 Description: ${description || "No description"}
 Content: ${content || "No additional content"}
+
+IMPORTANT for reference_links: ALWAYS include the original source URL if provided. Only include real, well-known URLs (e.g., CVE pages, vendor advisories). Do NOT fabricate URLs.
 
 Respond in this exact JSON format:
 {
@@ -109,12 +112,19 @@ Respond in this exact JSON format:
       }
     } else {
       // OpenAI-compatible flow (built-in or custom)
-      const systemPrompt = `You are a cybersecurity threat intelligence analyst. Given an RSS feed item about a security vulnerability, threat, or advisory, produce a structured analysis. You MUST respond using the suggest_analysis tool. Be thorough but concise. For affected versions, only include if relevant (e.g., software vulnerabilities). For reference links, include the original source and any additional relevant URLs you know about.`;
+      const systemPrompt = `You are a cybersecurity threat intelligence analyst. Given an RSS feed item about a security vulnerability, threat, or advisory, produce a structured analysis. You MUST respond using the suggest_analysis tool. Be thorough but concise. For affected versions, only include if relevant (e.g., software vulnerabilities).
+
+IMPORTANT for reference_links:
+- ALWAYS include the original source link if provided in the feed item.
+- Only include URLs that are real, well-known, and directly relevant (e.g., official CVE pages like cve.mitre.org, NVD entries, vendor advisories).
+- Do NOT fabricate or guess URLs. If you are unsure a URL exists, do not include it.
+- Prefer specific article/advisory URLs over generic homepages.`;
 
       const userPrompt = `Analyze this security feed item:
 
 Title: ${title}
 Source: ${source || "Unknown"}
+${sourceUrl ? `Source URL: ${sourceUrl}` : ""}
 Description: ${description || "No description"}
 Content: ${content || "No additional content"}
 
