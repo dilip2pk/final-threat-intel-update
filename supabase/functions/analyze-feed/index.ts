@@ -109,7 +109,13 @@ Respond in this exact JSON format:
       }
     } else {
       // OpenAI-compatible flow (built-in or custom)
-      const systemPrompt = `You are a cybersecurity threat intelligence analyst. Given an RSS feed item about a security vulnerability, threat, or advisory, produce a structured analysis. You MUST respond using the suggest_analysis tool. Be thorough but concise. For affected versions, only include if relevant (e.g., software vulnerabilities). For reference links, include the original source and any additional relevant URLs you know about.`;
+      const systemPrompt = `You are a cybersecurity threat intelligence analyst. Given an RSS feed item about a security vulnerability, threat, or advisory, produce a structured analysis. You MUST respond using the suggest_analysis tool. Be thorough but concise. For affected versions, only include if relevant (e.g., software vulnerabilities).
+
+IMPORTANT for reference_links:
+- ALWAYS include the original source link if provided in the feed item.
+- Only include URLs that are real, well-known, and directly relevant (e.g., official CVE pages like cve.mitre.org, NVD entries, vendor advisories).
+- Do NOT fabricate or guess URLs. If you are unsure a URL exists, do not include it.
+- Prefer specific article/advisory URLs over generic homepages.`;
 
       const userPrompt = `Analyze this security feed item:
 
