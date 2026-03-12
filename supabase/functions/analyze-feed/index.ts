@@ -26,8 +26,11 @@ serve(async (req) => {
 
 Title: ${title}
 Source: ${source || "Unknown"}
+${sourceUrl ? `Source URL: ${sourceUrl}` : ""}
 Description: ${description || "No description"}
 Content: ${content || "No additional content"}
+
+IMPORTANT for reference_links: ALWAYS include the original source URL if provided. Only include real, well-known URLs (e.g., CVE pages, vendor advisories). Do NOT fabricate URLs.
 
 Respond in this exact JSON format:
 {
