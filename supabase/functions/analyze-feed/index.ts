@@ -121,6 +121,7 @@ IMPORTANT for reference_links:
 
 Title: ${title}
 Source: ${source || "Unknown"}
+${sourceUrl ? `Source URL: ${sourceUrl}` : ""}
 Description: ${description || "No description"}
 Content: ${content || "No additional content"}
 
