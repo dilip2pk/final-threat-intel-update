@@ -221,6 +221,14 @@ export default function AIPromptManager({ aiSettings }: AIPromptManagerProps) {
           source: "Test Source",
           sourceUrl: "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
           testPrompt: { system: prompt.system_prompt, user: prompt.user_prompt_template },
+          // Pass user's AI config so custom providers work
+          ...(aiSettings && {
+            model: aiSettings.model,
+            apiKey: aiSettings.apiKey,
+            endpointUrl: aiSettings.endpointUrl,
+            apiType: aiSettings.apiType,
+            authHeaderType: aiSettings.authHeaderType,
+          }),
         },
       });
       if (error) throw error;
