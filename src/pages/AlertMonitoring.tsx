@@ -10,25 +10,51 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAlertRules } from "@/hooks/useSettings";
+import { useAlertRules, useSettings } from "@/hooks/useSettings";
 import { useRSSFeeds, type RSSFeedItem } from "@/hooks/useRSSFeeds";
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { useAuth } from "@/hooks/useAuth";
 
+// Severity hierarchy for threshold comparison
+const SEVERITY_LEVELS: Record<string, number> = {
+  critical: 5, high: 4, medium: 3, low: 2, info: 1,
+};
+
+// Estimate severity of a feed item based on keyword indicators
+function estimateSeverity(title: string, description: string): Severity {
+  const text = `${title} ${description}`.toLowerCase();
+  const criticalTerms = ["critical", "rce", "remote code execution", "zero-day", "0-day", "actively exploited", "emergency", "ransomware attack", "supply chain"];
+  const highTerms = ["high", "exploit", "vulnerability", "cve-", "privilege escalation", "authentication bypass", "data breach", "malware"];
+  const mediumTerms = ["medium", "moderate", "denial of service", "dos", "xss", "cross-site", "injection", "phishing"];
+  const lowTerms = ["low", "minor", "informational", "update", "patch available", "advisory"];
+
+  if (criticalTerms.some(t => text.includes(t))) return "critical";
+  if (highTerms.some(t => text.includes(t))) return "high";
+  if (mediumTerms.some(t => text.includes(t))) return "medium";
+  if (lowTerms.some(t => text.includes(t))) return "low";
+  return "info";
+}
+
+function meetsThreshold(itemSeverity: Severity, threshold: string): boolean {
+  return (SEVERITY_LEVELS[itemSeverity] || 0) >= (SEVERITY_LEVELS[threshold] || 0);
+}
+
 export default function AlertMonitoring() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
+  const { general } = useSettings();
   const { fetchAllFeeds } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", keywords: "", severityThreshold: "high" as Severity, urlPattern: "", active: true });
-  const [scanResults, setScanResults] = useState<RSSFeedItem[] | null>(null);
+  const [scanResults, setScanResults] = useState<{ item: RSSFeedItem; severity: Severity; matchedRules: string[] }[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const hasConfiguredSources = configuredSources.length > 0;
+  const globalThreshold = general.severityThreshold || "high";
 
   const scanToday = async () => {
     if (!hasConfiguredSources) {
@@ -40,14 +66,38 @@ export default function AlertMonitoring() {
       const { items } = await fetchAllFeeds();
       const today = new Date().toDateString();
       const todayFeeds = items.filter(f => f.pubDate && new Date(f.pubDate).toDateString() === today);
-      const matched = todayFeeds.filter(feed => {
-        return rules.some(rule => {
-          if (!rule.active) return false;
-          return rule.keywords.some(kw => feed.title.toLowerCase().includes(kw.toLowerCase()) || feed.description.toLowerCase().includes(kw.toLowerCase()));
-        });
-      });
+
+      const matched: typeof scanResults = [];
+
+      for (const feed of todayFeeds) {
+        const severity = estimateSeverity(feed.title, feed.description);
+
+        // Global severity threshold filter
+        if (!meetsThreshold(severity, globalThreshold)) continue;
+
+        const matchedRuleNames: string[] = [];
+        for (const rule of rules) {
+          if (!rule.active) continue;
+          // Rule-level severity threshold
+          if (!meetsThreshold(severity, rule.severity_threshold)) continue;
+          // Keyword match
+          const hasKeyword = rule.keywords.length === 0 || rule.keywords.some(kw =>
+            feed.title.toLowerCase().includes(kw.toLowerCase()) ||
+            feed.description.toLowerCase().includes(kw.toLowerCase())
+          );
+          if (hasKeyword) matchedRuleNames.push(rule.name);
+        }
+
+        if (matchedRuleNames.length > 0) {
+          matched.push({ item: feed, severity, matchedRules: matchedRuleNames });
+        }
+      }
+
+      // Sort by severity
+      matched.sort((a, b) => (SEVERITY_LEVELS[b.severity] || 0) - (SEVERITY_LEVELS[a.severity] || 0));
+
       setScanResults(matched);
-      toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds` });
+      toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds (threshold: ≥${globalThreshold})` });
     } catch (e: any) {
       toast({ title: "Scan Failed", description: e.message, variant: "destructive" });
     } finally {
@@ -182,12 +232,24 @@ export default function AlertMonitoring() {
             {scanResults.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No matches found in today's feeds</p>
             ) : (
-              scanResults.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="border border-severity-medium/30 rounded-lg bg-card p-3">
+              scanResults.map((result, idx) => (
+                <div key={`${result.item.id}-${idx}`} className={`border rounded-lg bg-card p-3 ${
+                  result.severity === "critical" ? "border-severity-critical/30" :
+                  result.severity === "high" ? "border-severity-high/30" :
+                  "border-severity-medium/30"
+                }`}>
                   <div className="flex items-start gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{item.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.feedName} • {item.pubDate ? new Date(item.pubDate).toLocaleDateString() : "—"}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Badge variant="outline" className={`${getSeverityBg(result.severity)} text-[10px] uppercase font-mono`}>
+                          {result.severity}
+                        </Badge>
+                        <p className="text-sm font-medium text-foreground truncate">{result.item.title}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {result.item.feedName} • {result.item.pubDate ? new Date(result.item.pubDate).toLocaleDateString() : "—"}
+                        {result.matchedRules.length > 0 && <> • Rules: {result.matchedRules.join(", ")}</>}
+                      </p>
                     </div>
                   </div>
                 </div>
