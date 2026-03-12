@@ -68,7 +68,17 @@ const SectionCard = ({ title, icon: Icon, description, children, iconColor = "te
   </div>
 );
 
-export default function AIPromptManager() {
+interface AIPromptManagerProps {
+  aiSettings?: {
+    model: string;
+    apiKey: string;
+    endpointUrl: string;
+    apiType: string;
+    authHeaderType: string;
+  };
+}
+
+export default function AIPromptManager({ aiSettings }: AIPromptManagerProps) {
   const { toast } = useToast();
   const [prompts, setPrompts] = useState<AIPrompt[]>([]);
   const [loading, setLoading] = useState(true);
