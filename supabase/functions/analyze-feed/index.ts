@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { title, description, content, source, model, endpointUrl, apiKey, apiType, authHeaderType } = await req.json();
+    const { title, description, content, source, sourceUrl, model, endpointUrl, apiKey, apiType, authHeaderType } = await req.json();
 
     // Only use Intelligence Studio if both endpoint and key are provided
     const hasIntelStudio = apiType === "intelligence-studio" && apiKey?.trim() && endpointUrl?.trim();

@@ -82,6 +82,7 @@ export default function FeedDetail() {
         description: feedItem.description,
         content: feedItem.content,
         source: feedItem.feedName,
+        sourceUrl: feedItem.link,
         model: settings.ai.model,
         endpointUrl: settings.ai.endpointUrl,
         apiKey: settings.ai.apiKey,
