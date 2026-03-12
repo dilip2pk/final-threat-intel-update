@@ -232,12 +232,24 @@ export default function AlertMonitoring() {
             {scanResults.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No matches found in today's feeds</p>
             ) : (
-              scanResults.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="border border-severity-medium/30 rounded-lg bg-card p-3">
+              scanResults.map((result, idx) => (
+                <div key={`${result.item.id}-${idx}`} className={`border rounded-lg bg-card p-3 ${
+                  result.severity === "critical" ? "border-severity-critical/30" :
+                  result.severity === "high" ? "border-severity-high/30" :
+                  "border-severity-medium/30"
+                }`}>
                   <div className="flex items-start gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{item.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.feedName} • {item.pubDate ? new Date(item.pubDate).toLocaleDateString() : "—"}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Badge variant="outline" className={`${getSeverityBg(result.severity)} text-[10px] uppercase font-mono`}>
+                          {result.severity}
+                        </Badge>
+                        <p className="text-sm font-medium text-foreground truncate">{result.item.title}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {result.item.feedName} • {result.item.pubDate ? new Date(result.item.pubDate).toLocaleDateString() : "—"}
+                        {result.matchedRules.length > 0 && <> • Rules: {result.matchedRules.join(", ")}</>}
+                      </p>
                     </div>
                   </div>
                 </div>
