@@ -519,6 +519,9 @@ export default function SettingsPage() {
           </div>
         );
 
+      case "ai-prompts":
+        return <AIPromptManager />;
+
       case "localtools":
         return (
           <div className="space-y-6">
