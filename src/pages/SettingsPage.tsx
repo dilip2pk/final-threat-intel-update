@@ -75,6 +75,7 @@ const navItems = [
   { id: "general", label: "General", icon: Clock, description: "Fetch & alert configuration" },
   { id: "branding", label: "Branding", icon: Palette, description: "Logo, name & identity" },
   { id: "ai", label: "AI Integration", icon: Brain, description: "Model & provider settings" },
+  { id: "ai-prompts", label: "AI Prompts", icon: MessageSquareCode, description: "Manage AI prompt instructions" },
   { id: "localtools", label: "Local Tools", icon: Server, description: "Local tool server & plugins" },
   { id: "infrastructure", label: "Infrastructure", icon: Activity, description: "Docker services health check" },
   { id: "email", label: "Email (SMTP)", icon: Mail, description: "Outbound email settings" },
