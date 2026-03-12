@@ -520,7 +520,7 @@ export default function SettingsPage() {
         );
 
       case "ai-prompts":
-        return <AIPromptManager />;
+        return <AIPromptManager aiSettings={settings.ai} />;
 
       case "localtools":
         return (
