@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeFeed, sendAnalysisEmail, createServiceNowTicket, type AIAnalysis } from "@/lib/api";
-import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription } from "@/lib/formatters";
+import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription, type AdvisoryTemplateConfig } from "@/lib/formatters";
 import { loadSettingsFromDB, isSmtpConfigured, isServiceNowConfigured } from "@/lib/loadSettingsFromDB";
 
 export default function FeedDetail() {
