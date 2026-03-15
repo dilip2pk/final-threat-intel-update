@@ -291,7 +291,37 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     const success = await saveAll(settings, general);
+    // Also persist advisory template, report config, and watchlist notify
+    try {
+      await Promise.all([
+        supabase.from("app_settings").upsert({ key: "advisory_template", value: advisoryTemplate as any }, { onConflict: "key" }),
+        supabase.from("app_settings").upsert({ key: "report_customization", value: reportConfig as any }, { onConflict: "key" }),
+        supabase.from("app_settings").upsert({ key: "watchlist_notifications", value: watchlistNotify as any }, { onConflict: "key" }),
+      ]);
+    } catch (e) {
+      console.error("Failed to save additional settings:", e);
+    }
     toast({ title: success ? "Settings Saved" : "Save Failed", description: success ? "All configurations persisted" : "Could not save. Try again.", variant: success ? "default" : "destructive" });
+  };
+
+  const handleUploadAdvisoryLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAdvisoryLogo(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const filePath = `advisory-logo-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("org-assets").upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("org-assets").getPublicUrl(filePath);
+      setAdvisoryTemplate(c => ({ ...c, logoUrl: urlData.publicUrl }));
+      toast({ title: "Logo Uploaded", description: "Advisory header logo updated." });
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAdvisoryLogo(false);
+      if (advisoryLogoInputRef.current) advisoryLogoInputRef.current.value = "";
+    }
   };
 
   const handleTestAI = async () => {
