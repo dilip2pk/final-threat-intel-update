@@ -144,7 +144,7 @@ export default function FeedDetail() {
     const ccRecipients = emailCc.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
     try {
       const settings = await loadSettingsFromDB();
-      const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis);
+      const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis, advisoryConfig);
       await sendAnalysisEmail({
         to: recipients,
         cc: ccRecipients.length > 0 ? ccRecipients : undefined,
