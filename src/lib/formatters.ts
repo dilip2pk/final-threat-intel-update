@@ -1,6 +1,10 @@
 import { AIAnalysis } from "@/lib/api";
 import { SmtpConfig, ServiceNowConfig } from "@/lib/settingsStore";
 
+function splitImpactToBullets(text: string): string[] {
+  return text.split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/).map(s => s.trim()).filter(Boolean);
+}
+
 export function formatAnalysisText(title: string, source: string, analysis: AIAnalysis): string {
   return [
     `# ${title}`,
@@ -12,7 +16,7 @@ export function formatAnalysisText(title: string, source: string, analysis: AIAn
     analysis.summary,
     ``,
     `## Impact Analysis`,
-    ...analysis.impact_analysis.split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/).map(s => s.trim()).filter(Boolean).map(p => `- ${p}`),
+    ...splitImpactToBullets(analysis.impact_analysis).map(p => `- ${p}`),
     ``,
     ...(analysis.affected_versions.length > 0
       ? [`## Affected Versions`, ...analysis.affected_versions.map((v) => `- ${v}`), ``]
@@ -25,7 +29,50 @@ export function formatAnalysisText(title: string, source: string, analysis: AIAn
   ].join("\n");
 }
 
-export function formatAnalysisHTML(title: string, source: string, analysis: AIAnalysis): string {
+export interface AdvisoryTemplateConfig {
+  template: string;
+  orgName: string;
+  contactEmail: string;
+  footerText: string;
+  logoUrl: string;
+}
+
+export function formatAnalysisHTML(title: string, source: string, analysis: AIAnalysis, templateConfig?: AdvisoryTemplateConfig): string {
+  // If a custom template is provided, use it
+  if (templateConfig?.template) {
+    const impactBullets = splitImpactToBullets(analysis.impact_analysis);
+    let html = templateConfig.template;
+    html = html.replace(/\{\{org_name\}\}/g, templateConfig.orgName || "Security & Compliance");
+    html = html.replace(/\{\{contact_email\}\}/g, templateConfig.contactEmail || "");
+    html = html.replace(/\{\{footer_text\}\}/g, templateConfig.footerText || "");
+    html = html.replace(/\{\{severity\}\}/g, (analysis.severity || "medium").toUpperCase());
+    html = html.replace(/\{\{title\}\}/g, escapeHtml(title));
+    html = html.replace(/\{\{source\}\}/g, escapeHtml(source));
+    html = html.replace(/\{\{summary\}\}/g, escapeHtml(analysis.summary));
+    html = html.replace(/\{\{impact_html\}\}/g, impactBullets.map(p => `<li>${escapeHtml(p)}</li>`).join(""));
+    // Conditional versions
+    if (analysis.affected_versions.length > 0) {
+      html = html.replace(/\{\{#has_versions\}\}([\s\S]*?)\{\{\/has_versions\}\}/g, "$1");
+      html = html.replace(/\{\{\^has_versions\}\}([\s\S]*?)\{\{\/has_versions\}\}/g, "");
+    } else {
+      html = html.replace(/\{\{#has_versions\}\}([\s\S]*?)\{\{\/has_versions\}\}/g, "");
+      html = html.replace(/\{\{\^has_versions\}\}([\s\S]*?)\{\{\/has_versions\}\}/g, "$1");
+    }
+    html = html.replace(/\{\{versions_html\}\}/g, analysis.affected_versions.map(v => `<li>${escapeHtml(v)}</li>`).join(""));
+    html = html.replace(/\{\{mitigations_html\}\}/g, analysis.mitigations.map(m => `<li>${escapeHtml(m)}</li>`).join(""));
+    html = html.replace(/\{\{references_html\}\}/g, analysis.reference_links.map(l => `<li><a href="${escapeHtml(l)}" style="color:#e94560;">${escapeHtml(l)}</a></li>`).join(""));
+    // Conditional logo
+    if (templateConfig.logoUrl) {
+      html = html.replace(/\{\{#logo_url\}\}([\s\S]*?)\{\{\/logo_url\}\}/g, "$1");
+    } else {
+      html = html.replace(/\{\{#logo_url\}\}([\s\S]*?)\{\{\/logo_url\}\}/g, "");
+    }
+    html = html.replace(/\{\{logo_url\}\}/g, templateConfig.logoUrl || "");
+    return html;
+  }
+
+  // Default fallback template
+  const impactBullets = splitImpactToBullets(analysis.impact_analysis);
   return `
 <!DOCTYPE html>
 <html>
@@ -53,7 +100,7 @@ export function formatAnalysisHTML(title: string, source: string, analysis: AIAn
   <p>${escapeHtml(analysis.summary)}</p>
 
   <h2>Impact Analysis</h2>
-  <ul>${analysis.impact_analysis.split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/).map(s => s.trim()).filter(Boolean).map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
+  <ul>${impactBullets.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
 
   ${analysis.affected_versions.length > 0 ? `
   <h2>Affected Versions</h2>
