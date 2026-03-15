@@ -113,6 +113,8 @@ export default function SettingsPage() {
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
+  const advisoryLogoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAdvisoryLogo, setUploadingAdvisoryLogo] = useState(false);
 
   const [reportConfig, setReportConfig] = useState({
     orgName: "ThreatIntel",
