@@ -189,7 +189,7 @@ serve(async (req) => {
                   type: "object",
                   properties: {
                     summary: { type: "string", description: "Concise 2-3 sentence summary of the threat/vulnerability" },
-                    impact_analysis: { type: "string", description: "Detailed impact analysis including potential consequences, attack vectors, and risk level" },
+                    impact_analysis: { type: "string", description: "Impact analysis as bullet points separated by newlines. Each point should start on a new line. Cover potential consequences, attack vectors, and risk level." },
                     affected_versions: { type: "array", items: { type: "string" }, description: "List of affected software/system versions. Empty array if not applicable." },
                     mitigations: { type: "array", items: { type: "string" }, description: "List of recommended mitigation actions and remediation steps" },
                     reference_links: { type: "array", items: { type: "string" }, description: "List of relevant reference URLs" },
