@@ -93,7 +93,7 @@ export function formatAnalysisHTML(title: string, source: string, analysis: AIAn
   .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; }
 </style></head>
 <body>
-  <h1>${escapeHtml(title)}</h1>
+  <h1>Advisory: ${escapeHtml(title)}</h1>
   <p class="meta">Source: ${escapeHtml(source)} · <span class="severity severity-${analysis.severity}">${analysis.severity}</span></p>
 
   <h2>Summary</h2>
