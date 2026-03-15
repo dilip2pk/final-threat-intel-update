@@ -85,14 +85,57 @@ const defaultGeneral: GeneralSettings = {
   sidebarIconUrl: "",
 };
 
+// Session cache helpers to preserve unsaved edits across re-renders
+const CACHE_PREFIX = "settings_cache_";
+function getCached<T>(key: string): T | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function setCache(key: string, value: any) {
+  try { sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value)); } catch {}
+}
+function clearCache(key: string) {
+  try { sessionStorage.removeItem(CACHE_PREFIX + key); } catch {}
+}
+
 export function useSettings() {
-  const [settings, setSettings] = useState<ExtendedSettings>(defaultSettings);
-  const [general, setGeneral] = useState<GeneralSettings>(defaultGeneral);
+  const [settings, setSettingsRaw] = useState<ExtendedSettings>(() => getCached<ExtendedSettings>("integrations") || defaultSettings);
+  const [general, setGeneralRaw] = useState<GeneralSettings>(() => getCached<GeneralSettings>("general") || defaultGeneral);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dbLoaded, setDbLoaded] = useState(false);
 
-  // Load settings from DB
+  // Wrap setters to also write to sessionStorage
+  const setSettings = useCallback((valOrFn: ExtendedSettings | ((prev: ExtendedSettings) => ExtendedSettings)) => {
+    setSettingsRaw(prev => {
+      const next = typeof valOrFn === "function" ? valOrFn(prev) : valOrFn;
+      setCache("integrations", next);
+      return next;
+    });
+  }, []);
+
+  const setGeneral = useCallback((valOrFn: GeneralSettings | ((prev: GeneralSettings) => GeneralSettings)) => {
+    setGeneralRaw(prev => {
+      const next = typeof valOrFn === "function" ? valOrFn(prev) : valOrFn;
+      setCache("general", next);
+      return next;
+    });
+  }, []);
+
+  // Load settings from DB only once per session (skip if cache exists)
   useEffect(() => {
+    const hasCachedIntegrations = !!getCached("integrations");
+    const hasCachedGeneral = !!getCached("general");
+
+    // If we have cached edits, don't overwrite them from DB
+    if (hasCachedIntegrations && hasCachedGeneral) {
+      setLoading(false);
+      setDbLoaded(true);
+      return;
+    }
+
     async function load() {
       try {
         const { data } = await supabase
@@ -101,9 +144,9 @@ export function useSettings() {
         
         if (data) {
           for (const row of data) {
-            if (row.key === "integrations") {
+            if (row.key === "integrations" && !hasCachedIntegrations) {
               const val = row.value as any;
-              setSettings({
+              const merged = {
                 smtp: { ...defaultSettings.smtp, ...val?.smtp },
                 serviceNow: {
                   ...defaultSettings.serviceNow,
@@ -114,9 +157,13 @@ export function useSettings() {
                 shodan: { ...defaultSettings.shodan!, ...val?.shodan },
                 defender: { ...defaultSettings.defender!, ...val?.defender },
                 nmapBackend: { ...defaultSettings.nmapBackend!, ...val?.nmapBackend },
-              });
-            } else if (row.key === "general") {
-              setGeneral({ ...defaultGeneral, ...(row.value as any) });
+              };
+              setSettingsRaw(merged);
+              setCache("integrations", merged);
+            } else if (row.key === "general" && !hasCachedGeneral) {
+              const merged = { ...defaultGeneral, ...(row.value as any) };
+              setGeneralRaw(merged);
+              setCache("general", merged);
             }
           }
         }
@@ -124,6 +171,7 @@ export function useSettings() {
         console.error("Failed to load settings:", e);
       } finally {
         setLoading(false);
+        setDbLoaded(true);
       }
     }
     load();
@@ -132,18 +180,19 @@ export function useSettings() {
   const saveAll = useCallback(async (newSettings: ExtendedSettings, newGeneral: GeneralSettings) => {
     setSaving(true);
     try {
-      // Upsert integrations
       await supabase
         .from("app_settings")
         .upsert({ key: "integrations", value: newSettings as any }, { onConflict: "key" });
 
-      // Upsert general
       await supabase
         .from("app_settings")
         .upsert({ key: "general", value: newGeneral as any }, { onConflict: "key" });
 
-      setSettings(newSettings);
-      setGeneral(newGeneral);
+      setSettingsRaw(newSettings);
+      setGeneralRaw(newGeneral);
+      // Clear cache after successful save — DB is now source of truth
+      clearCache("integrations");
+      clearCache("general");
       return true;
     } catch (e) {
       console.error("Failed to save settings:", e);
