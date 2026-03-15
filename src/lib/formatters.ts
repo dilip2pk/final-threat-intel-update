@@ -53,7 +53,7 @@ export function formatAnalysisHTML(title: string, source: string, analysis: AIAn
   <p>${escapeHtml(analysis.summary)}</p>
 
   <h2>Impact Analysis</h2>
-  <p>${escapeHtml(analysis.impact_analysis)}</p>
+  <ul>${analysis.impact_analysis.split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/).map(s => s.trim()).filter(Boolean).map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
 
   ${analysis.affected_versions.length > 0 ? `
   <h2>Affected Versions</h2>
