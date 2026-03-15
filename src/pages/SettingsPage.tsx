@@ -120,7 +120,18 @@ export default function SettingsPage() {
   const advisoryLogoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingAdvisoryLogo, setUploadingAdvisoryLogo] = useState(false);
 
-  const [reportConfig, setReportConfig] = useState({
+  // Session cache helpers for local settings state
+  const getCached = <T,>(key: string): T | null => {
+    try { const r = sessionStorage.getItem("settings_cache_" + key); return r ? JSON.parse(r) : null; } catch { return null; }
+  };
+  const setLocalCache = (key: string, val: any) => {
+    try { sessionStorage.setItem("settings_cache_" + key, JSON.stringify(val)); } catch {}
+  };
+  const clearLocalCache = (key: string) => {
+    try { sessionStorage.removeItem("settings_cache_" + key); } catch {}
+  };
+
+  const [reportConfig, setReportConfigRaw] = useState(() => getCached<any>("report_customization") || {
     orgName: "ThreatIntel",
     logoUrl: "",
     reportTitle: "Security Scan Report",
@@ -133,6 +144,13 @@ export default function SettingsPage() {
       remediation: true, firewallRules: true, patchRecommendations: true,
     },
   });
+  const setReportConfig = (valOrFn: any) => {
+    setReportConfigRaw((prev: any) => {
+      const next = typeof valOrFn === "function" ? valOrFn(prev) : valOrFn;
+      setLocalCache("report_customization", next);
+      return next;
+    });
+  };
   const [savingReport, setSavingReport] = useState(false);
 
   const defaultAdvisoryTemplateDark = `<!DOCTYPE html>
