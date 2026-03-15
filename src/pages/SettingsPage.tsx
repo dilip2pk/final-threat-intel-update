@@ -131,7 +131,7 @@ export default function SettingsPage() {
   });
   const [savingReport, setSavingReport] = useState(false);
 
-  const defaultAdvisoryTemplate = `<!DOCTYPE html>
+  const defaultAdvisoryTemplateDark = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#1a1a2e;">
@@ -143,8 +143,10 @@ export default function SettingsPage() {
     </div>
     <!-- Advisory Bar -->
     <div style="background:#e94560;padding:10px 32px;text-align:center;">
-      <span style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:1px;">Advisory: {{severity}}</span>
+      <span style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:1px;">Advisory: {{title}}</span>
     </div>
+    <!-- Severity Badge -->
+    <div style="padding:12px 32px 0;"><span style="display:inline-block;padding:4px 14px;border-radius:4px;font-weight:bold;font-size:12px;text-transform:uppercase;color:#fff;background:#e94560;">{{severity}}</span></div>
     <!-- Body -->
     <div style="padding:28px 32px;color:#e0e0e0;font-size:14px;line-height:1.7;">
       <p>Dear All,</p>
@@ -175,6 +177,55 @@ export default function SettingsPage() {
   </div>
 </body>
 </html>`;
+
+  const defaultAdvisoryTemplateLight = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;">
+  <div style="max-width:700px;margin:0 auto;background:#ffffff;border:1px solid #e0e0e0;">
+    <!-- Header -->
+    <div style="background:#000000;padding:24px 32px;display:flex;align-items:center;justify-content:space-between;">
+      <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:700;">{{org_name}}</h1>
+      {{#logo_url}}<img src="{{logo_url}}" alt="Logo" style="height:40px;" />{{/logo_url}}
+    </div>
+    <!-- Advisory Bar -->
+    <div style="background:#333333;padding:10px 32px;text-align:center;">
+      <span style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:1px;">Advisory: {{title}}</span>
+    </div>
+    <!-- Severity Badge -->
+    <div style="padding:12px 32px 0;"><span style="display:inline-block;padding:4px 14px;border-radius:4px;font-weight:bold;font-size:12px;text-transform:uppercase;color:#fff;background:#333333;">{{severity}}</span></div>
+    <!-- Body -->
+    <div style="padding:28px 32px;color:#1a1a1a;font-size:14px;line-height:1.7;">
+      <p>Dear All,</p>
+      <p>Our security team has recently identified a <strong>{{severity}}</strong> severity issue.</p>
+
+      <h3 style="color:#000000;margin:20px 0 8px;font-size:15px;">Description:</h3>
+      <p>{{summary}}</p>
+
+      <h3 style="color:#000000;margin:20px 0 8px;font-size:15px;">Impact:</h3>
+      <ul style="padding-left:20px;margin:0;">{{impact_html}}</ul>
+
+      <h3 style="color:#000000;margin:20px 0 8px;font-size:15px;">Affected Versions:</h3>
+      {{#has_versions}}<ul style="padding-left:20px;margin:0;">{{versions_html}}</ul>{{/has_versions}}
+      {{^has_versions}}<p style="color:#6b7280;">N/A</p>{{/has_versions}}
+
+      <h3 style="color:#000000;margin:20px 0 8px;font-size:15px;">Mitigations &amp; Recommendations:</h3>
+      <ul style="padding-left:20px;margin:0;">{{mitigations_html}}</ul>
+
+      <h3 style="color:#000000;margin:20px 0 8px;font-size:15px;">References:</h3>
+      <ul style="padding-left:20px;margin:0;">{{references_html}}</ul>
+
+      <p style="margin-top:24px;color:#6b7280;font-size:13px;">If you have any questions or need clarification regarding this matter, please do not hesitate to reach out to us at <a href="mailto:{{contact_email}}" style="color:#000000;font-weight:600;">{{contact_email}}</a>.</p>
+    </div>
+    <!-- Footer -->
+    <div style="padding:16px 32px;background:#f5f5f5;border-top:1px solid #e0e0e0;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;">{{footer_text}}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const defaultAdvisoryTemplate = defaultAdvisoryTemplateDark;
 
   const [advisoryTemplate, setAdvisoryTemplate] = useState({
     template: defaultAdvisoryTemplate,
