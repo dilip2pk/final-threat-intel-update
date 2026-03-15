@@ -721,8 +721,11 @@ export default function SettingsPage() {
                 />
               </FieldGroup>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setAdvisoryTemplate(c => ({ ...c, template: defaultAdvisoryTemplate }))} className="gap-2 text-xs">
-                  Reset to Default
+                <Button variant="outline" size="sm" onClick={() => setAdvisoryTemplate(c => ({ ...c, template: defaultAdvisoryTemplateDark }))} className="gap-2 text-xs">
+                  🌑 Dark Template
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setAdvisoryTemplate(c => ({ ...c, template: defaultAdvisoryTemplateLight }))} className="gap-2 text-xs">
+                  ⬜ Light (B&W) Template
                 </Button>
               </div>
             </SectionCard>

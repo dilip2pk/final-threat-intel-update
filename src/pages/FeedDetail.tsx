@@ -186,7 +186,9 @@ export default function FeedDetail() {
     setSending(true);
     try {
       const settings = await loadSettingsFromDB();
-      const desc = formatTicketDescription(analysis);
+      const desc = advisoryConfig
+        ? formatAnalysisHTML(ticketTitle, feedItem.feedName || "Unknown", analysis, advisoryConfig)
+        : formatTicketDescription(analysis);
       const result = await createServiceNowTicket({
         ticket: {
           title: ticketTitle,

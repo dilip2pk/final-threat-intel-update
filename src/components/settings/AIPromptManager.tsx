@@ -103,11 +103,10 @@ export default function AIPromptManager({ aiSettings }: AIPromptManagerProps) {
       if (data) setPrompts(data);
     } catch (e: any) {
       console.error("Failed to load prompts:", e);
-      toast({ title: "Failed to load prompts", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => { loadPrompts(); }, [loadPrompts]);
 
