@@ -59,11 +59,11 @@ export default function FeedDetail() {
   const [ticketWorkNotes, setTicketWorkNotes] = useState("");
 
   // Load advisory template config
-  useState(() => {
+  useEffect(() => {
     supabase.from("app_settings").select("value").eq("key", "advisory_template").single().then(({ data }) => {
       if (data?.value) setAdvisoryConfig(data.value as any);
     });
-  });
+  }, []);
 
   if (!feedItem) {
     return (
