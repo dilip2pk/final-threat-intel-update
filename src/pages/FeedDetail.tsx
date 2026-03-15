@@ -48,6 +48,7 @@ export default function FeedDetail() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [advisoryConfig, setAdvisoryConfig] = useState<AdvisoryTemplateConfig | undefined>();
 
   const [emailTo, setEmailTo] = useState("");
   const [emailCc, setEmailCc] = useState("");
@@ -56,6 +57,13 @@ export default function FeedDetail() {
   const [ticketImpact, setTicketImpact] = useState("2");
   const [ticketUrgency, setTicketUrgency] = useState("2");
   const [ticketWorkNotes, setTicketWorkNotes] = useState("");
+
+  // Load advisory template config
+  useState(() => {
+    supabase.from("app_settings").select("value").eq("key", "advisory_template").single().then(({ data }) => {
+      if (data?.value) setAdvisoryConfig(data.value as any);
+    });
+  });
 
   if (!feedItem) {
     return (
