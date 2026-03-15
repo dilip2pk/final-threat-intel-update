@@ -439,7 +439,18 @@ export default function FeedDetail() {
                       <Separator />
 
                       <AnalysisSection icon={AlertTriangle} title="Impact Analysis" iconClassName="text-severity-high">
-                        <p className="leading-relaxed">{analysis.impact_analysis}</p>
+                        <ul className="space-y-2">
+                          {analysis.impact_analysis
+                            .split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/)
+                            .map(s => s.trim())
+                            .filter(Boolean)
+                            .map((point, i) => (
+                              <li key={i} className="flex items-start gap-2.5">
+                                <AlertTriangle className="h-3.5 w-3.5 text-severity-high/60 mt-0.5 shrink-0" />
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                        </ul>
                       </AnalysisSection>
 
                       {analysis.affected_versions.length > 0 && (

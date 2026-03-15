@@ -81,7 +81,7 @@ export function formatTicketDescription(analysis: AIAnalysis): string {
     analysis.summary,
     ``,
     `## Impact Analysis`,
-    analysis.impact_analysis,
+    ...analysis.impact_analysis.split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/).map(s => s.trim()).filter(Boolean).map(p => `- ${p}`),
     ``,
     ...(analysis.affected_versions.length > 0
       ? [`## Affected Versions`, ...analysis.affected_versions.map((v) => `- ${v}`), ``]
