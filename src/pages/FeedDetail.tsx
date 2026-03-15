@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeFeed, sendAnalysisEmail, createServiceNowTicket, type AIAnalysis } from "@/lib/api";
-import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription } from "@/lib/formatters";
+import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription, type AdvisoryTemplateConfig } from "@/lib/formatters";
 import { loadSettingsFromDB, isSmtpConfigured, isServiceNowConfigured } from "@/lib/loadSettingsFromDB";
 
 export default function FeedDetail() {
@@ -48,6 +48,7 @@ export default function FeedDetail() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [advisoryConfig, setAdvisoryConfig] = useState<AdvisoryTemplateConfig | undefined>();
 
   const [emailTo, setEmailTo] = useState("");
   const [emailCc, setEmailCc] = useState("");
@@ -56,6 +57,13 @@ export default function FeedDetail() {
   const [ticketImpact, setTicketImpact] = useState("2");
   const [ticketUrgency, setTicketUrgency] = useState("2");
   const [ticketWorkNotes, setTicketWorkNotes] = useState("");
+
+  // Load advisory template config
+  useEffect(() => {
+    supabase.from("app_settings").select("value").eq("key", "advisory_template").single().then(({ data }) => {
+      if (data?.value) setAdvisoryConfig(data.value as any);
+    });
+  }, []);
 
   if (!feedItem) {
     return (
@@ -136,7 +144,7 @@ export default function FeedDetail() {
     const ccRecipients = emailCc.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean);
     try {
       const settings = await loadSettingsFromDB();
-      const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis);
+      const html = formatAnalysisHTML(feedItem.title, feedItem.feedName || "Unknown", analysis, advisoryConfig);
       await sendAnalysisEmail({
         to: recipients,
         cc: ccRecipients.length > 0 ? ccRecipients : undefined,
@@ -439,7 +447,18 @@ export default function FeedDetail() {
                       <Separator />
 
                       <AnalysisSection icon={AlertTriangle} title="Impact Analysis" iconClassName="text-severity-high">
-                        <p className="leading-relaxed">{analysis.impact_analysis}</p>
+                        <ul className="space-y-2">
+                          {analysis.impact_analysis
+                            .split(/(?:\n[-•*]\s*|\n\d+[.)]\s*|\n{2,})/)
+                            .map(s => s.trim())
+                            .filter(Boolean)
+                            .map((point, i) => (
+                              <li key={i} className="flex items-start gap-2.5">
+                                <AlertTriangle className="h-3.5 w-3.5 text-severity-high/60 mt-0.5 shrink-0" />
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                        </ul>
                       </AnalysisSection>
 
                       {analysis.affected_versions.length > 0 && (
