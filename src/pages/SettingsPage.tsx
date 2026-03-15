@@ -221,6 +221,9 @@ export default function SettingsPage() {
     supabase.from("app_settings").select("value").eq("key", "watchlist_notifications").single().then(({ data }) => {
       if (data?.value) setWatchlistNotify(prev => ({ ...prev, ...(data.value as any) }));
     });
+    supabase.from("app_settings").select("value").eq("key", "advisory_template").single().then(({ data }) => {
+      if (data?.value) setAdvisoryTemplate(prev => ({ ...prev, ...(data.value as any) }));
+    });
   }, []);
 
   // --- Helpers (same logic, no changes) ---
