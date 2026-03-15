@@ -113,6 +113,8 @@ export default function SettingsPage() {
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
+  const advisoryLogoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAdvisoryLogo, setUploadingAdvisoryLogo] = useState(false);
 
   const [reportConfig, setReportConfig] = useState({
     orgName: "ThreatIntel",
@@ -289,7 +291,37 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     const success = await saveAll(settings, general);
+    // Also persist advisory template, report config, and watchlist notify
+    try {
+      await Promise.all([
+        supabase.from("app_settings").upsert({ key: "advisory_template", value: advisoryTemplate as any }, { onConflict: "key" }),
+        supabase.from("app_settings").upsert({ key: "report_customization", value: reportConfig as any }, { onConflict: "key" }),
+        supabase.from("app_settings").upsert({ key: "watchlist_notifications", value: watchlistNotify as any }, { onConflict: "key" }),
+      ]);
+    } catch (e) {
+      console.error("Failed to save additional settings:", e);
+    }
     toast({ title: success ? "Settings Saved" : "Save Failed", description: success ? "All configurations persisted" : "Could not save. Try again.", variant: success ? "default" : "destructive" });
+  };
+
+  const handleUploadAdvisoryLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAdvisoryLogo(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const filePath = `advisory-logo-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("org-assets").upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("org-assets").getPublicUrl(filePath);
+      setAdvisoryTemplate(c => ({ ...c, logoUrl: urlData.publicUrl }));
+      toast({ title: "Logo Uploaded", description: "Advisory header logo updated." });
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingAdvisoryLogo(false);
+      if (advisoryLogoInputRef.current) advisoryLogoInputRef.current.value = "";
+    }
   };
 
   const handleTestAI = async () => {
@@ -601,8 +633,28 @@ export default function SettingsPage() {
                   <Input value={advisoryTemplate.contactEmail} onChange={e => setAdvisoryTemplate(c => ({ ...c, contactEmail: e.target.value }))} placeholder="security@yourcompany.com" className="font-mono text-sm" />
                 </FieldGroup>
               </div>
-              <FieldGroup label="Logo URL (optional)" description="URL to your organization logo for the email header">
-                <Input value={advisoryTemplate.logoUrl} onChange={e => setAdvisoryTemplate(c => ({ ...c, logoUrl: e.target.value }))} placeholder="https://..." className="font-mono text-sm" />
+              <FieldGroup label="Header Logo" description="Upload an image or enter a URL for the email header logo.">
+                <div className="space-y-3">
+                  <div className="flex gap-2 items-center">
+                    <Input value={advisoryTemplate.logoUrl} onChange={e => setAdvisoryTemplate(c => ({ ...c, logoUrl: e.target.value }))} placeholder="https://..." className="font-mono text-sm flex-1" />
+                    <input type="file" ref={advisoryLogoInputRef} accept="image/*" className="hidden" onChange={handleUploadAdvisoryLogo} />
+                    <Button type="button" variant="outline" size="sm" onClick={() => advisoryLogoInputRef.current?.click()} disabled={uploadingAdvisoryLogo} className="gap-1.5 shrink-0">
+                      {uploadingAdvisoryLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      Upload
+                    </Button>
+                    {advisoryTemplate.logoUrl && (
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={() => setAdvisoryTemplate(c => ({ ...c, logoUrl: "" }))}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  {advisoryTemplate.logoUrl && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
+                      <img src={advisoryTemplate.logoUrl} alt="Advisory logo preview" className="h-10 max-w-[160px] object-contain rounded" onError={e => (e.currentTarget.style.display = "none")} />
+                      <span className="text-xs text-muted-foreground truncate">{advisoryTemplate.logoUrl}</span>
+                    </div>
+                  )}
+                </div>
               </FieldGroup>
               <FieldGroup label="Footer Text">
                 <Input value={advisoryTemplate.footerText} onChange={e => setAdvisoryTemplate(c => ({ ...c, footerText: e.target.value }))} placeholder="Generated by ThreatIntel AI Analysis" />
