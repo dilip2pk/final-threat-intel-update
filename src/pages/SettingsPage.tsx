@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import AIPromptManager from "@/components/settings/AIPromptManager";
 import { Input } from "@/components/ui/input";
