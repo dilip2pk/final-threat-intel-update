@@ -93,7 +93,10 @@ export default function SettingsPage() {
   const { settings, setSettings, general, setGeneral, loading, saving, saveAll } = useSettings();
   const { isAdmin, role, loading: authLoading } = useAuth();
 
-  const [activeTab, setActiveTab] = useState("general");
+  // Persist active tab in URL search params so sidebar collapse/expand doesn't reset it
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "general";
+  const setActiveTab = (tab: string) => setSearchParams({ tab }, { replace: true });
 
   const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [showSnowPass, setShowSnowPass] = useState(false);
