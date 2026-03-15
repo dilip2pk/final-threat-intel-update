@@ -327,6 +327,7 @@ export default function SettingsPage() {
     setSavingReport(true);
     try {
       await supabase.from("app_settings").upsert({ key: "report_customization", value: reportConfig as any }, { onConflict: "key" });
+      clearLocalCache("report_customization");
       toast({ title: "Report Settings Saved" });
     } catch (e: any) { toast({ title: "Save Failed", description: e.message, variant: "destructive" }); }
     finally { setSavingReport(false); }
@@ -336,6 +337,7 @@ export default function SettingsPage() {
     setSavingAdvisory(true);
     try {
       await supabase.from("app_settings").upsert({ key: "advisory_template", value: advisoryTemplate as any }, { onConflict: "key" });
+      clearLocalCache("advisory_template");
       toast({ title: "Advisory Template Saved" });
     } catch (e: any) { toast({ title: "Save Failed", description: e.message, variant: "destructive" }); }
     finally { setSavingAdvisory(false); }
@@ -345,6 +347,7 @@ export default function SettingsPage() {
     setSavingWatchlistNotify(true);
     try {
       await supabase.from("app_settings").upsert({ key: "watchlist_notifications", value: watchlistNotify as any }, { onConflict: "key" });
+      clearLocalCache("watchlist_notifications");
       toast({ title: "Watchlist Notification Settings Saved" });
     } catch (e: any) { toast({ title: "Save Failed", description: e.message, variant: "destructive" }); }
     finally { setSavingWatchlistNotify(false); }
