@@ -388,13 +388,16 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     const success = await saveAll(settings, general);
-    // Also persist advisory template, report config, and watchlist notify
     try {
       await Promise.all([
         supabase.from("app_settings").upsert({ key: "advisory_template", value: advisoryTemplate as any }, { onConflict: "key" }),
         supabase.from("app_settings").upsert({ key: "report_customization", value: reportConfig as any }, { onConflict: "key" }),
         supabase.from("app_settings").upsert({ key: "watchlist_notifications", value: watchlistNotify as any }, { onConflict: "key" }),
       ]);
+      // Clear all caches after successful save
+      clearLocalCache("advisory_template");
+      clearLocalCache("report_customization");
+      clearLocalCache("watchlist_notifications");
     } catch (e) {
       console.error("Failed to save additional settings:", e);
     }
