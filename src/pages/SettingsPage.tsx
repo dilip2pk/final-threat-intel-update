@@ -303,16 +303,23 @@ export default function SettingsPage() {
   const [testingWatchlist, setTestingWatchlist] = useState(false);
   const [watchlistTestResult, setWatchlistTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Load from DB only if no cached edits exist
   useEffect(() => {
-    supabase.from("app_settings").select("value").eq("key", "report_customization").single().then(({ data }) => {
-      if (data?.value) setReportConfig(prev => ({ ...prev, ...(data.value as any), includeSections: { ...prev.includeSections, ...(data.value as any)?.includeSections } }));
-    });
-    supabase.from("app_settings").select("value").eq("key", "watchlist_notifications").single().then(({ data }) => {
-      if (data?.value) setWatchlistNotify(prev => ({ ...prev, ...(data.value as any) }));
-    });
-    supabase.from("app_settings").select("value").eq("key", "advisory_template").single().then(({ data }) => {
-      if (data?.value) setAdvisoryTemplate(prev => ({ ...prev, ...(data.value as any) }));
-    });
+    if (!getCached("report_customization")) {
+      supabase.from("app_settings").select("value").eq("key", "report_customization").single().then(({ data }) => {
+        if (data?.value) setReportConfigRaw(prev => ({ ...prev, ...(data.value as any), includeSections: { ...prev.includeSections, ...(data.value as any)?.includeSections } }));
+      });
+    }
+    if (!getCached("watchlist_notifications")) {
+      supabase.from("app_settings").select("value").eq("key", "watchlist_notifications").single().then(({ data }) => {
+        if (data?.value) setWatchlistNotifyRaw(prev => ({ ...prev, ...(data.value as any) }));
+      });
+    }
+    if (!getCached("advisory_template")) {
+      supabase.from("app_settings").select("value").eq("key", "advisory_template").single().then(({ data }) => {
+        if (data?.value) setAdvisoryTemplateRaw(prev => ({ ...prev, ...(data.value as any) }));
+      });
+    }
   }, []);
 
   // --- Helpers (same logic, no changes) ---
