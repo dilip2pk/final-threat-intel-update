@@ -236,6 +236,15 @@ export default function SettingsPage() {
     finally { setSavingReport(false); }
   };
 
+  const saveAdvisoryTemplate = async () => {
+    setSavingAdvisory(true);
+    try {
+      await supabase.from("app_settings").upsert({ key: "advisory_template", value: advisoryTemplate as any }, { onConflict: "key" });
+      toast({ title: "Advisory Template Saved" });
+    } catch (e: any) { toast({ title: "Save Failed", description: e.message, variant: "destructive" }); }
+    finally { setSavingAdvisory(false); }
+  };
+
   const handleSaveWatchlistNotify = async () => {
     setSavingWatchlistNotify(true);
     try {
