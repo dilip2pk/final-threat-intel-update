@@ -1149,14 +1149,6 @@ export default function SettingsPage() {
           </div>
         );
 
-      case "template":
-        return (
-          <SectionCard title="Alert Template" icon={Shield} description="Customize the alert email template with variables.">
-            <FieldGroup label="Template" description='Variables: {{title}}, {{severity}}, {{source}}, {{date}}, {{description}}, {{link}}'>
-              <Textarea value={general.alertTemplate} onChange={e => setGeneral(g => ({ ...g, alertTemplate: e.target.value }))} className="font-mono text-xs min-h-[180px]" />
-            </FieldGroup>
-          </SectionCard>
-        );
 
       case "reports":
         return (
