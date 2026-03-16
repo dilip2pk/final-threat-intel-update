@@ -85,7 +85,6 @@ const navItems = [
   { id: "shodan", label: "Shodan", icon: Globe, description: "Shodan API configuration" },
   { id: "defender", label: "Defender", icon: Shield, description: "Microsoft Defender" },
   { id: "notifications", label: "Notifications", icon: Bell, description: "Alerts & watchlist" },
-  { id: "template", label: "Alert Template", icon: Shield, description: "Email template customization" },
   { id: "reports", label: "Reports", icon: FileText, description: "Report branding & sections" },
 ];
 
