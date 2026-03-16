@@ -77,7 +77,7 @@ const navItems = [
   { id: "branding", label: "Branding", icon: Palette, description: "Logo, name & identity" },
   { id: "ai", label: "AI Integration", icon: Brain, description: "Model & provider settings" },
   { id: "ai-prompts", label: "AI Prompts", icon: MessageSquareCode, description: "Manage AI prompt instructions" },
-  { id: "advisory-template", label: "Advisory Template", icon: FileText, description: "Customize advisory email layout" },
+  { id: "advisory-template", label: "Templates", icon: FileText, description: "Advisory & alert templates" },
   { id: "localtools", label: "Local Tools", icon: Server, description: "Local tool server & plugins" },
   { id: "infrastructure", label: "Infrastructure", icon: Activity, description: "Docker services health check" },
   { id: "email", label: "Email (SMTP)", icon: Mail, description: "Outbound email settings" },
