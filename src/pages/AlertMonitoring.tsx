@@ -44,7 +44,7 @@ function meetsThreshold(itemSeverity: Severity, threshold: string): boolean {
 export default function AlertMonitoring() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
-  const { general } = useSettings();
+  const { settings, general } = useSettings();
   const { fetchAllFeeds } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,6 +53,7 @@ export default function AlertMonitoring() {
   const [scanResults, setScanResults] = useState<{ item: RSSFeedItem; severity: Severity; matchedRules: string[] }[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const { toast } = useToast();
 
   const hasConfiguredSources = configuredSources.length > 0;
