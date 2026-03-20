@@ -71,6 +71,9 @@ interface GeneralSettings {
   logoUrl: string;
   appName: string;
   sidebarIconUrl: string;
+  alertScanEnabled: boolean;
+  alertScanCron: string;
+  alertRecipients: string;
 }
 
 const defaultGeneral: GeneralSettings = {
@@ -85,6 +88,9 @@ const defaultGeneral: GeneralSettings = {
   logoUrl: "",
   appName: "ThreatIntel",
   sidebarIconUrl: "",
+  alertScanEnabled: false,
+  alertScanCron: "0 8 * * *",
+  alertRecipients: "",
 };
 
 // Session cache helpers to preserve unsaved edits across re-renders
