@@ -932,10 +932,16 @@ export default function SettingsPage() {
                   </div>
                 </SectionCard>
 
-                <Button onClick={saveAdvisoryTemplate} className="gap-2" disabled={savingAdvisory}>
-                  {savingAdvisory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {savingAdvisory ? "Saving..." : "Save Advisory Template"}
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={saveAdvisoryTemplate} className="gap-2" disabled={savingAdvisory}>
+                    {savingAdvisory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {savingAdvisory ? "Saving..." : "Save Advisory Template"}
+                  </Button>
+                  <Button onClick={handleTestAdvisoryTemplate} variant="outline" className="gap-2" disabled={testingAdvisory}>
+                    {testingAdvisory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {testingAdvisory ? "Sending..." : "Send Test Advisory Email"}
+                  </Button>
+                </div>
               </>
             )}
           </div>
