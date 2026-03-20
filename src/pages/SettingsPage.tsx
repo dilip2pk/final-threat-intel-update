@@ -1156,9 +1156,60 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between py-2">
                 <div>
                   <Label className="text-sm font-medium">Email Notifications</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Send alerts to configured email</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Send alerts to configured email recipients</p>
                 </div>
                 <Switch checked={general.emailEnabled} onCheckedChange={v => setGeneral(g => ({ ...g, emailEnabled: v }))} />
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Automated Alert Scan Schedule" icon={Clock} description="Automatically scan feeds at a scheduled time and send alert emails when rules match.">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <Label className="text-sm font-medium">Enable Scheduled Alert Scan</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Runs the alert scan automatically at the configured interval</p>
+                </div>
+                <Switch checked={general.alertScanEnabled || false} onCheckedChange={v => setGeneral(g => ({ ...g, alertScanEnabled: v }))} />
+              </div>
+              <FieldGroup label="Scan Schedule (Cron Expression)" description="Examples: '0 8 * * *' = daily 8AM, '0 */6 * * *' = every 6 hours, '0 9 * * 1-5' = weekdays 9AM">
+                <Input value={general.alertScanCron || "0 8 * * *"} onChange={e => setGeneral(g => ({ ...g, alertScanCron: e.target.value }))} className="font-mono" placeholder="0 8 * * *" />
+              </FieldGroup>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Daily 8 AM", cron: "0 8 * * *" },
+                  { label: "Every 6 Hours", cron: "0 */6 * * *" },
+                  { label: "Every 12 Hours", cron: "0 */12 * * *" },
+                  { label: "Weekdays 9 AM", cron: "0 9 * * 1-5" },
+                  { label: "Hourly", cron: "0 * * * *" },
+                ].map(preset => (
+                  <Button key={preset.cron} variant="outline" size="sm" className="text-xs" onClick={() => setGeneral(g => ({ ...g, alertScanCron: preset.cron }))}>
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Alert Email Recipients" icon={Mail} description="Email addresses that will receive automated alert notifications. If empty, defaults to SMTP 'From' address.">
+              <FieldGroup label="Recipients" description="Comma-separated email addresses. These recipients will receive all alert scan emails.">
+                <Input value={general.alertRecipients || ""} onChange={e => setGeneral(g => ({ ...g, alertRecipients: e.target.value }))} className="font-mono text-sm" placeholder="soc@company.com, admin@company.com" />
+              </FieldGroup>
+              {(general.alertRecipients || "").trim() && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Recipients who will receive alerts:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(general.alertRecipients || "").split(/[,;\s]+/).filter(Boolean).map(email => (
+                      <Badge key={email} variant="secondary" className="font-mono text-xs">{email.trim()}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-foreground">Emails sent automatically for:</strong>
+                </p>
+                <ul className="text-xs text-muted-foreground mt-1 space-y-0.5 list-disc list-inside">
+                  <li>Alert Monitoring — when scheduled or manual scan finds rule matches</li>
+                  <li>RansomLook Watchlist — when watched organizations appear in leak data</li>
+                </ul>
               </div>
             </SectionCard>
 
