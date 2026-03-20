@@ -20,7 +20,7 @@ import {
 import { HealthCheckPanel } from "@/components/HealthCheckPanel";
 import { useToast } from "@/hooks/use-toast";
 import { maskSecret } from "@/lib/settingsStore";
-import { testAIConnection, testServiceNowConnection } from "@/lib/api";
+import { testAIConnection, testServiceNowConnection, sendAnalysisEmail } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
