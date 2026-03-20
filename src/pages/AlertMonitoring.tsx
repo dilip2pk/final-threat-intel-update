@@ -83,6 +83,14 @@ export default function AlertMonitoring() {
           if (!rule.active) continue;
           // Rule-level severity threshold
           if (!meetsThreshold(severity, rule.severity_threshold)) continue;
+          // URL pattern filter — if rule has a url_pattern, only match feeds whose link or source URL contains it
+          if (rule.url_pattern && rule.url_pattern.trim() !== "") {
+            const pattern = rule.url_pattern.toLowerCase().trim();
+            const feedLink = (feed.link || "").toLowerCase();
+            const feedSource = (feed.feedName || "").toLowerCase();
+            const feedUrl = (feed.feedId || "").toLowerCase();
+            if (!feedLink.includes(pattern) && !feedSource.includes(pattern) && !feedUrl.includes(pattern)) continue;
+          }
           // Keyword match
           const hasKeyword = rule.keywords.length === 0 || rule.keywords.some(kw =>
             feed.title.toLowerCase().includes(kw.toLowerCase()) ||
