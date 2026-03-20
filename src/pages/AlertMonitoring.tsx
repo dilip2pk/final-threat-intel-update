@@ -83,6 +83,14 @@ export default function AlertMonitoring() {
           if (!rule.active) continue;
           // Rule-level severity threshold
           if (!meetsThreshold(severity, rule.severity_threshold)) continue;
+          // URL pattern filter — if rule has a url_pattern, only match feeds whose link or source URL contains it
+          if (rule.url_pattern && rule.url_pattern.trim() !== "") {
+            const pattern = rule.url_pattern.toLowerCase().trim();
+            const feedLink = (feed.link || "").toLowerCase();
+            const feedSource = (feed.feedName || "").toLowerCase();
+            const feedUrl = (feed.feedId || "").toLowerCase();
+            if (!feedLink.includes(pattern) && !feedSource.includes(pattern) && !feedUrl.includes(pattern)) continue;
+          }
           // Keyword match
           const hasKeyword = rule.keywords.length === 0 || rule.keywords.some(kw =>
             feed.title.toLowerCase().includes(kw.toLowerCase()) ||
@@ -368,7 +376,11 @@ export default function AlertMonitoring() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>URL Pattern (optional)</Label><Input value={form.urlPattern} onChange={e => setForm({ ...form, urlPattern: e.target.value })} className="mt-1" /></div>
+              <div>
+                <Label>URL Pattern (optional)</Label>
+                <Input value={form.urlPattern} onChange={e => setForm({ ...form, urlPattern: e.target.value })} placeholder="e.g. nvd.nist.gov, bleepingcomputer" className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">Filter scan results to feeds matching this domain or keyword. Leave empty to scan all configured sources.</p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
