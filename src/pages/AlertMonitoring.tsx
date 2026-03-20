@@ -100,7 +100,19 @@ export default function AlertMonitoring() {
       matched.sort((a, b) => (SEVERITY_LEVELS[b.severity] || 0) - (SEVERITY_LEVELS[a.severity] || 0));
 
       setScanResults(matched);
-      toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds (threshold: ≥${globalThreshold})` });
+
+      // Auto-send email if enabled and matches found
+      if (matched.length > 0 && general.emailEnabled && isSmtpConfigured(settings.smtp)) {
+        try {
+          await sendAlertEmail(matched);
+          toast({ title: `Scan Complete`, description: `${matched.length} matches found — alert email sent (threshold: ≥${globalThreshold})` });
+        } catch (emailErr: any) {
+          console.error("Alert email failed:", emailErr);
+          toast({ title: `Scan Complete`, description: `${matched.length} matches found but email failed: ${emailErr.message}` });
+        }
+      } else {
+        toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds (threshold: ≥${globalThreshold})` });
+      }
     } catch (e: any) {
       toast({ title: "Scan Failed", description: e.message, variant: "destructive" });
     } finally {
