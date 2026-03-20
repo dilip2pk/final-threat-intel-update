@@ -45,7 +45,7 @@ export default function AlertMonitoring() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
   const { settings, general } = useSettings();
-  const { fetchAllFeeds } = useRSSFeeds();
+  const { fetchAllFeeds, fetchSingleFeed } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
