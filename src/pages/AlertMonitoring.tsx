@@ -376,7 +376,11 @@ export default function AlertMonitoring() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>URL Pattern (optional)</Label><Input value={form.urlPattern} onChange={e => setForm({ ...form, urlPattern: e.target.value })} className="mt-1" /></div>
+              <div>
+                <Label>URL Pattern (optional)</Label>
+                <Input value={form.urlPattern} onChange={e => setForm({ ...form, urlPattern: e.target.value })} placeholder="e.g. nvd.nist.gov, bleepingcomputer" className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">Filter scan results to feeds matching this domain or keyword. Leave empty to scan all configured sources.</p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
