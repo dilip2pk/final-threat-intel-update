@@ -67,6 +67,7 @@ interface GeneralSettings {
   webhookUrl: string;
   emailEnabled: boolean;
   alertTemplate: string;
+  alertFooterText: string;
   logoUrl: string;
   appName: string;
   sidebarIconUrl: string;
