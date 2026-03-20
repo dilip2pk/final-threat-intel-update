@@ -15,12 +15,12 @@ import { Separator } from "@/components/ui/separator";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
   CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock, FileText, Palette, Server,
-  ChevronRight, Activity, MessageSquareCode,
+  ChevronRight, Activity, MessageSquareCode, Send,
 } from "lucide-react";
 import { HealthCheckPanel } from "@/components/HealthCheckPanel";
 import { useToast } from "@/hooks/use-toast";
 import { maskSecret } from "@/lib/settingsStore";
-import { testAIConnection, testServiceNowConnection } from "@/lib/api";
+import { testAIConnection, testServiceNowConnection, sendAnalysisEmail } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -263,6 +263,68 @@ export default function SettingsPage() {
     });
   };
   const [savingAdvisory, setSavingAdvisory] = useState(false);
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [testingAdvisory, setTestingAdvisory] = useState(false);
+
+  const handleTestAlertTemplate = async () => {
+    setTestingAlert(true);
+    try {
+      const smtpConfig = settings.smtp;
+      if (!smtpConfig?.host || !smtpConfig?.from) {
+        toast({ title: "SMTP not configured", description: "Configure SMTP settings first to send a test alert email.", variant: "destructive" });
+        setTestingAlert(false);
+        return;
+      }
+      const rendered = (general.alertTemplate || "")
+        .replace(/\{\{title\}\}/g, "CVE-2026-99999 — Critical RCE in Apache Log4j")
+        .replace(/\{\{severity\}\}/g, "CRITICAL")
+        .replace(/\{\{source\}\}/g, "NIST NVD")
+        .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+        .replace(/\{\{description\}\}/g, "A remote code execution vulnerability allows unauthenticated attackers to execute arbitrary code via crafted JNDI lookup patterns.")
+        .replace(/\{\{link\}\}/g, "https://nvd.nist.gov/vuln/detail/CVE-2026-99999");
+      const htmlBody = `<div style="font-family:monospace;white-space:pre-wrap;padding:20px;background:#1a1a2e;color:#e0e0e0;border-radius:8px;">${rendered.replace(/\n/g, "<br/>")}</div>`;
+      await sendAnalysisEmail({ to: [smtpConfig.from], subject: "[TEST] Alert Template Preview", body: htmlBody, smtpConfig });
+      toast({ title: "Test alert sent!", description: `Sent to ${smtpConfig.from}` });
+    } catch (e: any) {
+      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+    } finally {
+      setTestingAlert(false);
+    }
+  };
+
+  const handleTestAdvisoryTemplate = async () => {
+    setTestingAdvisory(true);
+    try {
+      const smtpConfig = settings.smtp;
+      if (!smtpConfig?.host || !smtpConfig?.from) {
+        toast({ title: "SMTP not configured", description: "Configure SMTP settings first to send a test advisory email.", variant: "destructive" });
+        setTestingAdvisory(false);
+        return;
+      }
+      const rendered = (advisoryTemplate.template || "")
+        .replace(/\{\{org_name\}\}/g, advisoryTemplate.orgName || "Security & Compliance")
+        .replace(/\{\{contact_email\}\}/g, advisoryTemplate.contactEmail || "")
+        .replace(/\{\{footer_text\}\}/g, advisoryTemplate.footerText || "")
+        .replace(/\{\{severity\}\}/g, "HIGH")
+        .replace(/\{\{title\}\}/g, "CVE-2026-12345 — Remote Code Execution in Example Software")
+        .replace(/\{\{source\}\}/g, "The Hacker News")
+        .replace(/\{\{summary\}\}/g, "A critical remote code execution vulnerability has been discovered in Example Software v3.x.")
+        .replace(/\{\{impact_html\}\}/g, "<li>Allows remote code execution without authentication</li><li>Affects all deployments running version 3.x</li>")
+        .replace(/\{\{#has_versions\}\}([\s\S]*?)\{\{\/has_versions\}\}/g, "$1")
+        .replace(/\{\{\^has_versions\}\}([\s\S]*?)\{\{\/has_versions\}\}/g, "")
+        .replace(/\{\{versions_html\}\}/g, "<li>Example Software 3.0 – 3.4.2</li>")
+        .replace(/\{\{mitigations_html\}\}/g, "<li>Update to version 3.4.3 or later immediately</li>")
+        .replace(/\{\{references_html\}\}/g, '<li><a href="#">https://cve.mitre.org/CVE-2026-12345</a></li>')
+        .replace(/\{\{#logo_url\}\}([\s\S]*?)\{\{\/logo_url\}\}/g, advisoryTemplate.logoUrl ? "$1" : "")
+        .replace(/\{\{logo_url\}\}/g, advisoryTemplate.logoUrl || "");
+      await sendAnalysisEmail({ to: [smtpConfig.from], subject: "[TEST] Advisory Template Preview", body: rendered, smtpConfig });
+      toast({ title: "Test advisory sent!", description: `Sent to ${smtpConfig.from}` });
+    } catch (e: any) {
+      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+    } finally {
+      setTestingAdvisory(false);
+    }
+  };
 
   const defaultWatchlistTemplate = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
   <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 28px 32px;">
@@ -782,6 +844,11 @@ export default function SettingsPage() {
                   </pre>
                 </div>
               </SectionCard>
+
+              <Button onClick={handleTestAlertTemplate} variant="outline" className="gap-2" disabled={testingAlert}>
+                {testingAlert ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {testingAlert ? "Sending..." : "Send Test Alert Email"}
+              </Button>
               </>
             ) : (
               <>
@@ -865,10 +932,16 @@ export default function SettingsPage() {
                   </div>
                 </SectionCard>
 
-                <Button onClick={saveAdvisoryTemplate} className="gap-2" disabled={savingAdvisory}>
-                  {savingAdvisory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {savingAdvisory ? "Saving..." : "Save Advisory Template"}
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={saveAdvisoryTemplate} className="gap-2" disabled={savingAdvisory}>
+                    {savingAdvisory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {savingAdvisory ? "Saving..." : "Save Advisory Template"}
+                  </Button>
+                  <Button onClick={handleTestAdvisoryTemplate} variant="outline" className="gap-2" disabled={testingAdvisory}>
+                    {testingAdvisory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {testingAdvisory ? "Sending..." : "Send Test Advisory Email"}
+                  </Button>
+                </div>
               </>
             )}
           </div>
