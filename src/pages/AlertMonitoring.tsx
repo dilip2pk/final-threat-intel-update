@@ -183,6 +183,7 @@ export default function AlertMonitoring() {
     }
   };
 
+  const save = async () => {
     if (!form.name) return;
     setSaving(true);
     const keywords = form.keywords.split(",").map(k => k.trim()).filter(Boolean);
