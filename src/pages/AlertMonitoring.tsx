@@ -326,11 +326,35 @@ export default function AlertMonitoring() {
         )}
 
         {isAdmin && (
-          <div className={`flex items-center gap-2 text-xs p-3 rounded border ${general.emailEnabled && isSmtpConfigured(settings.smtp) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-muted-foreground bg-muted border-border'}`}>
-            <Mail className="h-3.5 w-3.5" />
-            {general.emailEnabled && isSmtpConfigured(settings.smtp)
-              ? "Email alerts enabled — matched threats will be emailed automatically on scan."
-              : "Email alerts disabled. Enable email notifications and configure SMTP in Settings to auto-send alerts."}
+          <div className="space-y-2">
+            <div className={`flex items-center gap-2 text-xs p-3 rounded border ${general.emailEnabled && isSmtpConfigured(settings.smtp) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-muted-foreground bg-muted border-border'}`}>
+              <Mail className="h-3.5 w-3.5" />
+              {general.emailEnabled && isSmtpConfigured(settings.smtp)
+                ? "Email alerts enabled — matched threats will be emailed automatically on scan."
+                : "Email alerts disabled. Enable email notifications and configure SMTP in Settings to auto-send alerts."}
+            </div>
+            {general.emailEnabled && isSmtpConfigured(settings.smtp) && (
+              <div className="flex flex-wrap items-center gap-3 text-xs p-3 rounded border border-border bg-card">
+                <div className="flex items-center gap-1.5">
+                  <Bell className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-muted-foreground">Recipients:</span>
+                  {(() => {
+                    const recipients = (general.alertRecipients || "").split(/[,;\s]+/).filter(Boolean);
+                    const toShow = recipients.length > 0 ? recipients : [settings.smtp.from];
+                    return toShow.map(email => (
+                      <span key={email} className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded">{email}</span>
+                    ));
+                  })()}
+                </div>
+                {(general as any).alertScanEnabled && (
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <Zap className="h-3.5 w-3.5 text-severity-medium" />
+                    <span className="text-muted-foreground">Auto-scan:</span>
+                    <span className="font-mono text-foreground">{(general as any).alertScanCron || "0 8 * * *"}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
