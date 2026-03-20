@@ -45,7 +45,7 @@ export default function AlertMonitoring() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
   const { settings, general } = useSettings();
-  const { fetchAllFeeds } = useRSSFeeds();
+  const { fetchAllFeeds, fetchSingleFeed } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,15 +60,59 @@ export default function AlertMonitoring() {
   const globalThreshold = general.severityThreshold || "high";
 
   const scanToday = async () => {
-    if (!hasConfiguredSources) {
-      toast({ title: "No Feed Sources", description: "Please configure feed sources first.", variant: "destructive" });
+    if (!hasConfiguredSources && rules.every(r => !r.url_pattern?.trim())) {
+      toast({ title: "No Feed Sources", description: "Please configure feed sources or add URL patterns to rules.", variant: "destructive" });
       return;
     }
     setScanning(true);
     try {
+      // 1. Fetch all configured feeds
       const { items } = await fetchAllFeeds();
+
+      // 2. Build a map: feedId (UUID) -> source URL from configuredSources
+      const sourceUrlMap = new Map<string, string>();
+      for (const src of configuredSources) {
+        sourceUrlMap.set(src.id, src.url);
+      }
+
+      // 3. Collect external URL patterns from rules that don't match any configured source
+      const externalUrls = new Map<string, string[]>(); // url -> rule names that use it
+      for (const rule of rules) {
+        if (!rule.active || !rule.url_pattern?.trim()) continue;
+        const pattern = rule.url_pattern.trim();
+        // Check if this pattern matches a configured source URL
+        const matchesConfigured = configuredSources.some(src =>
+          src.url.toLowerCase().includes(pattern.toLowerCase()) ||
+          pattern.toLowerCase().includes(src.url.toLowerCase())
+        );
+        if (!matchesConfigured) {
+          // It's an external RSS URL — fetch it directly
+          if (!externalUrls.has(pattern)) externalUrls.set(pattern, []);
+          externalUrls.get(pattern)!.push(rule.name);
+        }
+      }
+
+      // 4. Fetch external URLs in parallel
+      const externalItems: RSSFeedItem[] = [];
+      if (externalUrls.size > 0) {
+        const fetches = Array.from(externalUrls.keys()).map(async (url) => {
+          try {
+            const feedItems = await fetchSingleFeed(url, url);
+            return feedItems;
+          } catch {
+            return [];
+          }
+        });
+        const results = await Promise.all(fetches);
+        for (const feedItems of results) {
+          externalItems.push(...feedItems);
+        }
+      }
+
+      // 5. Combine all items
+      const allItems = [...items, ...externalItems];
       const today = new Date().toDateString();
-      const todayFeeds = items.filter(f => f.pubDate && new Date(f.pubDate).toDateString() === today);
+      const todayFeeds = allItems.filter(f => f.pubDate && new Date(f.pubDate).toDateString() === today);
 
       const matched: typeof scanResults = [];
 
@@ -83,14 +127,25 @@ export default function AlertMonitoring() {
           if (!rule.active) continue;
           // Rule-level severity threshold
           if (!meetsThreshold(severity, rule.severity_threshold)) continue;
-          // URL pattern filter — if rule has a url_pattern, only match feeds whose link or source URL contains it
+
+          // URL pattern filter
           if (rule.url_pattern && rule.url_pattern.trim() !== "") {
             const pattern = rule.url_pattern.toLowerCase().trim();
+            // Resolve actual source URL for this feed item
+            const feedSourceUrl = sourceUrlMap.get(feed.feedId)?.toLowerCase() || feed.feedId.toLowerCase();
             const feedLink = (feed.link || "").toLowerCase();
-            const feedSource = (feed.feedName || "").toLowerCase();
-            const feedUrl = (feed.feedId || "").toLowerCase();
-            if (!feedLink.includes(pattern) && !feedSource.includes(pattern) && !feedUrl.includes(pattern)) continue;
+            const feedName = (feed.feedName || "").toLowerCase();
+
+            // Match against source URL, article link, feed name, or if feedId IS the external URL
+            const matches = feedSourceUrl.includes(pattern) ||
+              pattern.includes(feedSourceUrl) ||
+              feedLink.includes(pattern) ||
+              feedName.includes(pattern) ||
+              feed.feedId.toLowerCase() === pattern;
+
+            if (!matches) continue;
           }
+
           // Keyword match
           const hasKeyword = rule.keywords.length === 0 || rule.keywords.some(kw =>
             feed.title.toLowerCase().includes(kw.toLowerCase()) ||
