@@ -221,8 +221,11 @@ export default function AlertMonitoring() {
       </div>
     `;
 
+    const recipients = (general.alertRecipients || "").split(/[,;\s]+/).filter(Boolean);
+    const toAddresses = recipients.length > 0 ? recipients : [settings.smtp.from];
+
     await sendAnalysisEmail({
-      to: [settings.smtp.from],
+      to: toAddresses,
       subject: `🚨 Alert: ${matched.length} threat(s) detected — ${new Date().toLocaleDateString()}`,
       body: htmlBody,
       smtpConfig: settings.smtp,
