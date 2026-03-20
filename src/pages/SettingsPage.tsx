@@ -844,6 +844,11 @@ export default function SettingsPage() {
                   </pre>
                 </div>
               </SectionCard>
+
+              <Button onClick={handleTestAlertTemplate} variant="outline" className="gap-2" disabled={testingAlert}>
+                {testingAlert ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {testingAlert ? "Sending..." : "Send Test Alert Email"}
+              </Button>
               </>
             ) : (
               <>
