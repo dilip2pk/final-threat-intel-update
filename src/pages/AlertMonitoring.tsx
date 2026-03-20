@@ -8,12 +8,14 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAlertRules, useSettings } from "@/hooks/useSettings";
 import { useRSSFeeds, type RSSFeedItem } from "@/hooks/useRSSFeeds";
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { useAuth } from "@/hooks/useAuth";
+import { sendAnalysisEmail } from "@/lib/api";
+import { isSmtpConfigured } from "@/lib/settingsStore";
 
 // Severity hierarchy for threshold comparison
 const SEVERITY_LEVELS: Record<string, number> = {
