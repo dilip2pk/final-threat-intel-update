@@ -304,9 +304,17 @@ export default function AlertMonitoring() {
 
         {scanResults !== null && (
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-severity-medium" /> Scan Results ({scanResults.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-severity-medium" /> Scan Results ({scanResults.length})
+              </h2>
+              {scanResults.length > 0 && isAdmin && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleManualSendEmail} disabled={sendingEmail}>
+                  {sendingEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                  Send Alert Email
+                </Button>
+              )}
+            </div>
             {scanResults.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No matches found in today's feeds</p>
             ) : (
