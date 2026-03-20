@@ -1,4 +1,4 @@
-# ThreatIntel — Universal Local Tools Server
+# 🧰 ThreatIntel — Universal Local Tools Server
 
 A plugin-based Node.js server that executes local security tools and exposes a REST API compatible with ThreatIntel's UI. Ships with **Nmap** and is extensible — add new tools by dropping a plugin file.
 
@@ -17,17 +17,29 @@ npm install
 sudo node server.js
 ```
 
+## Docker
+
+```bash
+# From the project root:
+docker compose up tools-server
+# Or standalone:
+docker build -t threatintel-tools -f docker/tools-server/Dockerfile .
+docker run --cap-add NET_RAW --cap-add NET_ADMIN -p 3002:3002 threatintel-tools
+```
+
+The Docker container includes Nmap with NSE scripts and runs with `NET_RAW` + `NET_ADMIN` capabilities.
+
 ## Environment Variables
 
 | Variable         | Default  | Description                                    |
 |------------------|----------|------------------------------------------------|
-| `PORT`           | `3001`   | Server listen port                             |
+| `PORT`           | `3002`   | Server listen port                             |
 | `TOOLS_API_KEY`  | *(none)* | Optional API key for all tool requests         |
 | `NMAP_API_KEY`   | *(none)* | Alias for TOOLS_API_KEY (backward compat)      |
 | `NMAP_PATH`      | `nmap`   | Path to the nmap binary                        |
 
 ```bash
-TOOLS_API_KEY=my-secret PORT=3001 sudo -E node server.js
+TOOLS_API_KEY=my-secret PORT=3002 sudo -E node server.js
 ```
 
 ## API Endpoints
@@ -76,7 +88,7 @@ plugins/
 
 1. Start the local server: `sudo node server.js`
 2. In ThreatIntel → **Settings → Local Tools**
-3. Enter server URL: `http://localhost:3001`
+3. Enter server URL: `http://localhost:3002`
 4. (Optional) Enter the API key if you set `TOOLS_API_KEY`
 5. Click **Test Connection** — the server reports all available tools
 6. Save settings

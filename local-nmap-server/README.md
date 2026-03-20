@@ -1,4 +1,4 @@
-# ThreatIntel — Local Nmap Backend Server
+# 🔍 ThreatIntel — Local Nmap Server
 
 A standalone Node.js server that executes real Nmap scans on your local network and exposes a REST API compatible with ThreatIntel's Network Scanner UI.
 
@@ -20,6 +20,18 @@ sudo node server.js
 ```
 
 > **Note:** Run with `sudo` (Linux/macOS) or as Administrator (Windows) for full Nmap capabilities (OS detection, SYN scans).
+
+## Docker
+
+```bash
+# From the project root:
+docker compose up nmap-server
+# Or standalone:
+docker build -t threatintel-nmap -f docker/nmap-server/Dockerfile .
+docker run --cap-add NET_RAW --cap-add NET_ADMIN -p 3001:3001 threatintel-nmap
+```
+
+The Docker container includes Nmap with NSE scripts and runs with `NET_RAW` + `NET_ADMIN` capabilities.
 
 ## Environment Variables
 
@@ -53,6 +65,13 @@ Executes a scan and waits for completion before responding.
 }
 ```
 
+**Scan Types:**
+- `quick` — Top 100 ports, fast timing
+- `full` — All 65535 ports
+- `service` — Service/version detection (`-sV`)
+- `vulnerability` — Vulnerability scripts (`--script vuln`)
+- `os` — OS fingerprinting (`-O`)
+
 ### `POST /api/scan/async` (Asynchronous)
 Returns immediately with a scan ID. Poll `/api/scan/:id` for results.
 
@@ -71,8 +90,6 @@ List recent scans (in-memory, last 50).
 5. (Optional) Enter the API key if you set `NMAP_API_KEY`
 6. Click **Test Connection** to verify
 7. Save settings
-
-Now all scans from the Network Scanner page will execute real Nmap on your local machine!
 
 ## Security Notes
 
