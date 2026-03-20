@@ -8,12 +8,14 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Plus, Bell, Pencil, Trash2, Zap, Loader2, Rss, ShieldCheck, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAlertRules, useSettings } from "@/hooks/useSettings";
 import { useRSSFeeds, type RSSFeedItem } from "@/hooks/useRSSFeeds";
 import { useFeedSources } from "@/hooks/useFeedSources";
 import { useAuth } from "@/hooks/useAuth";
+import { sendAnalysisEmail } from "@/lib/api";
+import { isSmtpConfigured } from "@/lib/settingsStore";
 
 // Severity hierarchy for threshold comparison
 const SEVERITY_LEVELS: Record<string, number> = {
@@ -42,7 +44,7 @@ function meetsThreshold(itemSeverity: Severity, threshold: string): boolean {
 export default function AlertMonitoring() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { rules, loading, addRule, updateRule, deleteRule } = useAlertRules();
-  const { general } = useSettings();
+  const { settings, general } = useSettings();
   const { fetchAllFeeds } = useRSSFeeds();
   const { sources: configuredSources, loading: sourcesLoading } = useFeedSources();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -51,6 +53,7 @@ export default function AlertMonitoring() {
   const [scanResults, setScanResults] = useState<{ item: RSSFeedItem; severity: Severity; matchedRules: string[] }[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const { toast } = useToast();
 
   const hasConfiguredSources = configuredSources.length > 0;
@@ -97,11 +100,86 @@ export default function AlertMonitoring() {
       matched.sort((a, b) => (SEVERITY_LEVELS[b.severity] || 0) - (SEVERITY_LEVELS[a.severity] || 0));
 
       setScanResults(matched);
-      toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds (threshold: ≥${globalThreshold})` });
+
+      // Auto-send email if enabled and matches found
+      if (matched.length > 0 && general.emailEnabled && isSmtpConfigured(settings.smtp)) {
+        try {
+          await sendAlertEmail(matched);
+          toast({ title: `Scan Complete`, description: `${matched.length} matches found — alert email sent (threshold: ≥${globalThreshold})` });
+        } catch (emailErr: any) {
+          console.error("Alert email failed:", emailErr);
+          toast({ title: `Scan Complete`, description: `${matched.length} matches found but email failed: ${emailErr.message}` });
+        }
+      } else {
+        toast({ title: `Scan Complete`, description: `${matched.length} matches found in today's feeds (threshold: ≥${globalThreshold})` });
+      }
     } catch (e: any) {
       toast({ title: "Scan Failed", description: e.message, variant: "destructive" });
     } finally {
       setScanning(false);
+    }
+  };
+
+  const formatAlertFromTemplate = (template: string, result: { item: RSSFeedItem; severity: Severity; matchedRules: string[] }) => {
+    return template
+      .replace(/\{\{title\}\}/g, result.item.title || "Untitled")
+      .replace(/\{\{severity\}\}/g, result.severity.toUpperCase())
+      .replace(/\{\{source\}\}/g, result.item.feedName || "Unknown")
+      .replace(/\{\{date\}\}/g, result.item.pubDate ? new Date(result.item.pubDate).toLocaleDateString() : "N/A")
+      .replace(/\{\{description\}\}/g, result.item.description || "No description")
+      .replace(/\{\{link\}\}/g, result.item.link || "#")
+      .replace(/\{\{rules\}\}/g, result.matchedRules.join(", "));
+  };
+
+  const sendAlertEmail = async (matched: { item: RSSFeedItem; severity: Severity; matchedRules: string[] }[]) => {
+    const template = general.alertTemplate || `🚨 **{{severity}}** — {{title}}\n\nSource: {{source}}\nPublished: {{date}}\n\n{{description}}\n\n🔗 {{link}}`;
+    
+    const alertBodies = matched.map(r => formatAlertFromTemplate(template, r)).join("\n\n---\n\n");
+    
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
+        <h2 style="color: #dc2626; border-bottom: 2px solid #dc2626; padding-bottom: 8px;">
+          🚨 Alert Monitoring — ${matched.length} Threat(s) Detected
+        </h2>
+        <p style="color: #666; font-size: 13px;">Scan Date: ${new Date().toLocaleString()} | Threshold: ≥${globalThreshold}</p>
+        ${matched.map(r => `
+          <div style="border: 1px solid ${r.severity === 'critical' ? '#dc2626' : r.severity === 'high' ? '#ea580c' : '#ca8a04'}; border-radius: 8px; padding: 16px; margin: 12px 0; background: ${r.severity === 'critical' ? '#fef2f2' : r.severity === 'high' ? '#fff7ed' : '#fefce8'};">
+            <span style="display: inline-block; background: ${r.severity === 'critical' ? '#dc2626' : r.severity === 'high' ? '#ea580c' : '#ca8a04'}; color: white; font-size: 11px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold;">${r.severity}</span>
+            <h3 style="margin: 8px 0 4px; font-size: 15px;">${r.item.title}</h3>
+            <p style="color: #666; font-size: 12px; margin: 4px 0;">Source: ${r.item.feedName || 'Unknown'} • ${r.item.pubDate ? new Date(r.item.pubDate).toLocaleDateString() : '—'}</p>
+            <p style="font-size: 13px; color: #333; margin: 8px 0;">${(r.item.description || '').substring(0, 300)}${(r.item.description || '').length > 300 ? '...' : ''}</p>
+            <p style="font-size: 11px; color: #888;">Matched Rules: ${r.matchedRules.join(', ')}</p>
+            ${r.item.link ? `<a href="${r.item.link}" style="color: #2563eb; font-size: 12px;">View Details →</a>` : ''}
+          </div>
+        `).join('')}
+        <p style="color: #999; font-size: 11px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 8px;">
+          Generated by Threat Intelligence Platform — Alert Monitoring
+        </p>
+      </div>
+    `;
+
+    await sendAnalysisEmail({
+      to: [settings.smtp.from],
+      subject: `🚨 Alert: ${matched.length} threat(s) detected — ${new Date().toLocaleDateString()}`,
+      body: htmlBody,
+      smtpConfig: settings.smtp,
+    });
+  };
+
+  const handleManualSendEmail = async () => {
+    if (!scanResults || scanResults.length === 0) return;
+    if (!isSmtpConfigured(settings.smtp)) {
+      toast({ title: "SMTP Not Configured", description: "Configure SMTP in Settings to send alert emails.", variant: "destructive" });
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      await sendAlertEmail(scanResults);
+      toast({ title: "Email Sent", description: `Alert email sent with ${scanResults.length} threat(s)` });
+    } catch (e: any) {
+      toast({ title: "Email Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -181,6 +259,15 @@ export default function AlertMonitoring() {
           </div>
         )}
 
+        {isAdmin && (
+          <div className={`flex items-center gap-2 text-xs p-3 rounded border ${general.emailEnabled && isSmtpConfigured(settings.smtp) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-muted-foreground bg-muted border-border'}`}>
+            <Mail className="h-3.5 w-3.5" />
+            {general.emailEnabled && isSmtpConfigured(settings.smtp)
+              ? "Email alerts enabled — matched threats will be emailed automatically on scan."
+              : "Email alerts disabled. Enable email notifications and configure SMTP in Settings to auto-send alerts."}
+          </div>
+        )}
+
         {!isAdmin && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
             <ShieldCheck className="h-3.5 w-3.5" />
@@ -226,9 +313,17 @@ export default function AlertMonitoring() {
 
         {scanResults !== null && (
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-severity-medium" /> Scan Results ({scanResults.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-severity-medium" /> Scan Results ({scanResults.length})
+              </h2>
+              {scanResults.length > 0 && isAdmin && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleManualSendEmail} disabled={sendingEmail}>
+                  {sendingEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                  Send Alert Email
+                </Button>
+              )}
+            </div>
             {scanResults.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No matches found in today's feeds</p>
             ) : (
