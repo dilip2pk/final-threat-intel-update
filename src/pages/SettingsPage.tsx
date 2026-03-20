@@ -752,11 +752,37 @@ export default function SettingsPage() {
             </div>
 
             {templateSubTab === "alert" ? (
-              <SectionCard title="Alert Notification Template" icon={Bell} description="Customize the plain-text template used for alert notifications (webhook, email). Variables: {{title}}, {{severity}}, {{source}}, {{date}}, {{description}}, {{link}}.">
+              <>
+              <SectionCard title="Alert Notification Template" icon={Bell} description="This template is used for real-time alert notifications sent via webhooks (Slack, Teams, Discord) and plain-text email alerts when new threats match your alert rules. It is NOT the same as the Advisory Template — this is for quick, automated notifications.">
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 mb-4">
+                  <p className="text-xs text-muted-foreground"><strong className="text-foreground">When is this used?</strong> Whenever a feed item matches an alert rule (keywords, severity threshold), this template formats the notification sent to your configured webhook URL or email recipients. It supports plain-text formatting with variable placeholders.</p>
+                </div>
+                <FieldGroup label="Available Variables" description="Use these placeholders in your template — they'll be replaced with actual values when an alert fires.">
+                  <div className="flex flex-wrap gap-1.5">
+                    {["{{title}}", "{{severity}}", "{{source}}", "{{date}}", "{{description}}", "{{link}}"].map(v => (
+                      <code key={v} className="px-2 py-0.5 rounded bg-muted text-xs font-mono text-foreground">{v}</code>
+                    ))}
+                  </div>
+                </FieldGroup>
                 <FieldGroup label="Template">
                   <Textarea value={general.alertTemplate} onChange={e => setGeneral(g => ({ ...g, alertTemplate: e.target.value }))} className="font-mono text-xs min-h-[180px]" />
                 </FieldGroup>
               </SectionCard>
+
+              <SectionCard title="Preview" icon={Eye} description="Live preview with sample alert data.">
+                <div className="border border-border rounded-xl overflow-hidden bg-muted/30 p-4">
+                  <pre className="whitespace-pre-wrap text-sm font-mono text-foreground leading-relaxed">
+                    {(general.alertTemplate || "")
+                      .replace(/\{\{title\}\}/g, "CVE-2026-99999 — Critical RCE in Apache Log4j")
+                      .replace(/\{\{severity\}\}/g, "CRITICAL")
+                      .replace(/\{\{source\}\}/g, "NIST NVD")
+                      .replace(/\{\{date\}\}/g, new Date().toLocaleDateString())
+                      .replace(/\{\{description\}\}/g, "A remote code execution vulnerability allows unauthenticated attackers to execute arbitrary code via crafted JNDI lookup patterns.")
+                      .replace(/\{\{link\}\}/g, "https://nvd.nist.gov/vuln/detail/CVE-2026-99999")}
+                  </pre>
+                </div>
+              </SectionCard>
+              </>
             ) : (
               <>
                 <SectionCard title="Advisory Email Template" icon={FileText} description="Customize the HTML template used when emailing AI analysis via Copy, Export, Email, and Ticket actions.">
