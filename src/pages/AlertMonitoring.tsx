@@ -259,6 +259,15 @@ export default function AlertMonitoring() {
           </div>
         )}
 
+        {isAdmin && (
+          <div className={`flex items-center gap-2 text-xs p-3 rounded border ${general.emailEnabled && isSmtpConfigured(settings.smtp) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-muted-foreground bg-muted border-border'}`}>
+            <Mail className="h-3.5 w-3.5" />
+            {general.emailEnabled && isSmtpConfigured(settings.smtp)
+              ? "Email alerts enabled — matched threats will be emailed automatically on scan."
+              : "Email alerts disabled. Enable email notifications and configure SMTP in Settings to auto-send alerts."}
+          </div>
+        )}
+
         {!isAdmin && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 rounded bg-muted border border-border">
             <ShieldCheck className="h-3.5 w-3.5" />
