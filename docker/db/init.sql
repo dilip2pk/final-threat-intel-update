@@ -245,6 +245,32 @@ CREATE TABLE IF NOT EXISTS public.scheduled_jobs (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ---- AI Prompts ----
+CREATE TABLE IF NOT EXISTS public.ai_prompts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  prompt_key TEXT NOT NULL,
+  description TEXT,
+  provider TEXT NOT NULL DEFAULT 'builtin',
+  system_prompt TEXT NOT NULL DEFAULT '',
+  user_prompt_template TEXT NOT NULL DEFAULT '',
+  version INTEGER NOT NULL DEFAULT 1,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---- AI Prompt Versions ----
+CREATE TABLE IF NOT EXISTS public.ai_prompt_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prompt_id UUID NOT NULL REFERENCES public.ai_prompts(id) ON DELETE CASCADE,
+  system_prompt TEXT NOT NULL DEFAULT '',
+  user_prompt_template TEXT NOT NULL DEFAULT '',
+  version INTEGER NOT NULL,
+  changed_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ---- Helper Functions ----
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -272,7 +298,8 @@ DECLARE
 BEGIN
   FOR tbl IN SELECT unnest(ARRAY[
     'app_settings','feed_sources','alert_rules','scans',
-    'scan_schedules','shodan_queries','ticket_log','top_cves','scheduled_jobs'
+    'scan_schedules','shodan_queries','ticket_log','top_cves',
+    'scheduled_jobs','ai_prompts'
   ])
   LOOP
     EXECUTE format(
@@ -284,9 +311,40 @@ BEGIN
   END LOOP;
 END $$;
 
--- ---- Seed default settings ----
+-- ---- PostgREST Roles (for standalone PostgreSQL without Supabase) ----
+-- These roles are required for PostgREST to work. Supabase creates them
+-- automatically, but standalone PostgreSQL needs them explicitly.
+DO $$ BEGIN
+  CREATE ROLE anon NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE ROLE authenticated NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE ROLE authenticator LOGIN PASSWORD 'changeme';
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+GRANT anon TO authenticator;
+GRANT authenticated TO authenticator;
+
+-- Grant access
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- Seed default settings
 INSERT INTO public.app_settings (key, value)
 VALUES ('general', '{"appName": "ThreatIntel", "logoUrl": "", "sidebarIconUrl": "", "fetchInterval": "*/5 * * * *", "severityThreshold": "critical", "duplicateDetection": true, "emailEnabled": false, "notifyProvider": "email", "webhookUrl": "", "alertTemplate": ""}'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO public.app_settings (key, value)
+VALUES ('integrations', '{"smtp": {"host": "", "port": "587", "username": "", "password": "", "from": ""}, "serviceNow": {"instanceUrl": "", "username": "", "password": "", "tableName": "incident", "apiKey": "", "authMethod": "basic", "fieldMapping": {"title": "short_description", "description": "description", "priority": "priority", "category": "category"}}, "ai": {"model": "google/gemini-3-flash-preview", "apiKey": "", "endpointUrl": "", "maxTokens": "4096", "timeout": "30", "temperature": "0.3", "apiType": "builtin", "authHeaderType": "bearer"}}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 -- Done!
