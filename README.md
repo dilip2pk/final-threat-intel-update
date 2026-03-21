@@ -251,14 +251,27 @@ local-tools-server/      # Plugin-based tools server
 4. Go to **Feed Sources** and add your RSS feeds
 5. The dashboard will populate with live threat data
 
-### Self-Hosted (Docker)
+### Self-Hosted — Full Stack (Docker)
 
-See **[SELF-HOSTING.md](./SELF-HOSTING.md)** for the complete Docker Compose setup including PostgreSQL, Supabase Auth, API Gateway, and local tool servers.
+See **[SELF-HOSTING.md](./SELF-HOSTING.md)** for the complete Docker Compose setup including PostgreSQL, Supabase Auth, API Gateway, Realtime, and local tool servers.
 
 ```bash
 cp .env.docker.example .env.docker
 # Edit .env.docker with your secrets
 docker compose --env-file .env.docker up -d
+# Dashboard → http://localhost:8080
+```
+
+### Self-Hosted — Standalone PostgreSQL (No Supabase)
+
+A lighter alternative using only PostgreSQL + PostgREST (4 containers instead of 7). No Supabase account or services needed.
+
+See **[docs/POSTGRESQL-STANDALONE.md](./docs/POSTGRESQL-STANDALONE.md)** for the full guide.
+
+```bash
+cp .env.docker.example .env.docker
+# Edit .env.docker (set POSTGRES_PASSWORD, JWT_SECRET, generate VITE_SUPABASE_ANON_KEY)
+docker compose -f docker-compose.standalone.yml --env-file .env.docker up -d
 # Dashboard → http://localhost:8080
 ```
 
@@ -272,10 +285,6 @@ npm run dev
 ```
 
 The app connects to the Lovable Cloud backend automatically via environment variables (`.env`).
-
-### Standalone PostgreSQL (No Supabase)
-
-See **[docs/POSTGRESQL-STANDALONE.md](./docs/POSTGRESQL-STANDALONE.md)** for instructions on running ThreatIntel with a plain PostgreSQL database, replacing Supabase with direct PostgreSQL + your own auth/API layer.
 
 ---
 
