@@ -217,9 +217,17 @@ The alert scan edge function (`alert-scan`) fetches all active feeds, matches co
 
 ---
 
-## Standalone PostgreSQL
+## Standalone PostgreSQL (Lighter Alternative)
 
-If you want to run ThreatIntel without Supabase entirely, see **[docs/POSTGRESQL-STANDALONE.md](./docs/POSTGRESQL-STANDALONE.md)**.
+If you want to run ThreatIntel **without the full Supabase stack** (no Kong, no GoTrue, no Realtime), use the standalone compose file:
+
+```bash
+docker compose -f docker-compose.standalone.yml --env-file .env.docker up -d
+```
+
+This runs only 4 containers (PostgreSQL + PostgREST + Nmap + Tools) and uses ~500 MB RAM vs ~1.5 GB for the full stack.
+
+See **[docs/POSTGRESQL-STANDALONE.md](./docs/POSTGRESQL-STANDALONE.md)** for the complete guide including auth setup options.
 
 ---
 

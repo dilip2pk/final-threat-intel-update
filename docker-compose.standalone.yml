@@ -1,0 +1,104 @@
+# =============================================================
+# ThreatIntel — Standalone PostgreSQL (No Supabase)
+# =============================================================
+# Minimal stack: PostgreSQL + PostgREST + Nmap + Tools + Frontend
+# No GoTrue auth, no Kong gateway, no Realtime.
+#
+# Usage:
+#   cp .env.docker.example .env.docker
+#   # Edit .env.docker (set POSTGRES_PASSWORD, JWT_SECRET, VITE_SUPABASE_ANON_KEY)
+#   docker compose -f docker-compose.standalone.yml --env-file .env.docker up -d
+#
+# Dashboard: http://localhost:8080
+# REST API:  http://localhost:3000
+# =============================================================
+
+version: "3.8"
+
+services:
+  # ---- PostgreSQL Database ----
+  postgres:
+    image: postgres:15
+    container_name: threatintel-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: threatintel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---- PostgREST (REST API compatible with Supabase JS client) ----
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: threatintel-rest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgres://authenticator:changeme@postgres:5432/threatintel
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---- Local Nmap Server ----
+  nmap-server:
+    build:
+      context: ./local-nmap-server
+      dockerfile: ../docker/nmap-server/Dockerfile
+    container_name: threatintel-nmap
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NMAP_API_KEY: ${NMAP_API_KEY:-}
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ---- Local Tools Server ----
+  tools-server:
+    build:
+      context: ./local-tools-server
+      dockerfile: ../docker/tools-server/Dockerfile
+    container_name: threatintel-tools
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      TOOLS_API_KEY: ${TOOLS_API_KEY:-}
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ---- Frontend (Vite / Static) ----
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_SUPABASE_URL: http://localhost:3000
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_LOCAL_NMAP_URL: http://localhost:3001
+        VITE_LOCAL_TOOLS_URL: http://localhost:3002
+    container_name: threatintel-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgrest
+
+volumes:
+  pgdata:
