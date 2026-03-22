@@ -867,10 +867,11 @@ export default function ActivityLog() {
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recipients</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feed</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Age</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEmails.map(email => (
+                      {paginatedEmails.map(email => (
                         <tr key={email.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4">
                             <Badge variant="outline" className={`text-[11px] gap-1 ${statusColors[email.status] || ""}`}>
@@ -894,10 +895,30 @@ export default function ActivityLog() {
                           <td className="py-3 px-4">
                             <span className="text-xs text-muted-foreground font-mono">{formatShortDate(email.created_at)}</span>
                           </td>
+                          <td className="py-3 px-4">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {timeAgo(email.created_at)}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                {/* Email Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <span className="text-xs text-muted-foreground">
+                    Showing {(emailPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(emailPage * ITEMS_PER_PAGE, filteredEmails.length)} of {filteredEmails.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={emailPage === 1} onClick={() => setEmailPage(p => p - 1)}>
+                      Previous
+                    </Button>
+                    <span className="text-xs text-muted-foreground font-mono">{emailPage} / {emailTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={emailPage === emailTotalPages} onClick={() => setEmailPage(p => p + 1)}>
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
