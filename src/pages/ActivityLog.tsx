@@ -654,7 +654,7 @@ export default function ActivityLog() {
                   <SelectItem value="Low">Low</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
+              <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v); if (v !== "custom") { setStartDate(undefined); setEndDate(undefined); } }}>
                 <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Date Range" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>
@@ -662,8 +662,36 @@ export default function ActivityLog() {
                   <SelectItem value="7d">Last 7 Days</SelectItem>
                   <SelectItem value="30d">Last 30 Days</SelectItem>
                   <SelectItem value="90d">Last 90 Days</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
+              {dateFilter === "custom" && (
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-10 text-xs gap-1.5 w-32">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-10 text-xs gap-1.5 w-32">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground shrink-0">
                   Clear
