@@ -393,7 +393,11 @@ export default function ActivityLog() {
     setStatusFilter("all");
     setPriorityFilter("all");
     setDateFilter("all");
+    setStartDate(undefined);
+    setEndDate(undefined);
   };
+
+  const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
 
   const handleAddTicket = async () => {
     const ticketNum = addForm.ticket_number || addForm.subject;
