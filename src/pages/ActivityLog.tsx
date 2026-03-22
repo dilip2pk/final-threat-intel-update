@@ -261,7 +261,14 @@ export default function ActivityLog() {
   const [newStatus, setNewStatus] = useState("");
   const [newNote, setNewNote] = useState("");
 
-  // Add ticket dialog state
+  // Pagination state
+  const [ticketPage, setTicketPage] = useState(1);
+  const [emailPage, setEmailPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  // Custom date range state
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const emptyForm = { ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "", subcategory: "", service_category: "Technology Services (IT/ABS)", group: "Technology Services - Dispatch", notify_emails: "", subject: "" };
   const [addForm, setAddForm] = useState(emptyForm);
