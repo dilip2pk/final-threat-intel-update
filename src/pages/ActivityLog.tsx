@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
@@ -65,6 +68,21 @@ function formatDate(dateStr: string) {
 
 function formatShortDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const diff = now - new Date(dateStr).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
 }
 
 // ── Sample Data ──
@@ -243,7 +261,14 @@ export default function ActivityLog() {
   const [newStatus, setNewStatus] = useState("");
   const [newNote, setNewNote] = useState("");
 
-  // Add ticket dialog state
+  // Pagination state
+  const [ticketPage, setTicketPage] = useState(1);
+  const [emailPage, setEmailPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  // Custom date range state
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const emptyForm = { ticket_number: "", title: "", description: "", status: "Open", priority: "Medium", assigned_to: "", category: "", subcategory: "", service_category: "Technology Services (IT/ABS)", group: "Technology Services - Dispatch", notify_emails: "", subject: "" };
   const [addForm, setAddForm] = useState(emptyForm);
@@ -271,6 +296,12 @@ export default function ActivityLog() {
   }, []);
 
   const isWithinDate = (dateStr: string) => {
+    if (dateFilter === "custom") {
+      const d = new Date(dateStr);
+      if (startDate && d < new Date(new Date(startDate).setHours(0, 0, 0, 0))) return false;
+      if (endDate && d > new Date(new Date(endDate).setHours(23, 59, 59, 999))) return false;
+      return true;
+    }
     if (dateFilter === "all") return true;
     const d = new Date(dateStr);
     const now = new Date();
@@ -289,7 +320,7 @@ export default function ActivityLog() {
     if (statusFilter !== "all" && e.status !== statusFilter) return false;
     if (!isWithinDate(e.created_at)) return false;
     return true;
-  }), [emails, search, statusFilter, dateFilter]);
+  }), [emails, search, statusFilter, dateFilter, startDate, endDate]);
 
   const filteredTickets = useMemo(() => tickets.filter(t => {
     if (search) {
@@ -300,7 +331,17 @@ export default function ActivityLog() {
     if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
     if (!isWithinDate(t.created_at)) return false;
     return true;
-  }), [tickets, search, statusFilter, priorityFilter, dateFilter]);
+  }), [tickets, search, statusFilter, priorityFilter, dateFilter, startDate, endDate]);
+
+  // Reset pages when filters change
+  useEffect(() => { setTicketPage(1); }, [search, statusFilter, priorityFilter, dateFilter, startDate, endDate]);
+  useEffect(() => { setEmailPage(1); }, [search, statusFilter, dateFilter, startDate, endDate]);
+
+  // Paginated slices
+  const ticketTotalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const paginatedTickets = filteredTickets.slice((ticketPage - 1) * ITEMS_PER_PAGE, ticketPage * ITEMS_PER_PAGE);
+  const emailTotalPages = Math.max(1, Math.ceil(filteredEmails.length / ITEMS_PER_PAGE));
+  const paginatedEmails = filteredEmails.slice((emailPage - 1) * ITEMS_PER_PAGE, emailPage * ITEMS_PER_PAGE);
 
   const ticketStats = useMemo(() => ({
     total: tickets.length,
@@ -352,7 +393,11 @@ export default function ActivityLog() {
     setStatusFilter("all");
     setPriorityFilter("all");
     setDateFilter("all");
+    setStartDate(undefined);
+    setEndDate(undefined);
   };
+
+  const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
 
   const handleAddTicket = async () => {
     const ticketNum = addForm.ticket_number || addForm.subject;
@@ -428,7 +473,6 @@ export default function ActivityLog() {
     toast({ title: "Sample Data Loaded", description: `${count} sample tickets created.` });
   };
 
-  const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
 
   // ── ServiceNow Sync Handlers ──
 
@@ -610,7 +654,7 @@ export default function ActivityLog() {
                   <SelectItem value="Low">Low</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
+              <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v); if (v !== "custom") { setStartDate(undefined); setEndDate(undefined); } }}>
                 <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Date Range" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>
@@ -618,8 +662,36 @@ export default function ActivityLog() {
                   <SelectItem value="7d">Last 7 Days</SelectItem>
                   <SelectItem value="30d">Last 30 Days</SelectItem>
                   <SelectItem value="90d">Last 90 Days</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
+              {dateFilter === "custom" && (
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-10 text-xs gap-1.5 w-32">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-10 text-xs gap-1.5 w-32">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground shrink-0">
                   Clear
@@ -692,11 +764,12 @@ export default function ActivityLog() {
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Updated</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Age</th>
                         <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTickets.map(ticket => (
+                      {paginatedTickets.map(ticket => (
                         <tr
                           key={ticket.id}
                           onClick={() => setSelectedTicket(ticket)}
@@ -731,6 +804,11 @@ export default function ActivityLog() {
                           <td className="py-3 px-4">
                             <span className="text-xs text-muted-foreground font-mono">{formatShortDate(ticket.updated_at)}</span>
                           </td>
+                          <td className="py-3 px-4">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {timeAgo(ticket.updated_at)}
+                            </span>
+                          </td>
                           <td className="py-3 px-4 text-right">
                             <Button
                               variant="ghost"
@@ -745,6 +823,21 @@ export default function ActivityLog() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                {/* Ticket Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <span className="text-xs text-muted-foreground">
+                    Showing {(ticketPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(ticketPage * ITEMS_PER_PAGE, filteredTickets.length)} of {filteredTickets.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={ticketPage === 1} onClick={() => setTicketPage(p => p - 1)}>
+                      Previous
+                    </Button>
+                    <span className="text-xs text-muted-foreground font-mono">{ticketPage} / {ticketTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={ticketPage === ticketTotalPages} onClick={() => setTicketPage(p => p + 1)}>
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
@@ -774,10 +867,11 @@ export default function ActivityLog() {
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recipients</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Feed</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Age</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEmails.map(email => (
+                      {paginatedEmails.map(email => (
                         <tr key={email.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-4">
                             <Badge variant="outline" className={`text-[11px] gap-1 ${statusColors[email.status] || ""}`}>
@@ -801,10 +895,30 @@ export default function ActivityLog() {
                           <td className="py-3 px-4">
                             <span className="text-xs text-muted-foreground font-mono">{formatShortDate(email.created_at)}</span>
                           </td>
+                          <td className="py-3 px-4">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {timeAgo(email.created_at)}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                {/* Email Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <span className="text-xs text-muted-foreground">
+                    Showing {(emailPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(emailPage * ITEMS_PER_PAGE, filteredEmails.length)} of {filteredEmails.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={emailPage === 1} onClick={() => setEmailPage(p => p - 1)}>
+                      Previous
+                    </Button>
+                    <span className="text-xs text-muted-foreground font-mono">{emailPage} / {emailTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={emailPage === emailTotalPages} onClick={() => setEmailPage(p => p + 1)}>
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
