@@ -764,11 +764,12 @@ export default function ActivityLog() {
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Updated</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Age</th>
                         <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTickets.map(ticket => (
+                      {paginatedTickets.map(ticket => (
                         <tr
                           key={ticket.id}
                           onClick={() => setSelectedTicket(ticket)}
@@ -803,6 +804,11 @@ export default function ActivityLog() {
                           <td className="py-3 px-4">
                             <span className="text-xs text-muted-foreground font-mono">{formatShortDate(ticket.updated_at)}</span>
                           </td>
+                          <td className="py-3 px-4">
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {timeAgo(ticket.updated_at)}
+                            </span>
+                          </td>
                           <td className="py-3 px-4 text-right">
                             <Button
                               variant="ghost"
@@ -817,6 +823,21 @@ export default function ActivityLog() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                {/* Ticket Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <span className="text-xs text-muted-foreground">
+                    Showing {(ticketPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(ticketPage * ITEMS_PER_PAGE, filteredTickets.length)} of {filteredTickets.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={ticketPage === 1} onClick={() => setTicketPage(p => p - 1)}>
+                      Previous
+                    </Button>
+                    <span className="text-xs text-muted-foreground font-mono">{ticketPage} / {ticketTotalPages}</span>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={ticketPage === ticketTotalPages} onClick={() => setTicketPage(p => p + 1)}>
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}
