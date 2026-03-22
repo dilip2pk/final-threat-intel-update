@@ -473,7 +473,6 @@ export default function ActivityLog() {
     toast({ title: "Sample Data Loaded", description: `${count} sample tickets created.` });
   };
 
-  const hasActiveFilters = search || statusFilter !== "all" || priorityFilter !== "all" || dateFilter !== "all";
 
   // ── ServiceNow Sync Handlers ──
 
