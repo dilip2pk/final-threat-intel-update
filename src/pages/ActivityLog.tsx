@@ -320,7 +320,7 @@ export default function ActivityLog() {
     if (statusFilter !== "all" && e.status !== statusFilter) return false;
     if (!isWithinDate(e.created_at)) return false;
     return true;
-  }), [emails, search, statusFilter, dateFilter]);
+  }), [emails, search, statusFilter, dateFilter, startDate, endDate]);
 
   const filteredTickets = useMemo(() => tickets.filter(t => {
     if (search) {
@@ -331,7 +331,17 @@ export default function ActivityLog() {
     if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
     if (!isWithinDate(t.created_at)) return false;
     return true;
-  }), [tickets, search, statusFilter, priorityFilter, dateFilter]);
+  }), [tickets, search, statusFilter, priorityFilter, dateFilter, startDate, endDate]);
+
+  // Reset pages when filters change
+  useEffect(() => { setTicketPage(1); }, [search, statusFilter, priorityFilter, dateFilter, startDate, endDate]);
+  useEffect(() => { setEmailPage(1); }, [search, statusFilter, dateFilter, startDate, endDate]);
+
+  // Paginated slices
+  const ticketTotalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const paginatedTickets = filteredTickets.slice((ticketPage - 1) * ITEMS_PER_PAGE, ticketPage * ITEMS_PER_PAGE);
+  const emailTotalPages = Math.max(1, Math.ceil(filteredEmails.length / ITEMS_PER_PAGE));
+  const paginatedEmails = filteredEmails.slice((emailPage - 1) * ITEMS_PER_PAGE, emailPage * ITEMS_PER_PAGE);
 
   const ticketStats = useMemo(() => ({
     total: tickets.length,
