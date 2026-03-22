@@ -296,6 +296,12 @@ export default function ActivityLog() {
   }, []);
 
   const isWithinDate = (dateStr: string) => {
+    if (dateFilter === "custom") {
+      const d = new Date(dateStr);
+      if (startDate && d < new Date(new Date(startDate).setHours(0, 0, 0, 0))) return false;
+      if (endDate && d > new Date(new Date(endDate).setHours(23, 59, 59, 999))) return false;
+      return true;
+    }
     if (dateFilter === "all") return true;
     const d = new Date(dateStr);
     const now = new Date();
