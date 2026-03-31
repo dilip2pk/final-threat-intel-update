@@ -125,6 +125,38 @@ This platform aggregates, correlates, and analyzes security threat data from mul
 | PDF | jsPDF + jspdf-autotable |
 | Markdown | react-markdown |
 
+## Database Abstraction Layer
+
+The platform includes a **configurable database layer** (`src/lib/db/`) that allows switching between Supabase Cloud and standalone PostgreSQL + PostgREST with **zero code changes** — only environment variables need to change.
+
+### How It Works
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Provider Config | `src/lib/db/config.ts` | Detects backend via `VITE_DB_PROVIDER` env var |
+| Function Router | `src/lib/db/functions.ts` | Routes edge function calls to Supabase Functions or local HTTP endpoints |
+| Barrel Export | `src/lib/db/index.ts` | Central import point: `import { db, invokeFunction } from "@/lib/db"` |
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_DB_PROVIDER` | `supabase` | `supabase` or `postgrest` |
+| `VITE_SUPABASE_URL` | — | Supabase URL or PostgREST base URL |
+| `VITE_FUNCTIONS_URL` | auto-detected | Override edge function / API base URL |
+| `VITE_AUTH_ENABLED` | `true` | Set `false` to skip Supabase Auth in standalone mode |
+
+### Switching to Standalone PostgreSQL
+
+1. Set `VITE_DB_PROVIDER=postgrest` in your `.env.docker`
+2. Point `VITE_SUPABASE_URL` to your PostgREST instance (e.g. `http://localhost:3000`)
+3. Optionally set `VITE_FUNCTIONS_URL` to your local tools server API
+4. See [`docs/POSTGRESQL-STANDALONE.md`](docs/POSTGRESQL-STANDALONE.md) for full setup instructions
+
+### Why This Works
+
+The `@supabase/supabase-js` client is fundamentally a **PostgREST client** — all `.from('table').select()` queries go through PostgREST. By pointing the URL at a standalone PostgREST instance, all database operations work identically. Edge functions are routed via `invokeFunction()` / `invokeProxyFunction()` which detect the provider and call the appropriate endpoint.
+
 ---
 
 ## Project Structure
