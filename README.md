@@ -153,6 +153,10 @@ src/
 │   ├── useActivityLog.ts # Audit trail
 │   └── useRansomLookAPI.ts
 ├── lib/                 # Utilities
+│   ├── db/              # Database abstraction layer
+│   │   ├── config.ts    # Provider detection (supabase/postgrest)
+│   │   ├── functions.ts # Edge function / API call routing
+│   │   └── index.ts     # Barrel export (db, invokeFunction, etc.)
 │   ├── api.ts           # API call helpers
 │   ├── formatters.ts    # Report formatting utilities
 │   ├── pdfReportGenerator.ts # PDF generation
