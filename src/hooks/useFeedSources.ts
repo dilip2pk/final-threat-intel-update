@@ -64,12 +64,8 @@ export function useFeedSources() {
 
   const testFeedUrl = useCallback(async (url: string) => {
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/rss-proxy?testUrl=${encodeURIComponent(url)}`,
-        { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
-      );
+      const { invokeProxyFunction } = await import("@/lib/db");
+      const res = await invokeProxyFunction("rss-proxy", { testUrl: url });
       if (!res.ok) return { success: false, message: `HTTP ${res.status}` };
       const data = await res.json();
       if (data.error) return { success: false, message: data.error };

@@ -24,18 +24,11 @@ export interface RSSSource {
 }
 
 async function callRSSProxy(params: string) {
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const { invokeProxyFunction } = await import("@/lib/db");
+  const queryParams: Record<string, string> = {};
+  new URLSearchParams(params).forEach((v, k) => { queryParams[k] = v; });
 
-  const res = await fetch(
-    `https://${projectId}.supabase.co/functions/v1/rss-proxy?${params}`,
-    {
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-      },
-    }
-  );
+  const res = await invokeProxyFunction("rss-proxy", queryParams);
 
   if (!res.ok) throw new Error(`RSS API error: ${res.status}`);
   return res.json();

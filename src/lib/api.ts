@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { invokeFunction } from "@/lib/db";
 
 export interface AIAnalysis {
   summary: string;
@@ -21,10 +21,7 @@ export async function analyzeFeed(params: {
   apiType?: string;
   authHeaderType?: string;
 }): Promise<AIAnalysis> {
-  const { data, error } = await supabase.functions.invoke("analyze-feed", {
-    body: params,
-  });
-
+  const { data, error } = await invokeFunction("analyze-feed", params);
   if (error) throw new Error(error.message || "Failed to analyze feed");
   if (!data?.success) throw new Error(data?.error || "Analysis failed");
   return data.analysis;
@@ -43,10 +40,7 @@ export async function sendAnalysisEmail(params: {
     from: string;
   };
 }): Promise<{ success: boolean; message: string }> {
-  const { data, error } = await supabase.functions.invoke("send-email", {
-    body: params,
-  });
-
+  const { data, error } = await invokeFunction("send-email", params);
   if (error) throw new Error(error.message || "Failed to send email");
   if (!data?.success) throw new Error(data?.error || "Email send failed");
   return data;
@@ -70,10 +64,7 @@ export async function createServiceNowTicket(params: {
     authMethod?: string;
   };
 }): Promise<{ success: boolean; ticketNumber: string; message: string }> {
-  const { data, error } = await supabase.functions.invoke("servicenow-ticket", {
-    body: params,
-  });
-
+  const { data, error } = await invokeFunction("servicenow-ticket", params);
   if (error) throw new Error(error.message || "Failed to create ticket");
   if (!data?.success) throw new Error(data?.error || "Ticket creation failed");
   return data;
@@ -87,10 +78,7 @@ export async function testAIConnection(params: {
   apiType?: string;
   authHeaderType?: string;
 }): Promise<{ success: boolean; message: string; latencyMs?: number }> {
-  const { data, error } = await supabase.functions.invoke("test-connection", {
-    body: { type: "ai", ...params },
-  });
-
+  const { data, error } = await invokeFunction("test-connection", { type: "ai", ...params });
   if (error) throw new Error(error.message || "Connection test failed");
   return data;
 }
@@ -102,10 +90,7 @@ export async function testServiceNowConnection(params: {
   apiKey?: string;
   authMethod: string;
 }): Promise<{ success: boolean; message: string }> {
-  const { data, error } = await supabase.functions.invoke("test-connection", {
-    body: { type: "servicenow", ...params },
-  });
-
+  const { data, error } = await invokeFunction("test-connection", { type: "servicenow", ...params });
   if (error) throw new Error(error.message || "Connection test failed");
   return data;
 }
@@ -118,18 +103,14 @@ export async function fetchRemoteTickets(params?: {
   query?: string;
   serviceNowConfig?: any;
 }): Promise<{ success: boolean; total: number; imported: number; updated: number; tickets: any[] }> {
-  const { data, error } = await supabase.functions.invoke("servicenow-sync", {
-    body: { action: "fetch", ...params },
-  });
+  const { data, error } = await invokeFunction("servicenow-sync", { action: "fetch", ...params });
   if (error) throw new Error(error.message || "Failed to fetch remote tickets");
   if (!data?.success) throw new Error(data?.error || "Fetch failed");
   return data;
 }
 
 export async function syncTicketStatuses(serviceNowConfig?: any): Promise<{ success: boolean; synced: number; total: number; changes: any[] }> {
-  const { data, error } = await supabase.functions.invoke("servicenow-sync", {
-    body: { action: "sync", serviceNowConfig },
-  });
+  const { data, error } = await invokeFunction("servicenow-sync", { action: "sync", serviceNowConfig });
   if (error) throw new Error(error.message || "Failed to sync tickets");
   if (!data?.success) throw new Error(data?.error || "Sync failed");
   return data;
@@ -145,9 +126,7 @@ export async function pushTicketUpdate(params: {
   };
   serviceNowConfig?: any;
 }): Promise<{ success: boolean; message: string }> {
-  const { data, error } = await supabase.functions.invoke("servicenow-sync", {
-    body: { action: "update_remote", ...params },
-  });
+  const { data, error } = await invokeFunction("servicenow-sync", { action: "update_remote", ...params });
   if (error) throw new Error(error.message || "Failed to push update");
   if (!data?.success) throw new Error(data?.error || "Push failed");
   return data;
