@@ -16,18 +16,9 @@ export interface RansomLookGroup {
 }
 
 async function callProxy(endpoint: string) {
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const { invokeProxyFunction } = await import("@/lib/db");
 
-  const res = await fetch(
-    `https://${projectId}.supabase.co/functions/v1/ransomlook-proxy?endpoint=${encodeURIComponent(endpoint)}`,
-    {
-      headers: {
-        "apikey": anonKey,
-        "Authorization": `Bearer ${anonKey}`,
-      },
-    }
-  );
+  const res = await invokeProxyFunction("ransomlook-proxy", { endpoint });
 
   if (!res.ok) {
     throw new Error(`API error: ${res.status}`);
