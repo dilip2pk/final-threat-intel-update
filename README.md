@@ -96,6 +96,14 @@ This platform aggregates, correlates, and analyzes security threat data from mul
 - "Test Now" button to send test emails
 - Configurable footer text
 
+### 📋 Activity Log
+- Email delivery history with status tracking
+- ServiceDesk ticket audit trail with status changes
+- Paginated views (10 items per page) with Next/Previous navigation
+- Relative time tracking ("5m ago", "2h ago", "3d ago")
+- Custom date range filtering with start/end date pickers
+- Search and filter by status, priority, severity
+
 ### ⚙️ Settings & Configuration
 - **General**: App name, fetch intervals, severity thresholds, duplicate detection
 - **Branding**: Custom organization logo for reports (uploaded to storage)
@@ -114,22 +122,53 @@ This platform aggregates, correlates, and analyzes security threat data from mul
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, TypeScript, Vite 5 |
+| Frontend | React 18, TypeScript 5, Vite 5 |
 | UI | Tailwind CSS 3, shadcn/ui, Lucide Icons |
 | State | TanStack React Query 5, React Hooks |
-| Backend | Lovable Cloud (Supabase-compatible) |
+| Backend | Lovable Cloud (Supabase-compatible) or standalone PostgreSQL + PostgREST |
 | Database | PostgreSQL 15 |
-| Edge Functions | Deno (Supabase Edge Functions) |
+| Edge Functions | Deno (Supabase Edge Functions) or local Express plugins |
 | AI | Lovable AI (Gemini 2.5/3, GPT-5/5-mini/5-nano/5.2) |
 | Charts | Recharts 2 |
 | PDF | jsPDF + jspdf-autotable |
 | Markdown | react-markdown |
 
+---
+
 ## Database Abstraction Layer
 
 The platform includes a **configurable database layer** (`src/lib/db/`) that allows switching between Supabase Cloud and standalone PostgreSQL + PostgREST with **zero code changes** — only environment variables need to change.
 
-### How It Works
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Application Code                      │
+│         import { db, invokeFunction } from "@/lib/db"    │
+└────────────────────────┬────────────────────────────────┘
+                         │
+              ┌──────────┴──────────┐
+              │   src/lib/db/       │
+              │   config.ts         │  ← reads VITE_DB_PROVIDER
+              │   functions.ts      │  ← routes edge function calls
+              │   index.ts          │  ← barrel export
+              └──────────┬──────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼                             ▼
+┌──────────────────┐         ┌──────────────────┐
+│  Supabase Cloud  │         │  Standalone PG   │
+│  (default)       │         │  + PostgREST     │
+├──────────────────┤         ├──────────────────┤
+│ REST API         │         │ PostgREST        │
+│ Auth (GoTrue)    │         │ Optional GoTrue  │
+│ Edge Functions   │         │ Local HTTP APIs  │
+│ Storage          │         │ Local/S3 storage │
+│ Realtime         │         │ Polling          │
+└──────────────────┘         └──────────────────┘
+```
+
+### Component Files
 
 | Component | File | Purpose |
 |-----------|------|---------|
@@ -137,25 +176,43 @@ The platform includes a **configurable database layer** (`src/lib/db/`) that all
 | Function Router | `src/lib/db/functions.ts` | Routes edge function calls to Supabase Functions or local HTTP endpoints |
 | Barrel Export | `src/lib/db/index.ts` | Central import point: `import { db, invokeFunction } from "@/lib/db"` |
 
-### Environment Variables
+### Provider Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_DB_PROVIDER` | `supabase` | `supabase` or `postgrest` |
 | `VITE_SUPABASE_URL` | — | Supabase URL or PostgREST base URL |
 | `VITE_FUNCTIONS_URL` | auto-detected | Override edge function / API base URL |
-| `VITE_AUTH_ENABLED` | `true` | Set `false` to skip Supabase Auth in standalone mode |
+| `VITE_AUTH_ENABLED` | `true` | Set `false` to skip auth in standalone mode |
+
+### Migration Readiness
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Database queries | ✅ Ready | `@supabase/supabase-js` is a PostgREST client — works identically |
+| Edge function calls | ✅ Ready | Routed via `invokeFunction()` / `invokeProxyFunction()` |
+| Schema | ✅ Ready | Full schema in `docker/db/init.sql` with PostgREST roles |
+| Authentication | ⚠️ Partial | Needs GoTrue container or custom auth adapter |
+| File storage | ⚠️ Partial | Needs S3/MinIO or local filesystem adapter |
+| Realtime | ⚠️ Partial | Falls back to polling (not heavily used) |
 
 ### Switching to Standalone PostgreSQL
 
-1. Set `VITE_DB_PROVIDER=postgrest` in your `.env.docker`
-2. Point `VITE_SUPABASE_URL` to your PostgREST instance (e.g. `http://localhost:3000`)
-3. Optionally set `VITE_FUNCTIONS_URL` to your local tools server API
-4. See [`docs/POSTGRESQL-STANDALONE.md`](docs/POSTGRESQL-STANDALONE.md) for full setup instructions
+```bash
+# 1. Set provider
+VITE_DB_PROVIDER=postgrest
 
-### Why This Works
+# 2. Point to PostgREST
+VITE_SUPABASE_URL=http://localhost:3000
 
-The `@supabase/supabase-js` client is fundamentally a **PostgREST client** — all `.from('table').select()` queries go through PostgREST. By pointing the URL at a standalone PostgREST instance, all database operations work identically. Edge functions are routed via `invokeFunction()` / `invokeProxyFunction()` which detect the provider and call the appropriate endpoint.
+# 3. Optional: custom functions endpoint
+VITE_FUNCTIONS_URL=http://localhost:3002/api
+
+# 4. Optional: disable auth
+VITE_AUTH_ENABLED=false
+```
+
+See [`docs/POSTGRESQL-STANDALONE.md`](docs/POSTGRESQL-STANDALONE.md) for the full setup guide.
 
 ---
 
@@ -178,7 +235,7 @@ src/
 │   ├── useFeedSources.ts # Feed source CRUD
 │   ├── useScans.ts      # Network scanner state
 │   ├── useSettings.ts   # App settings management (cached)
-│   ├── useAuth.ts       # Authentication
+│   ├── useAuth.ts       # Authentication (role-based)
 │   ├── useAutoFetchFeeds.ts # Auto-refresh timer
 │   ├── useHealthCheck.ts # Backend health checks
 │   ├── useScheduledJobs.ts # Job scheduling
@@ -189,7 +246,7 @@ src/
 │   │   ├── config.ts    # Provider detection (supabase/postgrest)
 │   │   ├── functions.ts # Edge function / API call routing
 │   │   └── index.ts     # Barrel export (db, invokeFunction, etc.)
-│   ├── api.ts           # API call helpers
+│   ├── api.ts           # API call helpers (uses db abstraction)
 │   ├── formatters.ts    # Report formatting utilities
 │   ├── pdfReportGenerator.ts # PDF generation
 │   ├── settingsStore.ts # Settings type definitions
@@ -206,7 +263,7 @@ src/
 │   ├── SoftwareInventory.tsx # Defender integration
 │   ├── Reports.tsx      # Report management
 │   ├── ScheduleManager.tsx # Scan scheduling
-│   ├── ActivityLog.tsx  # Audit trail
+│   ├── ActivityLog.tsx  # Audit trail (paginated, date-filtered)
 │   ├── SettingsPage.tsx # All configuration
 │   └── AuthPage.tsx     # Login / Sign up
 └── integrations/        # Auto-generated backend client
@@ -233,7 +290,7 @@ supabase/
 └── config.toml          # Edge function configuration
 
 docker/                  # Self-hosting Docker configs
-├── db/init.sql          # Full database schema
+├── db/init.sql          # Full database schema (20 tables + PostgREST roles)
 ├── frontend/            # Nginx + Vite build
 ├── kong/                # API gateway config
 ├── nmap-server/         # Nmap container
@@ -241,6 +298,9 @@ docker/                  # Self-hosting Docker configs
 
 local-nmap-server/       # Standalone Nmap API server
 local-tools-server/      # Plugin-based tools server
+
+docs/
+└── POSTGRESQL-STANDALONE.md  # Standalone PostgreSQL setup guide
 ```
 
 ---
@@ -250,46 +310,51 @@ local-tools-server/      # Plugin-based tools server
 | Table | Purpose |
 |-------|---------|
 | `profiles` | User profiles (linked to auth) |
-| `user_roles` | Role-based access (admin/user) |
+| `user_roles` | Role-based access control (admin/user enum) |
 | `feed_sources` | Configured RSS feed sources |
 | `app_settings` | Application configuration (JSON key-value) |
-| `alert_rules` | Alert monitoring rules |
+| `alert_rules` | Alert monitoring rules with keywords & severity |
 | `scans` | Network scan records |
 | `scan_results` | Individual host scan results |
 | `scan_schedules` | Scheduled scan configurations |
-| `scheduled_jobs` | Generic job scheduler (Shodan, etc.) |
+| `scheduled_jobs` | Generic job scheduler (Shodan, alerts, etc.) |
 | `email_log` | Email delivery history |
 | `ticket_log` | ServiceDesk ticket records |
-| `ticket_history` | Ticket status change audit |
+| `ticket_history` | Ticket status change audit trail |
 | `audit_log` | System audit trail |
 | `watchlist` | RansomLook organization watchlist |
 | `shodan_queries` | Saved Shodan queries |
 | `shodan_results` | Cached Shodan search results |
 | `top_cves` | Tracked high-severity CVEs |
-| `generated_reports` | Saved scan reports |
+| `generated_reports` | Saved scan reports (HTML/PDF) |
 | `ai_prompts` | Customizable AI prompt templates |
 | `ai_prompt_versions` | AI prompt version history |
 
+### Database Functions
+
+| Function | Purpose |
+|----------|---------|
+| `has_role(_user_id, _role)` | Security definer function for RLS role checks |
+| `handle_new_user()` | Trigger: auto-creates profile + assigns role on signup |
+| `update_updated_at_column()` | Trigger: auto-updates `updated_at` timestamps |
+
 ---
 
-## Setup Instructions
+## Deployment Options
 
-### Quick Start (Lovable Cloud)
+### Option 1: Lovable Cloud (Recommended)
 
 1. Open the project in [Lovable](https://lovable.dev)
-2. The backend (database, edge functions, storage) is automatically provisioned
-3. Navigate to **Settings** to configure integrations:
-   - Select your preferred AI model
-   - Add Shodan API key (optional)
-   - Configure Microsoft Defender credentials (optional)
-   - Set up SMTP for email notifications (optional)
-   - Configure ServiceNow for ticket creation (optional)
-4. Go to **Feed Sources** and add your RSS feeds
-5. The dashboard will populate with live threat data
+2. Backend is automatically provisioned (database, edge functions, storage)
+3. Configure integrations in **Settings**
+4. Add RSS feeds in **Feed Sources**
+5. Dashboard populates with live threat data
 
-### Self-Hosted — Full Stack (Docker)
+### Option 2: Self-Hosted — Full Stack (Docker)
 
-See **[SELF-HOSTING.md](./SELF-HOSTING.md)** for the complete Docker Compose setup including PostgreSQL, Supabase Auth, API Gateway, Realtime, and local tool servers.
+Complete Supabase-compatible stack with Auth, Realtime, and API Gateway.
+
+See **[SELF-HOSTING.md](./SELF-HOSTING.md)** for the full guide.
 
 ```bash
 cp .env.docker.example .env.docker
@@ -298,20 +363,20 @@ docker compose --env-file .env.docker up -d
 # Dashboard → http://localhost:8080
 ```
 
-### Self-Hosted — Standalone PostgreSQL (No Supabase)
+### Option 3: Self-Hosted — Standalone PostgreSQL
 
-A lighter alternative using only PostgreSQL + PostgREST (4 containers instead of 7). No Supabase account or services needed.
+Minimal 4-container stack using PostgreSQL + PostgREST. No Supabase account needed.
 
 See **[docs/POSTGRESQL-STANDALONE.md](./docs/POSTGRESQL-STANDALONE.md)** for the full guide.
 
 ```bash
 cp .env.docker.example .env.docker
-# Edit .env.docker (set POSTGRES_PASSWORD, JWT_SECRET, generate VITE_SUPABASE_ANON_KEY)
+# Set VITE_DB_PROVIDER=postgrest, POSTGRES_PASSWORD, JWT_SECRET
 docker compose -f docker-compose.standalone.yml --env-file .env.docker up -d
 # Dashboard → http://localhost:8080
 ```
 
-### Local Development
+### Option 4: Local Development
 
 ```bash
 git clone <YOUR_GIT_URL>
@@ -319,8 +384,6 @@ cd <YOUR_PROJECT_NAME>
 npm install
 npm run dev
 ```
-
-The app connects to the Lovable Cloud backend automatically via environment variables (`.env`).
 
 ---
 
@@ -336,23 +399,48 @@ The app connects to the Lovable Cloud backend automatically via environment vari
 
 ### Self-Hosted (Docker)
 
-| Variable | Description |
-|----------|-------------|
-| `POSTGRES_PASSWORD` | Database password |
-| `JWT_SECRET` | JWT signing secret (min 32 chars) |
-| `VITE_SUPABASE_ANON_KEY` | JWT-signed anon key |
-| `VITE_SUPABASE_URL` | API gateway URL |
-| `VITE_LOCAL_NMAP_URL` | Nmap server URL |
-| `VITE_LOCAL_TOOLS_URL` | Tools server URL |
-| `SMTP_HOST/PORT/USER/PASS` | Email server (optional) |
-| `SHODAN_API_KEY` | Shodan API (optional) |
-| `DEFENDER_*` | Microsoft Defender (optional) |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_DB_PROVIDER` | No | `supabase` (default) or `postgrest` |
+| `POSTGRES_PASSWORD` | Yes | Database password |
+| `JWT_SECRET` | Yes | JWT signing secret (min 32 chars) |
+| `VITE_SUPABASE_ANON_KEY` | Yes | JWT-signed anon key |
+| `VITE_SUPABASE_URL` | Yes | API gateway or PostgREST URL |
+| `VITE_LOCAL_NMAP_URL` | No | Nmap server URL (default: `http://localhost:3001`) |
+| `VITE_LOCAL_TOOLS_URL` | No | Tools server URL (default: `http://localhost:3002`) |
+| `VITE_FUNCTIONS_URL` | No | Override edge function base URL |
+| `VITE_AUTH_ENABLED` | No | Set `false` to disable auth (standalone mode) |
+| `SMTP_HOST/PORT/USER/PASS` | No | Email server config |
+| `SHODAN_API_KEY` | No | Shodan API key |
+| `DEFENDER_*` | No | Microsoft Defender credentials |
+| `LOVABLE_API_KEY` | No | Lovable AI API key |
 
 ---
 
-## Deploying Edge Functions
+## Edge Functions
 
-If deploying with a separate Supabase project:
+16 serverless functions handle external API proxying, AI analysis, and integrations:
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `rss-proxy` | Proxy | Fetches and parses RSS/Atom feeds |
+| `cve-proxy` | Proxy | Queries NVD/CVE databases |
+| `shodan-proxy` | Proxy | Proxies Shodan API requests |
+| `ransomlook-proxy` | Proxy | Proxies RansomLook API |
+| `defender-proxy` | Proxy | Microsoft Defender ATP with OAuth2 |
+| `analyze-feed` | AI | AI-powered feed analysis |
+| `analyze-scan` | AI | AI-powered scan assessment |
+| `generate-command` | AI | AI command generation |
+| `generate-scan-report` | Report | HTML/PDF scan report generation |
+| `send-email` | Integration | SMTP email sender |
+| `servicenow-ticket` | Integration | ServiceNow ticket creation |
+| `servicenow-sync` | Integration | ServiceNow bi-directional sync |
+| `alert-scan` | Automation | RSS scan + rule matching + email alerts |
+| `watchlist-check` | Automation | Watchlist monitoring |
+| `port-scan` | Scanner | Network port scanning via Nmap |
+| `test-connection` | Utility | Backend connectivity verification |
+
+### Deploying Edge Functions
 
 ```bash
 # Deploy all edge functions
@@ -369,16 +457,28 @@ supabase secrets set LOVABLE_API_KEY=your-key
 
 ---
 
-## Security Notes
+## Security
 
-- All API keys are stored encrypted in the database settings (not in client code)
-- API keys are masked in the UI (•••• format)
-- Edge functions validate inputs and sanitize parameters
-- Network scanner has rate limiting (max 64 hosts, 500 ports per scan)
-- CIDR ranges are capped to prevent abuse
-- Role-based access control (admin/user) with RLS policies
-- First registered user automatically gets admin role
-- No mock or placeholder data in production — all data is live
+- **API keys** stored encrypted in database settings (never in client code)
+- **Masked display** in UI (•••• format) for all sensitive values
+- **Edge functions** validate inputs and sanitize parameters
+- **Network scanner** rate-limited: max 64 hosts, 500 ports per scan
+- **CIDR ranges** capped to prevent abuse
+- **Role-based access control** (admin/user) with PostgreSQL RLS policies
+- **First registered user** automatically gets admin role
+- **Security definer functions** prevent RLS recursion on role checks
+- **No mock data** — all data is live from configured sources
+
+---
+
+## Related Documentation
+
+| Document | Description |
+|----------|-------------|
+| [SELF-HOSTING.md](./SELF-HOSTING.md) | Full Docker Compose deployment guide |
+| [docs/POSTGRESQL-STANDALONE.md](./docs/POSTGRESQL-STANDALONE.md) | Standalone PostgreSQL setup (no Supabase) |
+| [local-nmap-server/README.md](./local-nmap-server/README.md) | Nmap API server documentation |
+| [local-tools-server/README.md](./local-tools-server/README.md) | Tools server plugin architecture |
 
 ---
 
