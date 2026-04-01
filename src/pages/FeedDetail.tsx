@@ -14,8 +14,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Copy, FileDown, ExternalLink, Shield, Wrench, Loader2,
-  Brain, Mail, Ticket, AlertTriangle, Link2, Server, Tag, Clock, Globe, Sparkles, CheckCircle
+  Brain, Mail, Ticket, AlertTriangle, Link2, Server, Tag, Clock, Globe, Sparkles, CheckCircle, ClipboardCheck
 } from "lucide-react";
+import { TrackerDialog } from "@/components/TrackerDialog";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeFeed, sendAnalysisEmail, createServiceNowTicket, type AIAnalysis } from "@/lib/api";
 import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription, type AdvisoryTemplateConfig } from "@/lib/formatters";
