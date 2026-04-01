@@ -58,6 +58,7 @@ export default function FeedDetail() {
   const [ticketImpact, setTicketImpact] = useState("2");
   const [ticketUrgency, setTicketUrgency] = useState("2");
   const [ticketWorkNotes, setTicketWorkNotes] = useState("");
+  const [trackerDialogOpen, setTrackerDialogOpen] = useState(false);
 
   // Load advisory template config
   useEffect(() => {
