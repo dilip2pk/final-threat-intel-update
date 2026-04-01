@@ -561,6 +561,17 @@ export default function FeedDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Tracker Dialog */}
+      <TrackerDialog
+        open={trackerDialogOpen}
+        onOpenChange={setTrackerDialogOpen}
+        feedTitle={feedItem.title}
+        feedLink={feedItem.link}
+        feedSource={feedItem.feedName}
+        severity={analysis?.severity || feedItem.severity}
+        cveId={feedItem.cves?.[0]}
+      />
+
       {/* ServiceNow Ticket Dialog */}
       <Dialog open={ticketDialogOpen} onOpenChange={setTicketDialogOpen}>
         <DialogContent className="bg-card border-border">

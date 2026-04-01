@@ -16,6 +16,7 @@ const navItems = [
   { to: "/shodan", icon: Radar, label: "Shodan", adminOnly: false },
   { to: "/software-inventory", icon: Monitor, label: "Software Inv.", adminOnly: false },
   { to: "/scanner", icon: Crosshair, label: "Network Scan", adminOnly: false },
+  { to: "/tracker", icon: ClipboardCheck, label: "Tracker", adminOnly: false },
   { to: "/reports", icon: FileText, label: "Reports", adminOnly: false },
   { to: "/schedules", icon: Calendar, label: "Schedules", adminOnly: true },
   { to: "/settings", icon: Settings, label: "Settings", adminOnly: true },
