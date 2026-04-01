@@ -1410,6 +1410,9 @@ export default function SettingsPage() {
           </div>
         );
 
+      case "tracker":
+        return <TrackerSettings />;
+
       default:
         return null;
     }
