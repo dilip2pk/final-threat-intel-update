@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Save, Bell, Clock, Shield, Mail, Ticket, Brain, Eye, EyeOff, Zap, Loader2,
   CheckCircle2, XCircle, Key, Globe, Settings2, ArrowRightLeft, Upload, Image as ImageIcon, Trash2, Lock, FileText, Palette, Server,
-  ChevronRight, Activity, MessageSquareCode, Send,
+  ChevronRight, Activity, MessageSquareCode, Send, ClipboardList,
 } from "lucide-react";
 import { HealthCheckPanel } from "@/components/HealthCheckPanel";
 import { useToast } from "@/hooks/use-toast";
@@ -86,7 +86,89 @@ const navItems = [
   { id: "defender", label: "Defender", icon: Shield, description: "Microsoft Defender" },
   { id: "notifications", label: "Notifications", icon: Bell, description: "Alerts & watchlist" },
   { id: "reports", label: "Reports", icon: FileText, description: "Report branding & sections" },
+  { id: "tracker", label: "Tracker", icon: ClipboardList, description: "Vulnerability tracker defaults" },
 ];
+
+// --- Tracker Settings sub-component ---
+function TrackerSettings() {
+  const { toast } = useToast();
+  const [config, setConfig] = useState({
+    storageBucket: "org-assets",
+    storageFolder: "trackers",
+    defaultProductArchitect: "",
+    defaultSupportOwner: "",
+    defaultRndLead: "",
+    dynamicFields: [] as Array<{ key: string; label: string; type: string; options?: string[] }>,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.from("app_settings").select("value").eq("key", "tracker_config").single().then(({ data }) => {
+      if (data?.value) setConfig(prev => ({ ...prev, ...(data.value as any) }));
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await supabase.from("app_settings").upsert({ key: "tracker_config", value: config as any }, { onConflict: "key" });
+      toast({ title: "Saved", description: "Tracker configuration updated" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <SectionCard title="Default Owners" icon={ClipboardList} description="Default values pre-filled when creating tracker entries">
+        <FieldGroup label="Default Product Architect/Manager">
+          <Input value={config.defaultProductArchitect} onChange={e => setConfig(prev => ({ ...prev, defaultProductArchitect: e.target.value }))} placeholder="e.g. John Doe" />
+        </FieldGroup>
+        <FieldGroup label="Default Support Owner">
+          <Input value={config.defaultSupportOwner} onChange={e => setConfig(prev => ({ ...prev, defaultSupportOwner: e.target.value }))} placeholder="e.g. Jane Smith" />
+        </FieldGroup>
+        <FieldGroup label="Default R&D Lead">
+          <Input value={config.defaultRndLead} onChange={e => setConfig(prev => ({ ...prev, defaultRndLead: e.target.value }))} placeholder="e.g. Bob Johnson" />
+        </FieldGroup>
+      </SectionCard>
+
+      <SectionCard title="Storage" icon={Server} description="Where tracker exports and files are stored">
+        <FieldGroup label="Storage Bucket" description="The storage bucket for tracker files">
+          <Input value={config.storageBucket} onChange={e => setConfig(prev => ({ ...prev, storageBucket: e.target.value }))} placeholder="org-assets" className="font-mono" />
+        </FieldGroup>
+        <FieldGroup label="Folder Path" description="Subfolder within the bucket for tracker files">
+          <Input value={config.storageFolder} onChange={e => setConfig(prev => ({ ...prev, storageFolder: e.target.value }))} placeholder="trackers" className="font-mono" />
+        </FieldGroup>
+      </SectionCard>
+
+      <SectionCard title="Dynamic Fields" icon={FileText} description="Fields shown in the tracker form. These are auto-generated based on vulnerability context.">
+        <div className="space-y-2">
+          {config.dynamicFields.map((field, idx) => (
+            <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/10">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">{field.label}</p>
+                <p className="text-xs text-muted-foreground">Key: <code className="font-mono">{field.key}</code> · Type: {field.type}{field.options ? ` · Options: ${field.options.join(", ")}` : ""}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+          💡 Dynamic fields are generated based on the feed context (e.g., telnet-related feeds add OS, version, service fields). Modify these defaults to match your organization's tracking needs.
+        </p>
+      </SectionCard>
+
+      <Button onClick={save} disabled={saving} className="gap-2">
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        {saving ? "Saving..." : "Save Tracker Settings"}
+      </Button>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -1408,6 +1490,9 @@ export default function SettingsPage() {
             </SectionCard>
           </div>
         );
+
+      case "tracker":
+        return <TrackerSettings />;
 
       default:
         return null;

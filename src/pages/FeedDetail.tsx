@@ -14,8 +14,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft, Copy, FileDown, ExternalLink, Shield, Wrench, Loader2,
-  Brain, Mail, Ticket, AlertTriangle, Link2, Server, Tag, Clock, Globe, Sparkles, CheckCircle
+  Brain, Mail, Ticket, AlertTriangle, Link2, Server, Tag, Clock, Globe, Sparkles, CheckCircle, ClipboardCheck
 } from "lucide-react";
+import { TrackerDialog } from "@/components/TrackerDialog";
 import { useToast } from "@/hooks/use-toast";
 import { analyzeFeed, sendAnalysisEmail, createServiceNowTicket, type AIAnalysis } from "@/lib/api";
 import { formatAnalysisText, formatAnalysisHTML, formatTicketDescription, type AdvisoryTemplateConfig } from "@/lib/formatters";
@@ -57,6 +58,7 @@ export default function FeedDetail() {
   const [ticketImpact, setTicketImpact] = useState("2");
   const [ticketUrgency, setTicketUrgency] = useState("2");
   const [ticketWorkNotes, setTicketWorkNotes] = useState("");
+  const [trackerDialogOpen, setTrackerDialogOpen] = useState(false);
 
   // Load advisory template config
   useEffect(() => {
@@ -435,6 +437,9 @@ export default function FeedDetail() {
                       <Button variant="ghost" size="sm" onClick={openTicketDialog} className="gap-1.5 text-xs h-8 hover:bg-background">
                         <Ticket className="h-3.5 w-3.5" /> Ticket
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setTrackerDialogOpen(true)} className="gap-1.5 text-xs h-8 hover:bg-background">
+                        <ClipboardCheck className="h-3.5 w-3.5" /> Tracker
+                      </Button>
                       <Button variant="outline" size="sm" onClick={runAnalysis} disabled={analyzing} className="gap-1.5 text-xs h-8 ml-auto">
                         <Brain className="h-3.5 w-3.5" /> Re-analyze
                       </Button>
@@ -555,6 +560,17 @@ export default function FeedDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Tracker Dialog */}
+      <TrackerDialog
+        open={trackerDialogOpen}
+        onOpenChange={setTrackerDialogOpen}
+        feedTitle={feedItem.title}
+        feedLink={feedItem.link}
+        feedSource={feedItem.feedName}
+        severity={analysis?.severity || feedItem.severity}
+        cveId={feedItem.cves?.[0]}
+      />
 
       {/* ServiceNow Ticket Dialog */}
       <Dialog open={ticketDialogOpen} onOpenChange={setTicketDialogOpen}>
