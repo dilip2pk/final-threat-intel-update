@@ -86,6 +86,7 @@ const navItems = [
   { id: "defender", label: "Defender", icon: Shield, description: "Microsoft Defender" },
   { id: "notifications", label: "Notifications", icon: Bell, description: "Alerts & watchlist" },
   { id: "reports", label: "Reports", icon: FileText, description: "Report branding & sections" },
+  { id: "tracker", label: "Tracker", icon: ClipboardList, description: "Vulnerability tracker defaults" },
 ];
 
 export default function SettingsPage() {
