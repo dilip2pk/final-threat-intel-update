@@ -324,7 +324,7 @@ BEGIN
   FOR tbl IN SELECT unnest(ARRAY[
     'app_settings','feed_sources','alert_rules','scans',
     'scan_schedules','shodan_queries','ticket_log','top_cves',
-    'scheduled_jobs','ai_prompts'
+    'scheduled_jobs','ai_prompts','tracker_entries'
   ])
   LOOP
     EXECUTE format(
