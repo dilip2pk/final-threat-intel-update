@@ -437,6 +437,9 @@ export default function FeedDetail() {
                       <Button variant="ghost" size="sm" onClick={openTicketDialog} className="gap-1.5 text-xs h-8 hover:bg-background">
                         <Ticket className="h-3.5 w-3.5" /> Ticket
                       </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setTrackerDialogOpen(true)} className="gap-1.5 text-xs h-8 hover:bg-background">
+                        <ClipboardCheck className="h-3.5 w-3.5" /> Tracker
+                      </Button>
                       <Button variant="outline" size="sm" onClick={runAnalysis} disabled={analyzing} className="gap-1.5 text-xs h-8 ml-auto">
                         <Brain className="h-3.5 w-3.5" /> Re-analyze
                       </Button>
