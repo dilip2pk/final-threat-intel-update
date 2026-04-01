@@ -271,31 +271,6 @@ CREATE TABLE IF NOT EXISTS public.ai_prompt_versions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ---- Tracker Entries ----
-CREATE TABLE IF NOT EXISTS public.tracker_entries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  feed_title TEXT NOT NULL,
-  feed_link TEXT DEFAULT '',
-  feed_source TEXT DEFAULT '',
-  severity TEXT DEFAULT 'medium',
-  cve_id TEXT DEFAULT '',
-  product_name TEXT NOT NULL,
-  product_architect TEXT DEFAULT '',
-  support_owner TEXT DEFAULT '',
-  rnd_lead TEXT DEFAULT '',
-  deployment_type TEXT DEFAULT '',
-  operating_system TEXT DEFAULT '',
-  service_enabled TEXT DEFAULT '',
-  package_installed TEXT DEFAULT '',
-  mitigated TEXT DEFAULT 'No',
-  eta_upgrade TEXT DEFAULT '',
-  comments TEXT DEFAULT '',
-  custom_fields JSONB DEFAULT '{}'::jsonb,
-  created_by UUID,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- ---- Helper Functions ----
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -324,7 +299,7 @@ BEGIN
   FOR tbl IN SELECT unnest(ARRAY[
     'app_settings','feed_sources','alert_rules','scans',
     'scan_schedules','shodan_queries','ticket_log','top_cves',
-    'scheduled_jobs','ai_prompts','tracker_entries'
+    'scheduled_jobs','ai_prompts'
   ])
   LOOP
     EXECUTE format(
