@@ -170,7 +170,7 @@ function TrackerSettings() {
   );
 }
 
-
+export default function SettingsPage() {
   const { toast } = useToast();
   const { settings, setSettings, general, setGeneral, loading, saving, saveAll } = useSettings();
   const { isAdmin, role, loading: authLoading } = useAuth();
