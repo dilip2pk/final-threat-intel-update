@@ -46,6 +46,7 @@ function AppRoutes() {
       <Route path="/shodan" element={<ShodanSearch />} />
       <Route path="/software-inventory" element={<SoftwareInventory />} />
       <Route path="/scanner" element={<NetworkScanner />} />
+      <Route path="/threat-hunt" element={<ThreatHunt />} />
 
       {/* Admin login page */}
       <Route path="/admin-login" element={<AuthPage />} />
