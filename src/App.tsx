@@ -19,6 +19,7 @@ import NetworkScanner from "./pages/NetworkScanner";
 import AuthPage from "./pages/AuthPage";
 import ScheduleManager from "./pages/ScheduleManager";
 import Reports from "./pages/Reports";
+import ThreatHunt from "./pages/ThreatHunt";
 
 import NotFound from "./pages/NotFound";
 
@@ -45,6 +46,7 @@ function AppRoutes() {
       <Route path="/shodan" element={<ShodanSearch />} />
       <Route path="/software-inventory" element={<SoftwareInventory />} />
       <Route path="/scanner" element={<NetworkScanner />} />
+      <Route path="/threat-hunt" element={<ThreatHunt />} />
 
       {/* Admin login page */}
       <Route path="/admin-login" element={<AuthPage />} />
