@@ -729,6 +729,78 @@ export type Database = {
         }
         Relationships: []
       }
+      tracker_entries: {
+        Row: {
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          custom_fields: Json | null
+          cve_id: string | null
+          deployment_type: string | null
+          eta_upgrade: string | null
+          feed_link: string | null
+          feed_source: string | null
+          feed_title: string
+          id: string
+          mitigated: string | null
+          operating_system: string | null
+          package_installed: string | null
+          product_architect: string | null
+          product_name: string
+          rnd_lead: string | null
+          service_enabled: string | null
+          severity: string | null
+          support_owner: string | null
+          updated_at: string
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json | null
+          cve_id?: string | null
+          deployment_type?: string | null
+          eta_upgrade?: string | null
+          feed_link?: string | null
+          feed_source?: string | null
+          feed_title: string
+          id?: string
+          mitigated?: string | null
+          operating_system?: string | null
+          package_installed?: string | null
+          product_architect?: string | null
+          product_name: string
+          rnd_lead?: string | null
+          service_enabled?: string | null
+          severity?: string | null
+          support_owner?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_fields?: Json | null
+          cve_id?: string | null
+          deployment_type?: string | null
+          eta_upgrade?: string | null
+          feed_link?: string | null
+          feed_source?: string | null
+          feed_title?: string
+          id?: string
+          mitigated?: string | null
+          operating_system?: string | null
+          package_installed?: string | null
+          product_architect?: string | null
+          product_name?: string
+          rnd_lead?: string | null
+          service_enabled?: string | null
+          severity?: string | null
+          support_owner?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
