@@ -604,6 +604,137 @@ export type Database = {
           },
         ]
       }
+      threat_hunt_playbooks: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_builtin: boolean
+          name: string
+          severity: string
+          steps: Json
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_builtin?: boolean
+          name: string
+          severity?: string
+          steps?: Json
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_builtin?: boolean
+          name?: string
+          severity?: string
+          steps?: Json
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      threat_hunt_results: {
+        Row: {
+          created_at: string
+          description: string | null
+          hunt_id: string
+          id: string
+          is_false_positive: boolean
+          match_data: Json
+          severity: string
+          source_id: string | null
+          source_type: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hunt_id: string
+          id?: string
+          is_false_positive?: boolean
+          match_data?: Json
+          severity?: string
+          source_id?: string | null
+          source_type?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hunt_id?: string
+          id?: string
+          is_false_positive?: boolean
+          match_data?: Json
+          severity?: string
+          source_id?: string | null
+          source_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threat_hunt_results_hunt_id_fkey"
+            columns: ["hunt_id"]
+            isOneToOne: false
+            referencedRelation: "threat_hunts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threat_hunts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          findings_count: number
+          hunt_type: string
+          id: string
+          name: string
+          query: Json
+          severity: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          findings_count?: number
+          hunt_type?: string
+          id?: string
+          name: string
+          query?: Json
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          findings_count?: number
+          hunt_type?: string
+          id?: string
+          name?: string
+          query?: Json
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ticket_history: {
         Row: {
           action: string
