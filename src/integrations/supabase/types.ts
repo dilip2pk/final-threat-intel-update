@@ -735,6 +735,186 @@ export type Database = {
         }
         Relationships: []
       }
+      threat_intel_iocs: {
+        Row: {
+          confidence: number
+          context: string | null
+          created_at: string
+          first_seen: string
+          id: string
+          ioc_type: string
+          ioc_value: string
+          is_whitelisted: boolean
+          last_seen: string
+          sighting_count: number
+          source_article_title: string | null
+          source_article_url: string | null
+          source_feed_id: string | null
+          source_feed_name: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          context?: string | null
+          created_at?: string
+          first_seen?: string
+          id?: string
+          ioc_type?: string
+          ioc_value: string
+          is_whitelisted?: boolean
+          last_seen?: string
+          sighting_count?: number
+          source_article_title?: string | null
+          source_article_url?: string | null
+          source_feed_id?: string | null
+          source_feed_name?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          context?: string | null
+          created_at?: string
+          first_seen?: string
+          id?: string
+          ioc_type?: string
+          ioc_value?: string
+          is_whitelisted?: boolean
+          last_seen?: string
+          sighting_count?: number
+          source_article_title?: string | null
+          source_article_url?: string | null
+          source_feed_id?: string | null
+          source_feed_name?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threat_intel_iocs_source_feed_id_fkey"
+            columns: ["source_feed_id"]
+            isOneToOne: false
+            referencedRelation: "feed_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threat_intel_processing_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          feed_item_id: string
+          feed_source_id: string | null
+          has_behavioral_report: boolean
+          id: string
+          iocs_extracted: number
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          feed_item_id: string
+          feed_source_id?: string | null
+          has_behavioral_report?: boolean
+          id?: string
+          iocs_extracted?: number
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          feed_item_id?: string
+          feed_source_id?: string | null
+          has_behavioral_report?: boolean
+          id?: string
+          iocs_extracted?: number
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threat_intel_processing_log_feed_source_id_fkey"
+            columns: ["feed_source_id"]
+            isOneToOne: false
+            referencedRelation: "feed_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threat_intel_reports: {
+        Row: {
+          affected_products: string[]
+          affected_sectors: string[]
+          ai_model_used: string | null
+          created_at: string
+          id: string
+          raw_ai_response: string | null
+          related_ioc_ids: string[]
+          report_type: string
+          severity: string
+          source_article_title: string
+          source_article_url: string
+          source_feed_id: string | null
+          source_feed_name: string
+          summary: string
+          tags: string[]
+          threat_actors: string[]
+          ttps: string[]
+          updated_at: string
+        }
+        Insert: {
+          affected_products?: string[]
+          affected_sectors?: string[]
+          ai_model_used?: string | null
+          created_at?: string
+          id?: string
+          raw_ai_response?: string | null
+          related_ioc_ids?: string[]
+          report_type?: string
+          severity?: string
+          source_article_title?: string
+          source_article_url?: string
+          source_feed_id?: string | null
+          source_feed_name?: string
+          summary?: string
+          tags?: string[]
+          threat_actors?: string[]
+          ttps?: string[]
+          updated_at?: string
+        }
+        Update: {
+          affected_products?: string[]
+          affected_sectors?: string[]
+          ai_model_used?: string | null
+          created_at?: string
+          id?: string
+          raw_ai_response?: string | null
+          related_ioc_ids?: string[]
+          report_type?: string
+          severity?: string
+          source_article_title?: string
+          source_article_url?: string
+          source_feed_id?: string | null
+          source_feed_name?: string
+          summary?: string
+          tags?: string[]
+          threat_actors?: string[]
+          ttps?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threat_intel_reports_source_feed_id_fkey"
+            columns: ["source_feed_id"]
+            isOneToOne: false
+            referencedRelation: "feed_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_history: {
         Row: {
           action: string

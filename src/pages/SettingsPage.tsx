@@ -1213,6 +1213,50 @@ export default function SettingsPage() {
               </div>
             </SectionCard>
 
+            <SectionCard title="Threat Intelligence Processing" icon={Shield} description="Configure automatic IOC extraction and AI behavioral analysis from RSS feeds.">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <Label className="text-sm font-medium">Auto-Process Feeds</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Automatically extract IOCs and run AI analysis on new feed items</p>
+                </div>
+                <Switch checked={general.threatIntelAutoProcess || false} onCheckedChange={v => setGeneral(g => ({ ...g, threatIntelAutoProcess: v }))} />
+              </div>
+              <FieldGroup label="Processing Schedule (Cron)" description="How often to process feeds for IOCs. Default: every 6 hours">
+                <Input value={general.threatIntelCron || "0 */6 * * *"} onChange={e => setGeneral(g => ({ ...g, threatIntelCron: e.target.value }))} className="font-mono" placeholder="0 */6 * * *" />
+              </FieldGroup>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Every 6 Hours", cron: "0 */6 * * *" },
+                  { label: "Every 12 Hours", cron: "0 */12 * * *" },
+                  { label: "Daily 2 AM", cron: "0 2 * * *" },
+                  { label: "Hourly", cron: "0 * * * *" },
+                ].map(preset => (
+                  <Button key={preset.cron} variant="outline" size="sm" className="text-xs" onClick={() => setGeneral(g => ({ ...g, threatIntelCron: preset.cron }))}>
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <Label className="text-sm font-medium">Deep Scrape Articles</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Fetch full article content from linked pages for more thorough IOC extraction</p>
+                </div>
+                <Switch checked={general.threatIntelDeepScrape !== false} onCheckedChange={v => setGeneral(g => ({ ...g, threatIntelDeepScrape: v }))} />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <Label className="text-sm font-medium">Skip AI Analysis</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Only extract IOCs, skip AI behavioral analysis for feeds without IOCs</p>
+                </div>
+                <Switch checked={general.threatIntelSkipAI || false} onCheckedChange={v => setGeneral(g => ({ ...g, threatIntelSkipAI: v }))} />
+              </div>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-foreground">Processing pipeline:</strong> RSS items → IOC regex extraction (IPs, domains, hashes, URLs, CVEs) → If no IOCs found, AI analyzes content for behavioral/contextual intelligence → Results stored in IOC Database and Intel Reports.
+                </p>
+              </div>
+            </SectionCard>
+
             <SectionCard title="RansomLook Watchlist Notifications" icon={Eye} iconColor="text-severity-high" description="Get alerted when watched organizations appear in ransomware leak data.">
               <div className="flex items-center justify-between py-2">
                 <div>
