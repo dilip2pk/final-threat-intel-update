@@ -95,6 +95,10 @@ const defaultGeneral: GeneralSettings = {
   alertScanEnabled: false,
   alertScanCron: "0 8 * * *",
   alertRecipients: "",
+  threatIntelAutoProcess: false,
+  threatIntelCron: "0 */6 * * *",
+  threatIntelDeepScrape: true,
+  threatIntelSkipAI: false,
 };
 
 // Session cache helpers to preserve unsaved edits across re-renders
