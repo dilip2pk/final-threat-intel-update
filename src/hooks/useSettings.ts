@@ -74,6 +74,10 @@ interface GeneralSettings {
   alertScanEnabled: boolean;
   alertScanCron: string;
   alertRecipients: string;
+  threatIntelAutoProcess: boolean;
+  threatIntelCron: string;
+  threatIntelDeepScrape: boolean;
+  threatIntelSkipAI: boolean;
 }
 
 const defaultGeneral: GeneralSettings = {
