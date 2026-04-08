@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface RSSFeedItem {
   id: string;
@@ -26,12 +27,63 @@ export interface RSSSource {
 async function callRSSProxy(params: string) {
   const { invokeProxyFunction } = await import("@/lib/db");
   const queryParams: Record<string, string> = {};
-  new URLSearchParams(params).forEach((v, k) => { queryParams[k] = v; });
+  new URLSearchParams(params).forEach((v, k) => {
+    queryParams[k] = v;
+  });
 
   const res = await invokeProxyFunction("rss-proxy", queryParams);
 
   if (!res.ok) throw new Error(`RSS API error: ${res.status}`);
   return res.json();
+}
+
+function sortItemsByDate(items: RSSFeedItem[]) {
+  return [...items].sort((a, b) => {
+    const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+    const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+    return db - da;
+  });
+}
+
+function mapLiveResultsToItems(data: Record<string, any>): RSSFeedItem[] {
+  const items: RSSFeedItem[] = [];
+
+  for (const [feedId, result] of Object.entries(data) as [string, any][]) {
+    const feedName = result.name || feedId;
+    for (const item of result.items || []) {
+      items.push({
+        ...item,
+        feedId,
+        feedName,
+      });
+    }
+  }
+
+  return sortItemsByDate(items);
+}
+
+async function loadCachedItems(): Promise<RSSFeedItem[]> {
+  const { data, error } = await supabase
+    .from("feed_items_cache" as any)
+    .select("id, feed_source_id, feed_name, title, link, description, pub_date, category, content")
+    .order("pub_date", { ascending: false })
+    .limit(1000);
+
+  if (error) throw error;
+
+  const items = ((data || []) as any[]).map((row) => ({
+    id: row.link || row.id,
+    title: row.title,
+    link: row.link,
+    description: row.description || "",
+    pubDate: row.pub_date || "",
+    category: row.category || "",
+    content: row.content || "",
+    feedId: row.feed_source_id || "",
+    feedName: row.feed_name || "",
+  }));
+
+  return sortItemsByDate(items);
 }
 
 export function useRSSFeeds() {
@@ -41,45 +93,42 @@ export function useRSSFeeds() {
   const fetchAllFeeds = useCallback(async (): Promise<{ sources: RSSSource[]; items: RSSFeedItem[] }> => {
     setLoading(true);
     setError(null);
+
     try {
-      const data = await callRSSProxy("all=true");
-      const sources: RSSSource[] = [];
-      const items: RSSFeedItem[] = [];
+      const liveData = await callRSSProxy("all=true");
+      const [cachedItems, sourcesResult] = await Promise.all([
+        loadCachedItems(),
+        supabase
+          .from("feed_sources")
+          .select("id, name, url, category, tags, active")
+          .order("name", { ascending: true }),
+      ]);
 
-      for (const [feedId, result] of Object.entries(data) as [string, any][]) {
-        const name = result.name || feedId;
-        const category = result.category || "";
+      if (sourcesResult.error) throw sourcesResult.error;
 
-        sources.push({
-          id: feedId,
-          name,
-          url: "",
-          category,
-          tags: [],
-          active: !result.error,
-          itemCount: result.items?.length || 0,
-          error: result.error,
-        });
+      const itemCountByFeed = cachedItems.reduce<Record<string, number>>((acc, item) => {
+        if (item.feedId) acc[item.feedId] = (acc[item.feedId] || 0) + 1;
+        return acc;
+      }, {});
 
-        if (result.items) {
-          for (const item of result.items) {
-            items.push({
-              ...item,
-              feedId,
-              feedName: name,
-            });
-          }
-        }
-      }
-
-      // Sort items by date descending
-      items.sort((a, b) => {
-        const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-        const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-        return db - da;
+      const sources: RSSSource[] = ((sourcesResult.data || []) as any[]).map((source) => {
+        const liveResult = liveData[source.id] || {};
+        return {
+          id: source.id,
+          name: source.name,
+          url: source.url,
+          category: source.category || liveResult.category || "",
+          tags: source.tags || [],
+          active: Boolean(source.active) && !liveResult.error,
+          itemCount: itemCountByFeed[source.id] || 0,
+          error: liveResult.error,
+        };
       });
 
-      return { sources, items };
+      return {
+        sources,
+        items: cachedItems.length > 0 ? cachedItems : mapLiveResultsToItems(liveData),
+      };
     } catch (e: any) {
       setError(e.message);
       return { sources: [], items: [] };
