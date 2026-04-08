@@ -217,6 +217,56 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_items_cache: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string
+          description: string | null
+          feed_name: string
+          feed_source_id: string | null
+          id: string
+          link: string
+          pub_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          description?: string | null
+          feed_name?: string
+          feed_source_id?: string | null
+          id?: string
+          link?: string
+          pub_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          description?: string | null
+          feed_name?: string
+          feed_source_id?: string | null
+          id?: string
+          link?: string
+          pub_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_items_cache_feed_source_id_fkey"
+            columns: ["feed_source_id"]
+            isOneToOne: false
+            referencedRelation: "feed_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_sources: {
         Row: {
           active: boolean
