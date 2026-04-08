@@ -149,6 +149,30 @@ serve(async (req) => {
         } catch (e) {
           console.error(`Failed to update feed source ${source.id}:`, e);
         }
+
+        // Cache items persistently (upsert to avoid duplicates)
+        if (result.items.length > 0) {
+          try {
+            const rows = result.items
+              .filter(item => item.link)
+              .map(item => ({
+                feed_source_id: source.id,
+                feed_name: source.name,
+                title: item.title,
+                link: item.link,
+                description: (item.description || "").substring(0, 2000),
+                pub_date: item.pubDate ? new Date(item.pubDate).toISOString() : null,
+                category: item.category || "",
+                content: (item.content || "").substring(0, 5000),
+              }));
+            await sb.from("feed_items_cache").upsert(rows, {
+              onConflict: "feed_source_id,link",
+              ignoreDuplicates: false,
+            });
+          } catch (e) {
+            console.error(`Failed to cache items for ${source.name}:`, e);
+          }
+        }
       });
 
       await Promise.all(promises);
