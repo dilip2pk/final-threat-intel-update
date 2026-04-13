@@ -295,7 +295,7 @@ export default function RansomLook() {
                           <TableRow
                             key={`${post.group_name}-${post.post_title}-${idx}`}
                             className="cursor-pointer group"
-                            onClick={() => setSelectedLivePost(post)}
+                            onClick={() => navigate(`/ransomlook/victim/${encodeURIComponent(post.post_title || post.group_name)}`)}
                           >
                             <TableCell className="font-medium text-foreground">
                               <div className="flex items-center gap-2">
