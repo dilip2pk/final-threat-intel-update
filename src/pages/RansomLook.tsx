@@ -29,7 +29,7 @@ export default function RansomLook() {
   const { items: watchlistItems, addItem: addWatchlistItem, removeItem: removeWatchlistItem } = useWatchlist();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedLivePost, setSelectedLivePost] = useState<RansomLookPost | null>(null);
+  
   const [watchDialogOpen, setWatchDialogOpen] = useState(false);
   const [watchOrg, setWatchOrg] = useState("");
   const [notifyMethod, setNotifyMethod] = useState("email");
@@ -295,7 +295,7 @@ export default function RansomLook() {
                           <TableRow
                             key={`${post.group_name}-${post.post_title}-${idx}`}
                             className="cursor-pointer group"
-                            onClick={() => setSelectedLivePost(post)}
+                            onClick={() => navigate(`/ransomlook/victim/${encodeURIComponent(post.post_title || post.group_name)}`)}
                           >
                             <TableCell className="font-medium text-foreground">
                               <div className="flex items-center gap-2">
@@ -383,75 +383,6 @@ export default function RansomLook() {
               );
             })()}
 
-            {/* Live Post Detail Dialog */}
-            <Dialog open={!!selectedLivePost} onOpenChange={(o) => !o && setSelectedLivePost(null)}>
-              <DialogContent className="bg-card border-border sm:max-w-lg">
-                {selectedLivePost && (
-                  <>
-                    <DialogHeader>
-                      <DialogTitle className="text-foreground flex items-center gap-2 text-base">
-                        <div className="h-8 w-8 rounded-lg bg-severity-high/10 flex items-center justify-center shrink-0">
-                          <AlertTriangle className="h-4 w-4 text-severity-high" />
-                        </div>
-                        <span className="truncate">{selectedLivePost.post_title || "Unknown Victim"}</span>
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-1">
-                      <div className="flex flex-wrap gap-2">
-                        <Badge className="bg-severity-critical/10 text-severity-critical border-severity-critical/20 hover:bg-severity-critical/15">
-                          <Skull className="h-3 w-3 mr-1" />
-                          {selectedLivePost.group_name}
-                        </Badge>
-                        {selectedLivePost.discovered && (
-                          <Badge variant="outline" className="border-border text-muted-foreground">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {new Date(selectedLivePost.discovered).toLocaleDateString()}
-                          </Badge>
-                        )}
-                      </div>
-                      {selectedLivePost.description && (
-                        <p className="text-sm text-foreground leading-relaxed bg-muted/30 rounded-lg p-3 border border-border">
-                          {selectedLivePost.description}
-                        </p>
-                      )}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg border border-border p-3 bg-muted/20">
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Threat Group</p>
-                          <button
-                            onClick={() => {
-                              setSelectedLivePost(null);
-                              navigate(`/group/${encodeURIComponent(selectedLivePost.group_name)}`);
-                            }}
-                            className="font-mono text-sm text-primary hover:underline"
-                          >
-                            {selectedLivePost.group_name}
-                          </button>
-                        </div>
-                        <div className="rounded-lg border border-border p-3 bg-muted/20">
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Website</p>
-                          <p className="font-mono text-sm text-foreground truncate">{selectedLivePost.website || "N/A"}</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5"
-                        onClick={async () => {
-                          const orgName = selectedLivePost.post_title || selectedLivePost.group_name;
-                          if (!watchlist.includes(orgName)) {
-                            await addWatchlistItem({ organization: orgName, notify_method: "email", notify_frequency: "instant" });
-                            toast({ title: "Added to Watchlist", description: `Now watching ${orgName}` });
-                          } else {
-                            toast({ title: "Already watching", description: `${orgName} is on your watchlist` });
-                          }
-                        }}
-                      >
-                        <Bell className="h-4 w-4" /> Watch this Organization
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </DialogContent>
-            </Dialog>
           </TabsContent>
 
           {/* ─── WATCHLIST TAB ─── */}
@@ -480,7 +411,11 @@ export default function RansomLook() {
                         p.group_name.toLowerCase().includes(org.toLowerCase())
                       );
                       return (
-                        <div key={org} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:border-primary/20 transition-colors">
+                         <div
+                          key={org}
+                          className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:border-primary/20 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/ransomlook/victim/${encodeURIComponent(org)}`)}
+                        >
                           <div className="flex items-center gap-3">
                             <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${matchedLeaks.length > 0 ? 'bg-severity-critical/10' : 'bg-muted'}`}>
                               <Eye className={`h-4 w-4 ${matchedLeaks.length > 0 ? 'text-severity-critical' : 'text-muted-foreground'}`} />
@@ -498,7 +433,7 @@ export default function RansomLook() {
                               </p>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-severity-critical" onClick={() => removeFromWatchlist(org)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-severity-critical" onClick={(e) => { e.stopPropagation(); removeFromWatchlist(org); }}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
