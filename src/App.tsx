@@ -19,6 +19,7 @@ import NetworkScanner from "./pages/NetworkScanner";
 import AuthPage from "./pages/AuthPage";
 import ScheduleManager from "./pages/ScheduleManager";
 import Reports from "./pages/Reports";
+import VictimDetail from "./pages/VictimDetail";
 
 
 import NotFound from "./pages/NotFound";
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/feed/:id" element={<FeedDetail />} />
       <Route path="/alerts" element={<AlertMonitoring />} />
       <Route path="/ransomlook" element={<RansomLook />} />
+      <Route path="/ransomlook/victim/:victimName" element={<VictimDetail />} />
       <Route path="/group/:groupName" element={<GroupDashboard />} />
       <Route path="/activity" element={<ActivityLog />} />
       <Route path="/shodan" element={<ShodanSearch />} />
