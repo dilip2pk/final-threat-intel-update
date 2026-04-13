@@ -480,7 +480,11 @@ export default function RansomLook() {
                         p.group_name.toLowerCase().includes(org.toLowerCase())
                       );
                       return (
-                        <div key={org} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:border-primary/20 transition-colors">
+                         <div
+                          key={org}
+                          className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:border-primary/20 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/ransomlook/victim/${encodeURIComponent(org)}`)}
+                        >
                           <div className="flex items-center gap-3">
                             <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${matchedLeaks.length > 0 ? 'bg-severity-critical/10' : 'bg-muted'}`}>
                               <Eye className={`h-4 w-4 ${matchedLeaks.length > 0 ? 'text-severity-critical' : 'text-muted-foreground'}`} />
@@ -498,7 +502,7 @@ export default function RansomLook() {
                               </p>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-severity-critical" onClick={() => removeFromWatchlist(org)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-severity-critical" onClick={(e) => { e.stopPropagation(); removeFromWatchlist(org); }}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
