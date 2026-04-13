@@ -29,7 +29,7 @@ export default function RansomLook() {
   const { items: watchlistItems, addItem: addWatchlistItem, removeItem: removeWatchlistItem } = useWatchlist();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedLivePost, setSelectedLivePost] = useState<RansomLookPost | null>(null);
+  
   const [watchDialogOpen, setWatchDialogOpen] = useState(false);
   const [watchOrg, setWatchOrg] = useState("");
   const [notifyMethod, setNotifyMethod] = useState("email");
