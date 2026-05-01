@@ -85,16 +85,8 @@ serve(async (req) => {
       );
     }
 
-    let apiUrl: string;
-    if (type === "host") {
-      apiUrl = `https://api.shodan.io/shodan/host/${encodeURIComponent(query)}?key=${SHODAN_API_KEY}`;
-    } else if (type === "domain") {
-      apiUrl = `https://api.shodan.io/dns/domain/${encodeURIComponent(query)}?key=${SHODAN_API_KEY}`;
-    } else {
-      apiUrl = `https://api.shodan.io/shodan/host/search?key=${SHODAN_API_KEY}&query=${encodeURIComponent(query)}&minify=true`;
-    }
-
     console.log(`Shodan query: ${type} - ${query}`);
+
 
     // ─── HOST lookup ───────────────────────────────────────────────
     if (type === "host") {
