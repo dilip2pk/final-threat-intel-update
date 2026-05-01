@@ -265,7 +265,10 @@ export default function FeedManagement() {
               <div><Label>Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="CISA Alerts" className="mt-1" /></div>
               <div>
                 <Label>URL</Label>
-                <Input value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} placeholder="https://example.com/feed.xml" className="mt-1" />
+                <Input value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} placeholder="https://example.com/feed.xml, /feed.json, or any blog homepage" className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Accepts RSS/Atom XML, JSON Feed, generic JSON arrays, or a regular blog/news URL — the system auto-detects the format and discovers feeds.
+                </p>
               </div>
               <div><Label>Category</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Government" className="mt-1" /></div>
               <div><Label>Tags (comma separated)</Label><Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="cisa, advisory, gov" className="mt-1" /></div>
