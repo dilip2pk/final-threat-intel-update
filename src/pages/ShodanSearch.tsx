@@ -46,6 +46,10 @@ interface SavedQuery {
   is_dork: boolean;
   last_run_at: string | null;
   created_at: string;
+  last_total?: number | null;
+  last_source?: string | null;
+  last_note?: string | null;
+  filters?: Record<string, unknown> | null;
 }
 
 const COMMON_DORKS = [
