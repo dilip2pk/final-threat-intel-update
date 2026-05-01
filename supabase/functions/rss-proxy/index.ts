@@ -74,6 +74,30 @@ function pick(obj: any, keys: string[]): string {
 }
 
 function parseJSONFeed(json: any): FeedItem[] {
+  // CISA KEV — Known Exploited Vulnerabilities catalog
+  if (Array.isArray(json?.vulnerabilities)) {
+    return json.vulnerabilities.map((v: any) => {
+      const cve = v.cveID || v.cve || "";
+      const title = `${cve}${v.vendorProject ? ` — ${v.vendorProject}` : ""}${v.product ? ` ${v.product}` : ""}`.trim();
+      const desc = v.shortDescription || v.vulnerabilityName || "";
+      const extra = [
+        v.requiredAction ? `Required action: ${v.requiredAction}` : "",
+        v.dueDate ? `Due: ${v.dueDate}` : "",
+        v.knownRansomwareCampaignUse ? `Ransomware use: ${v.knownRansomwareCampaignUse}` : "",
+        v.notes ? `Notes: ${v.notes}` : "",
+      ].filter(Boolean).join("\n");
+      return {
+        id: cve || `${title}-${v.dateAdded}`,
+        title: v.vulnerabilityName ? `${cve}: ${v.vulnerabilityName}` : title,
+        link: cve ? `https://nvd.nist.gov/vuln/detail/${cve}` : "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        description: String(desc).substring(0, 500),
+        pubDate: v.dateAdded || "",
+        category: "KEV",
+        content: extra.substring(0, 1000),
+      };
+    }).filter((i: FeedItem) => i.title);
+  }
+
   // JSON Feed spec: https://www.jsonfeed.org/
   let arr: any[] = [];
   if (Array.isArray(json)) arr = json;
