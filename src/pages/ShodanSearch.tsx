@@ -109,7 +109,7 @@ export default function ShodanSearch() {
 
   useEffect(() => {
     supabase.from("shodan_queries").select("*").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setSavedQueries(data);
+      if (data) setSavedQueries(data as any);
     });
   }, []);
 
