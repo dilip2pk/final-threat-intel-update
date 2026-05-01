@@ -113,18 +113,19 @@ export default function ShodanSearch() {
     });
   }, []);
 
-  const handleSearch = useCallback(async () => {
-    if (!query.trim()) return;
+  const runSearch = useCallback(async (overrides?: { query?: string; queryType?: string; savedQueryId?: string; bypassCache?: boolean }) => {
+    const q = (overrides?.query ?? query).trim();
+    const t = overrides?.queryType ?? queryType;
+    if (!q) return;
     setSearching(true);
     setResults([]);
     setFacets({});
     setResultSource("");
     setResultNote("");
     try {
-      // Pass apiKey if user has one configured locally; otherwise the proxy
-      // falls back to the server-side SHODAN_API_KEY secret.
-      const body: Record<string, unknown> = { query: query.trim(), type: queryType };
+      const body: Record<string, unknown> = { query: q, type: t };
       if (shodanApiKey) body.apiKey = shodanApiKey;
+      if (overrides?.bypassCache) body.bypassCache = true;
       const { data, error } = await supabase.functions.invoke("shodan-proxy", { body });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Search failed");
@@ -134,7 +135,22 @@ export default function ShodanSearch() {
       setResultNote(data.note || "");
       setFacets(data.facets || {});
       setActiveTab("results");
-      const suffix = data.source && data.source.includes("free") ? " (free-tier data)" : "";
+
+      // Persist last-run telemetry on the saved query (if any)
+      if (overrides?.savedQueryId) {
+        const patch = {
+          last_run_at: new Date().toISOString(),
+          last_total: data.total || 0,
+          last_source: data.source || "",
+          last_note: data.note || "",
+        };
+        await supabase.from("shodan_queries").update(patch).eq("id", overrides.savedQueryId);
+        setSavedQueries(prev => prev.map(s => s.id === overrides.savedQueryId ? { ...s, ...patch } : s));
+      }
+
+      const isFree = data.source && String(data.source).includes("free");
+      const cachedNote = data.cached ? " (cached)" : "";
+      const suffix = isFree ? ` (free-tier${cachedNote})` : cachedNote;
       toast({ title: "Search Complete", description: `Found ${(data.total || 0).toLocaleString()} results${suffix}` });
     } catch (e: any) {
       toast({ title: "Search Failed", description: e.message, variant: "destructive" });
@@ -143,12 +159,20 @@ export default function ShodanSearch() {
     }
   }, [query, queryType, shodanApiKey, toast]);
 
+  const handleSearch = useCallback(() => runSearch(), [runSearch]);
+
   const handleSaveQuery = async () => {
     if (!saveName || !query) return;
     const { data } = await supabase.from("shodan_queries")
-      .insert({ name: saveName, query, query_type: queryType, is_dork: isDork })
+      .insert({
+        name: saveName,
+        query,
+        query_type: queryType,
+        is_dork: isDork,
+        filters: { isDork, queryType },
+      })
       .select().single();
-    if (data) setSavedQueries(prev => [data, ...prev]);
+    if (data) setSavedQueries(prev => [data as any, ...prev]);
     setSaveDialogOpen(false);
     setSaveName("");
     toast({ title: "Query Saved" });
@@ -164,6 +188,11 @@ export default function ShodanSearch() {
     setQuery(q.query);
     setQueryType(q.query_type);
     setIsDork(q.is_dork);
+  };
+
+  const runSavedQuery = async (q: SavedQuery) => {
+    loadSavedQuery(q);
+    await runSearch({ query: q.query, queryType: q.query_type, savedQueryId: q.id });
   };
 
   const getCronForFrequency = (freq: string, customCron: string): string => {
