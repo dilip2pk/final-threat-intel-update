@@ -53,10 +53,16 @@ This platform aggregates, correlates, and analyzes security threat data from mul
 - **Backends**: Lovable Cloud edge functions or local Nmap server
 
 ### 🔎 Shodan Intelligence
-- Search for exposed devices and services
+- Search for exposed devices and services (host, domain, keyword)
 - Common dork shortcuts (Open RDP, Default Passwords, Exposed DBs, etc.)
-- Save and manage queries with scheduled re-runs
-- Export results as CSV or JSON
+- Save and manage queries with scheduled re-runs and last-run telemetry (count, source, timestamp)
+- Export results as CSV, JSON, HTML, or branded PDF
+- **Free-tier (no credits) support** — automatically falls back to:
+  - `internetdb.shodan.io` for free host intel (open ports, vulns, CPEs)
+  - `/dns/resolve` + InternetDB enrichment for domain searches (returns real host rows like the Shodan website)
+  - `/shodan/host/count` with country/org/port facets for keyword searches
+- **Split caching (15-min TTL)** — facets and enriched host rows are cached **separately** under the same query so re-runs reuse whichever slice is available and never blank the results panel
+- Server-side `SHODAN_API_KEY` secret is used as a fallback when no per-user key is configured
 
 ### 🛡️ Microsoft Defender Integration
 - Vulnerability management API integration
