@@ -80,6 +80,9 @@ export default function ShodanSearch() {
   const [queryType, setQueryType] = useState("search");
   const [results, setResults] = useState<ShodanResult[]>([]);
   const [totalResults, setTotalResults] = useState(0);
+  const [resultSource, setResultSource] = useState<string>("");
+  const [resultNote, setResultNote] = useState<string>("");
+  const [facets, setFacets] = useState<Record<string, Array<{ value: string; count: number }>>>({});
   const [searching, setSearching] = useState(false);
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -108,22 +111,27 @@ export default function ShodanSearch() {
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
-    if (!shodanApiKey) {
-      toast({ title: "API Key Required", description: "Please configure your Shodan API key in Settings → Shodan.", variant: "destructive" });
-      return;
-    }
     setSearching(true);
     setResults([]);
+    setFacets({});
+    setResultSource("");
+    setResultNote("");
     try {
-      const { data, error } = await supabase.functions.invoke("shodan-proxy", {
-        body: { query: query.trim(), type: queryType, apiKey: shodanApiKey },
-      });
+      // Pass apiKey if user has one configured locally; otherwise the proxy
+      // falls back to the server-side SHODAN_API_KEY secret.
+      const body: Record<string, unknown> = { query: query.trim(), type: queryType };
+      if (shodanApiKey) body.apiKey = shodanApiKey;
+      const { data, error } = await supabase.functions.invoke("shodan-proxy", { body });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Search failed");
       setResults(data.matches || []);
       setTotalResults(data.total || 0);
+      setResultSource(data.source || "");
+      setResultNote(data.note || "");
+      setFacets(data.facets || {});
       setActiveTab("results");
-      toast({ title: "Search Complete", description: `Found ${data.total || 0} results` });
+      const suffix = data.source && data.source.includes("free") ? " (free-tier data)" : "";
+      toast({ title: "Search Complete", description: `Found ${(data.total || 0).toLocaleString()} results${suffix}` });
     } catch (e: any) {
       toast({ title: "Search Failed", description: e.message, variant: "destructive" });
     } finally {
