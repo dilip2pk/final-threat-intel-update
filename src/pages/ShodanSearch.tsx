@@ -80,6 +80,9 @@ export default function ShodanSearch() {
   const [queryType, setQueryType] = useState("search");
   const [results, setResults] = useState<ShodanResult[]>([]);
   const [totalResults, setTotalResults] = useState(0);
+  const [resultSource, setResultSource] = useState<string>("");
+  const [resultNote, setResultNote] = useState<string>("");
+  const [facets, setFacets] = useState<Record<string, Array<{ value: string; count: number }>>>({});
   const [searching, setSearching] = useState(false);
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -108,22 +111,27 @@ export default function ShodanSearch() {
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
-    if (!shodanApiKey) {
-      toast({ title: "API Key Required", description: "Please configure your Shodan API key in Settings → Shodan.", variant: "destructive" });
-      return;
-    }
     setSearching(true);
     setResults([]);
+    setFacets({});
+    setResultSource("");
+    setResultNote("");
     try {
-      const { data, error } = await supabase.functions.invoke("shodan-proxy", {
-        body: { query: query.trim(), type: queryType, apiKey: shodanApiKey },
-      });
+      // Pass apiKey if user has one configured locally; otherwise the proxy
+      // falls back to the server-side SHODAN_API_KEY secret.
+      const body: Record<string, unknown> = { query: query.trim(), type: queryType };
+      if (shodanApiKey) body.apiKey = shodanApiKey;
+      const { data, error } = await supabase.functions.invoke("shodan-proxy", { body });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Search failed");
       setResults(data.matches || []);
       setTotalResults(data.total || 0);
+      setResultSource(data.source || "");
+      setResultNote(data.note || "");
+      setFacets(data.facets || {});
       setActiveTab("results");
-      toast({ title: "Search Complete", description: `Found ${data.total || 0} results` });
+      const suffix = data.source && data.source.includes("free") ? " (free-tier data)" : "";
+      toast({ title: "Search Complete", description: `Found ${(data.total || 0).toLocaleString()} results${suffix}` });
     } catch (e: any) {
       toast({ title: "Search Failed", description: e.message, variant: "destructive" });
     } finally {
@@ -505,6 +513,41 @@ export default function ShodanSearch() {
                 </DropdownMenu>
               )}
             </div>
+
+            {/* Free-tier banner with note + facet aggregates */}
+            {resultNote && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                      Free Shodan tier {resultSource && <span className="opacity-70">({resultSource})</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{resultNote}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {Object.keys(facets).length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {Object.entries(facets).map(([facetName, items]) => (
+                  <div key={facetName} className="rounded-lg border border-border bg-card p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                      Top {facetName}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {items.slice(0, 5).map((it, i) => (
+                        <li key={i} className="flex items-center justify-between text-xs">
+                          <span className="truncate text-foreground" title={String(it.value)}>{it.value}</span>
+                          <span className="text-muted-foreground font-mono ml-2">{it.count.toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {searching ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
