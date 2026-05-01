@@ -49,7 +49,7 @@ interface SavedQuery {
   last_total?: number | null;
   last_source?: string | null;
   last_note?: string | null;
-  filters?: Record<string, unknown> | null;
+  filters?: any;
 }
 
 const COMMON_DORKS = [
