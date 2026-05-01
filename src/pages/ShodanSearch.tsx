@@ -46,6 +46,10 @@ interface SavedQuery {
   is_dork: boolean;
   last_run_at: string | null;
   created_at: string;
+  last_total?: number | null;
+  last_source?: string | null;
+  last_note?: string | null;
+  filters?: any;
 }
 
 const COMMON_DORKS = [
@@ -105,22 +109,23 @@ export default function ShodanSearch() {
 
   useEffect(() => {
     supabase.from("shodan_queries").select("*").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setSavedQueries(data);
+      if (data) setSavedQueries(data as any);
     });
   }, []);
 
-  const handleSearch = useCallback(async () => {
-    if (!query.trim()) return;
+  const runSearch = useCallback(async (overrides?: { query?: string; queryType?: string; savedQueryId?: string; bypassCache?: boolean }) => {
+    const q = (overrides?.query ?? query).trim();
+    const t = overrides?.queryType ?? queryType;
+    if (!q) return;
     setSearching(true);
     setResults([]);
     setFacets({});
     setResultSource("");
     setResultNote("");
     try {
-      // Pass apiKey if user has one configured locally; otherwise the proxy
-      // falls back to the server-side SHODAN_API_KEY secret.
-      const body: Record<string, unknown> = { query: query.trim(), type: queryType };
+      const body: Record<string, unknown> = { query: q, type: t };
       if (shodanApiKey) body.apiKey = shodanApiKey;
+      if (overrides?.bypassCache) body.bypassCache = true;
       const { data, error } = await supabase.functions.invoke("shodan-proxy", { body });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Search failed");
@@ -130,7 +135,22 @@ export default function ShodanSearch() {
       setResultNote(data.note || "");
       setFacets(data.facets || {});
       setActiveTab("results");
-      const suffix = data.source && data.source.includes("free") ? " (free-tier data)" : "";
+
+      // Persist last-run telemetry on the saved query (if any)
+      if (overrides?.savedQueryId) {
+        const patch = {
+          last_run_at: new Date().toISOString(),
+          last_total: data.total || 0,
+          last_source: data.source || "",
+          last_note: data.note || "",
+        };
+        await supabase.from("shodan_queries").update(patch).eq("id", overrides.savedQueryId);
+        setSavedQueries(prev => prev.map(s => s.id === overrides.savedQueryId ? { ...s, ...patch } : s));
+      }
+
+      const isFree = data.source && String(data.source).includes("free");
+      const cachedNote = data.cached ? " (cached)" : "";
+      const suffix = isFree ? ` (free-tier${cachedNote})` : cachedNote;
       toast({ title: "Search Complete", description: `Found ${(data.total || 0).toLocaleString()} results${suffix}` });
     } catch (e: any) {
       toast({ title: "Search Failed", description: e.message, variant: "destructive" });
@@ -139,12 +159,20 @@ export default function ShodanSearch() {
     }
   }, [query, queryType, shodanApiKey, toast]);
 
+  const handleSearch = useCallback(() => runSearch(), [runSearch]);
+
   const handleSaveQuery = async () => {
     if (!saveName || !query) return;
     const { data } = await supabase.from("shodan_queries")
-      .insert({ name: saveName, query, query_type: queryType, is_dork: isDork })
+      .insert({
+        name: saveName,
+        query,
+        query_type: queryType,
+        is_dork: isDork,
+        filters: { isDork, queryType },
+      })
       .select().single();
-    if (data) setSavedQueries(prev => [data, ...prev]);
+    if (data) setSavedQueries(prev => [data as any, ...prev]);
     setSaveDialogOpen(false);
     setSaveName("");
     toast({ title: "Query Saved" });
@@ -160,6 +188,11 @@ export default function ShodanSearch() {
     setQuery(q.query);
     setQueryType(q.query_type);
     setIsDork(q.is_dork);
+  };
+
+  const runSavedQuery = async (q: SavedQuery) => {
+    loadSavedQuery(q);
+    await runSearch({ query: q.query, queryType: q.query_type, savedQueryId: q.id });
   };
 
   const getCronForFrequency = (freq: string, customCron: string): string => {
@@ -700,14 +733,28 @@ export default function ShodanSearch() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground">{q.name}</p>
                         <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">{q.query}</p>
-                        <div className="flex gap-1.5 mt-1.5">
+                        <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                           <Badge variant="outline" className="text-[9px]">{q.query_type}</Badge>
                           {q.is_dork && <Badge variant="outline" className="text-[9px] bg-[hsl(var(--severity-medium))]/10 text-[hsl(var(--severity-medium))] border-[hsl(var(--severity-medium))]/30">dork</Badge>}
+                          {q.last_source && (
+                            <Badge variant="outline" className={`text-[9px] ${String(q.last_source).includes("free") ? "bg-amber-500/10 text-amber-600 border-amber-500/30" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"}`}>
+                              {String(q.last_source).includes("free") ? "free-tier" : "paid"} · {q.last_source}
+                            </Badge>
+                          )}
+                          {typeof q.last_total === "number" && q.last_total > 0 && (
+                            <span className="text-[10px] text-muted-foreground">{q.last_total.toLocaleString()} results</span>
+                          )}
+                          {q.last_run_at && (
+                            <span className="text-[10px] text-muted-foreground">· last run {new Date(q.last_run_at).toLocaleString()}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => runSavedQuery(q)} disabled={searching || !shodanApiKey}>
+                          {searching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />} Run Now
+                        </Button>
                         <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { loadSavedQuery(q); setActiveTab("search"); }}>
-                          <Search className="h-3 w-3" /> Use
+                          <Settings2 className="h-3 w-3" /> Edit
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteQuery(q.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-3.5 w-3.5" />

@@ -592,12 +592,52 @@ export type Database = {
         }
         Relationships: []
       }
+      shodan_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          id: string
+          query: string
+          query_type: string
+          response: Json
+          source: string
+          total: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          query: string
+          query_type: string
+          response?: Json
+          source: string
+          total?: number
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          query?: string
+          query_type?: string
+          response?: Json
+          source?: string
+          total?: number
+        }
+        Relationships: []
+      }
       shodan_queries: {
         Row: {
           created_at: string
+          filters: Json | null
           id: string
           is_dork: boolean
+          last_note: string | null
           last_run_at: string | null
+          last_source: string | null
+          last_total: number | null
           name: string
           query: string
           query_type: string
@@ -605,9 +645,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          filters?: Json | null
           id?: string
           is_dork?: boolean
+          last_note?: string | null
           last_run_at?: string | null
+          last_source?: string | null
+          last_total?: number | null
           name: string
           query: string
           query_type?: string
@@ -615,9 +659,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          filters?: Json | null
           id?: string
           is_dork?: boolean
+          last_note?: string | null
           last_run_at?: string | null
+          last_source?: string | null
+          last_total?: number | null
           name?: string
           query?: string
           query_type?: string
