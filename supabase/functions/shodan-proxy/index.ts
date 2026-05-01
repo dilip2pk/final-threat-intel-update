@@ -1,3 +1,4 @@
+// shodan-proxy v2 — uses SHODAN_API_KEY env var with DB fallback
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
