@@ -733,14 +733,28 @@ export default function ShodanSearch() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground">{q.name}</p>
                         <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">{q.query}</p>
-                        <div className="flex gap-1.5 mt-1.5">
+                        <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
                           <Badge variant="outline" className="text-[9px]">{q.query_type}</Badge>
                           {q.is_dork && <Badge variant="outline" className="text-[9px] bg-[hsl(var(--severity-medium))]/10 text-[hsl(var(--severity-medium))] border-[hsl(var(--severity-medium))]/30">dork</Badge>}
+                          {q.last_source && (
+                            <Badge variant="outline" className={`text-[9px] ${String(q.last_source).includes("free") ? "bg-amber-500/10 text-amber-600 border-amber-500/30" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"}`}>
+                              {String(q.last_source).includes("free") ? "free-tier" : "paid"} · {q.last_source}
+                            </Badge>
+                          )}
+                          {typeof q.last_total === "number" && q.last_total > 0 && (
+                            <span className="text-[10px] text-muted-foreground">{q.last_total.toLocaleString()} results</span>
+                          )}
+                          {q.last_run_at && (
+                            <span className="text-[10px] text-muted-foreground">· last run {new Date(q.last_run_at).toLocaleString()}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => runSavedQuery(q)} disabled={searching || !shodanApiKey}>
+                          {searching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />} Run Now
+                        </Button>
                         <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { loadSavedQuery(q); setActiveTab("search"); }}>
-                          <Search className="h-3 w-3" /> Use
+                          <Settings2 className="h-3 w-3" /> Edit
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteQuery(q.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-3.5 w-3.5" />
