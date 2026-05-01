@@ -343,6 +343,7 @@ export default function ShodanSearch() {
 
   const vulnCount = results.reduce((acc, r) => acc + (r.vulns?.length || 0), 0);
   const uniqueOrgs = new Set(results.map(r => r.org).filter(Boolean)).size;
+  const hasFacetResults = Object.keys(facets).length > 0;
 
   return (
     <AppLayout>
@@ -587,13 +588,44 @@ export default function ShodanSearch() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-xs text-muted-foreground">Searching Shodan...</p>
               </div>
-            ) : results.length === 0 ? (
+            ) : results.length === 0 && !hasFacetResults ? (
               <div className="border border-dashed border-border rounded-xl p-16 text-center">
                 <div className="mx-auto h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
                   <Globe className="h-8 w-8 text-muted-foreground/40" />
                 </div>
                 <p className="text-sm font-medium text-foreground mb-1">No results yet</p>
                 <p className="text-xs text-muted-foreground">Run a search to see results here</p>
+              </div>
+            ) : results.length === 0 && hasFacetResults ? (
+              <div className="border border-border rounded-xl bg-card p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Aggregate results available</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Free-tier Shodan searches return counts and facet summaries, not individual host records.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {Object.entries(facets).map(([facetName, items]) => (
+                    <div key={`summary-${facetName}`} className="rounded-lg border border-border bg-muted/20 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                        {facetName}
+                      </p>
+                      <div className="space-y-2">
+                        {items.slice(0, 5).map((it, i) => (
+                          <div key={`${facetName}-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                            <span className="truncate text-foreground" title={String(it.value)}>{it.value || "Unknown"}</span>
+                            <Badge variant="outline" className="font-mono text-[10px] shrink-0">{it.count.toLocaleString()}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
