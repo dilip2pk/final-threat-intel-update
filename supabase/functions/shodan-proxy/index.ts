@@ -1,3 +1,4 @@
+// shodan-proxy v2 — uses SHODAN_API_KEY env var with DB fallback
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,12 +8,18 @@ const corsHeaders = {
 };
 
 async function getShodanApiKey(bodyApiKey?: string): Promise<string | null> {
-  // 1. Use API key from request body if provided
-  if (bodyApiKey) return bodyApiKey;
+  // 1. Use API key from request body if provided (and looks valid: >10 chars)
+  if (bodyApiKey && bodyApiKey.trim().length > 10) {
+    console.log("Using Shodan key from request body");
+    return bodyApiKey.trim();
+  }
 
   // 2. Check environment variable
   const envKey = Deno.env.get("SHODAN_API_KEY");
-  if (envKey) return envKey;
+  if (envKey && envKey.trim().length > 10) {
+    console.log("Using Shodan key from environment variable");
+    return envKey.trim();
+  }
 
   // 3. Load from app_settings in database
   try {
@@ -24,11 +31,16 @@ async function getShodanApiKey(bodyApiKey?: string): Promise<string | null> {
       .select("value")
       .eq("key", "integrations")
       .single();
-    if (data?.value?.shodan?.apiKey) return data.value.shodan.apiKey;
+    const dbKey = data?.value?.shodan?.apiKey;
+    if (dbKey && dbKey.trim().length > 10) {
+      console.log("Using Shodan key from app_settings");
+      return dbKey.trim();
+    }
   } catch (e) {
     console.error("Failed to load Shodan key from settings:", e);
   }
 
+  console.warn("No valid Shodan API key found in any source");
   return null;
 }
 
