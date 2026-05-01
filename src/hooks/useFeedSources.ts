@@ -69,7 +69,8 @@ export function useFeedSources() {
       if (!res.ok) return { success: false, message: `HTTP ${res.status}` };
       const data = await res.json();
       if (data.error) return { success: false, message: data.error };
-      return { success: true, message: `Found ${data.count || data.items?.length || 0} items` };
+      const fmt = data.format ? ` (${data.format})` : "";
+      return { success: true, message: `Found ${data.count || data.items?.length || 0} items${fmt}` };
     } catch (e: any) {
       return { success: false, message: e.message };
     }
